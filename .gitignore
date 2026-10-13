@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js build output
+/.next/
+/out/
+
+# Production standalone build
+build
+
+# Misc & debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Environment variables & secrets (CRITICAL: Never commit API keys or credentials)
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Service account keys
+*.json
+!package.json
+!tsconfig.json
+!public/manifest.json
+
+# OS files
+.DS_Store
+*.pem
+Thumbs.db
+
+# TypeScript cache
+*.tsbuildinfo
+next-env.d.ts
+
