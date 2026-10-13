@@ -1,4 +1,4 @@
-# AGENT.md - AgriShield AI Developer & AI Assistant Guide
+# AGENTS.md - AgriShield AI Developer & AI Assistant Guide
 
 Welcome to **AgriShield AI**! This project is an intelligent crop pathology, climate resilience, and treatment recommendation platform designed for smallholder farmers and agricultural cooperatives.
 
@@ -47,19 +47,10 @@ If you are an AI assistant (Cursor, Antigravity, Copilot, Claude) or a developer
 Create a `.env.local` file in the project root:
 
 ```bash
-# 1. Google Gemini API Key (Required for AI Vision & Spoken Audio)
-# Get a key from Google AI Studio: https://aistudio.google.com/
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# 2. Firebase Credentials (Optional - app gracefully uses local fallback without it)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key_here
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=agrishield-ai.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=agrishield-ai
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=agrishield-ai.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789012
-NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abcdef1234567890
-FIREBASE_PROJECT_ID=agrishield-ai
+cp .env.example .env.local
 ```
+
+Refer to [.env.example](.env.example) for the list of required and optional configuration keys.
 
 > **IMPORTANT:** Never commit `.env` or `.env.local` to git. Keep real keys strictly inside `.env.local`.
 
