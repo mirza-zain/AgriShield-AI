@@ -82,8 +82,8 @@ When modifying or expanding this codebase, strictly follow these rules:
 * **English:** Keep phrases short and actionable (*"Do Today"*, *"Home Remedy"*, *"Shop Spray"*, *"Weather Alert"* instead of *"Phytopathological defoliation"* or *"Systemic fungicides"*).
 
 ### B. Gemini API & Audio Conventions
-* **Active Models:** Google has retired older versions like `gemini-1.5-flash` or `gemini-2.0-flash`. Use active models:
-  * Vision & Diagnosis: `gemini-3.5-flash-lite`, `gemini-3.8-flash`, `gemini-flash-latest`.
+* **Active Models:** Google has shut down older versions like `gemini-2.0-flash` and restricted `gemini-2.5-flash`. Use active models per [Google AI Studio Models Catalog](https://aistudio.google.com/docs/models):
+  * Vision & Diagnosis: `gemini-3.8-flash` (Primary), `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-flash-latest`.
   * Spoken Audio (TTS): `gemini-3.8-flash-lite-tts`, `gemini-3.8-flash-tts`.
 * **Audio Cleanliness:** Never send system instructions or meta-prompts (e.g. *"You are a doctor, say..."*) directly into the TTS model's `contents` argument. The TTS model reads **all** text input aloud. Send **only** the clean text that should be spoken to the user.
 

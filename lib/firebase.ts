@@ -25,10 +25,6 @@ function getAdminDb(): admin.firestore.Firestore | null {
     return null;
   }
 
-  if (admin.apps.length > 0) {
-    return admin.firestore();
-  }
-
   const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "agrishield-ai";
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
@@ -38,13 +34,25 @@ function getAdminDb(): admin.firestore.Firestore | null {
     privateKey = privateKey.replace(/\\n/g, "\n");
   }
 
+  const hasExplicitCert = Boolean(clientEmail && privateKey);
+  const isCloudRun = Boolean(process.env.K_SERVICE || process.env.FUNCTION_NAME || process.env.GAE_SERVICE);
+
+  // In local development without complete explicit credentials, return null immediately to avoid metadata network timeout!
+  if (!hasExplicitCert && !isCloudRun) {
+    return null;
+  }
+
+  if (admin.apps.length > 0) {
+    return admin.firestore();
+  }
+
   try {
-    if (clientEmail && privateKey) {
+    if (hasExplicitCert) {
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId,
-          clientEmail,
-          privateKey,
+          clientEmail: clientEmail!,
+          privateKey: privateKey!,
         }),
       });
     } else {
@@ -55,10 +63,9 @@ function getAdminDb(): admin.firestore.Firestore | null {
     }
     return admin.firestore();
   } catch (error) {
-    console.warn("Firebase Admin SDK init warning (will gracefully fallback to mock in local demo mode):", error);
+    console.warn("Firebase Admin SDK init warning (gracefully falling back to in-memory store):", error);
     return null;
   }
 }
 
 export { clientApp, clientAuth, clientDb, getAdminDb };
-

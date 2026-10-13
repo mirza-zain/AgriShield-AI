@@ -2,16 +2,15 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const viewport: Viewport = {
-  themeColor: "#059669",
+  themeColor: "#065f46",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
-  title: "AgriShield - Plant Doctor for Farmers",
-  description: "Check plant sickness from leaf photos and get easy remedies, simple advice, and weather alerts.",
+  title: "AgriShield AI - Intelligent Plant Doctor & Weather Shield",
+  description: "Snap a leaf photo to diagnose plant diseases instantly in easy Urdu & English. Get safe home remedies, chemical options, and climate warnings.",
   manifest: "/manifest.json",
   icons: {
     icon: "/icon.svg",
@@ -25,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-[#f8fafc] text-slate-900 antialiased selection:bg-emerald-500 selection:text-white">
+    <html lang="en" className="scroll-smooth">
+      <body className="min-h-screen bg-[#f8fafc] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(16,185,129,0.08),rgba(255,255,255,0))] text-slate-900 antialiased selection:bg-emerald-500 selection:text-white font-sans">
         {children}
       </body>
     </html>

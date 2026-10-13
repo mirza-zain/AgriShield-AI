@@ -16,11 +16,11 @@ export async function POST(req: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Use Gemini Neural TTS for studio-grade human speech
+    // Active Gemini Neural TTS models per official Google AI Studio catalog
+    // Modern Gemini 3 Neural TTS models only (strictly no legacy 2.5)
     const ttsModels = [
       "gemini-3.8-flash-lite-tts",
       "gemini-3.8-flash-tts",
-      "gemini-3.1-flash-tts-preview"
     ];
 
     let audioData: string | null = null;
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     for (const model of ttsModels) {
       try {
         // Send only the exact text to read aloud - no instructions or prompts that could be spoken
-        const response = await ai.models.generateContent({
+        const generatePromise = ai.models.generateContent({
           model,
           contents: text.trim(),
           config: {
@@ -38,6 +38,12 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        // 15-second timeout per attempt to allow studio synthesis
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("TTS model timeout (15s)")), 15000)
+        );
+
+        const response = await Promise.race([generatePromise, timeoutPromise]);
         const part = response.candidates?.[0]?.content?.parts?.[0];
         if (part?.inlineData?.data) {
           audioData = part.inlineData.data;
@@ -68,4 +74,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
