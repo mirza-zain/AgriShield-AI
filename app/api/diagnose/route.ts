@@ -216,15 +216,18 @@ LANGUAGE REQUIREMENT:
 - If Urdu, use simple everyday conversational Urdu (روزمرہ کی آسان اور عام فہم اردو).
 - If English, keep sentences short and clear. If Hindi, use simple Bolchaal Hindi.`;
 
-          // Modern Gemini 3 Vision models only (strictly no legacy 2.5)
+          // Active Gemini 3 models per AGENTS.md catalog: gemini-3.8-flash (Primary), gemini-3.6-flash, gemini-3.5-flash-lite, gemini-flash-latest
           const candidateModels = [
             "gemini-3.8-flash",
+            "gemini-3.6-flash",
             "gemini-3.5-flash-lite",
+            "gemini-flash-latest",
+            "gemini-3.1-flash-lite",
           ];
 
           for (const modelName of candidateModels) {
             try {
-              // 15-second timeout allowing the vision model to complete without premature abort
+              // 18-second timeout giving adequate time for multimodal JSON output without premature kill
               const generatePromise = ai.models.generateContent({
                 model: modelName,
                 contents: [
@@ -305,11 +308,12 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
               });
 
               const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error("AI generation timeout (15s)")), 15000)
+                setTimeout(() => reject(new Error("AI generation timeout (18s)")), 18000)
               );
 
               const response = await Promise.race([generatePromise, timeoutPromise]);
               if (response.text) {
+                console.log(`Diagnosis generated successfully with model: ${modelName}`);
                 diagnosis = JSON.parse(response.text);
                 break;
               }
@@ -346,22 +350,27 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
         );
       }
 
-      // If AI was offline or timed out on an uploaded image
+      // If all AI models were 503 overloaded, rate-limited, or timed out on an uploaded image:
+      // DO NOT return fake tomato preset data! Tell the user honestly that the models are experiencing high demand.
       if (!diagnosis) {
-        if (apiKey) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                language === "Urdu"
-                  ? "تصویر کو چیک نہیں کیا جا سکا۔ براہِ کرم پودے کی واضح تصویر لگائیں اور دوبارہ کوشش کریں۔"
-                  : "Could not analyze the photo. Please make sure the photo is clear, focused on a plant leaf, and try again.",
-            },
-            { status: 400 }
-          );
-        }
-        // Local fallback when no API key is provided
-        diagnosis = getPresetDiagnosis(image, language);
+        console.warn("AI service currently experiencing 503 high demand or network timeout across models.");
+        const highDemandMsg =
+          language === "Urdu"
+            ? "اس وقت اے آئی سروس پر زیادہ لوڈ (High Demand) ہے۔ پودے کو چیک نہیں کیا جا سکا۔ براہِ کرم چند لمحے بعد دوبارہ کوشش کریں۔"
+            : language === "Hindi"
+            ? "एआई सेवा पर इस समय अत्यधिक लोड (High Demand) है। कृपया कुछ क्षण बाद पुनः प्रयास करें।"
+            : language === "Spanish"
+            ? "Los modelos de IA están experimentando alta demanda en este momento. Por favor intente de nuevo en unos momentos."
+            : "Gemini AI models are currently experiencing high demand. Please wait a moment and try again.";
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: highDemandMsg,
+            isHighDemand: true,
+          },
+          { status: 503 }
+        );
       }
     }
 

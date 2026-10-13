@@ -250,7 +250,47 @@ export default function AgriShieldDashboard() {
     }
   };
 
-  const handleFile = (file: File) => {
+  const compressImageFile = (file: File, maxDim = 1280, quality = 0.85): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const rawDataUrl = e.target?.result as string;
+        if (!rawDataUrl) {
+          resolve("");
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          } else {
+            resolve(rawDataUrl);
+          }
+        };
+        img.onerror = () => resolve(rawDataUrl);
+        img.src = rawDataUrl;
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFile = async (file: File) => {
     setErrorMessage(null);
     setNotCropNotice(null);
     setSelectedScanId(null);
@@ -258,6 +298,15 @@ export default function AgriShieldDashboard() {
     if (!file.type.startsWith("image/")) {
       setErrorMessage("Please pick an image of a plant leaf.");
       return;
+    }
+    try {
+      const compressedUrl = await compressImageFile(file);
+      if (compressedUrl) {
+        setImagePreview(compressedUrl);
+        return;
+      }
+    } catch {
+      // Fallback to standard reader
     }
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -310,7 +359,7 @@ export default function AgriShieldDashboard() {
               ? "یہ تصویر کسی فصل یا پودے کی نہیں ہے۔ براہِ کرم اپنے پودے، پتے یا زرعی پیداوار کی صاف تصویر اپلوڈ کریں۔"
               : "Hey, this is not a plant or crop! Please upload a clear photo of your plant, leaf, or farm harvest.");
           setNotCropNotice({ isInvalid: true, message: rejectionMsg });
-          setErrorMessage(rejectionMsg);
+          setErrorMessage(null);
 
           // Smooth scroll to results on mobile devices so user sees the explanation immediately
           if (window.innerWidth < 1024 && resultsRef.current) {
@@ -321,7 +370,16 @@ export default function AgriShieldDashboard() {
           return; // IMPORTANT: Do NOT add to historyFeed or recent scans!
         }
 
-        throw new Error(data.error || "Could not check plant. Please check connection.");
+        setDiagnosis(null);
+        setNotCropNotice(null);
+        const errMsg = data.error || (selectedLanguage === "Urdu" ? "اس وقت اے آئی سروس پر زیادہ لوڈ ہے۔ براہِ کرم دوبارہ کوشش کریں۔" : "AI model is currently experiencing high demand. Please try again.");
+        setErrorMessage(errMsg);
+        if (window.innerWidth < 1024 && resultsRef.current) {
+          setTimeout(() => {
+            resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 150);
+        }
+        return;
       }
 
       setNotCropNotice(null);
@@ -1309,6 +1367,71 @@ export default function AgriShieldDashboard() {
                       handleSelectPreset(SAMPLE_PRESETS[3].url);
                     }}
                     className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95"
+                  >
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <span>
+                      {selectedLanguage === "Urdu" ? "نمونہ فصل آزمائیں" : "Test Sample Crop"}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : errorMessage ? (
+              // Dedicated "AI Service High Demand / Busy" Card in Results Column
+              <div className="bg-white rounded-3xl border-2 border-rose-300 shadow-card p-6 sm:p-8 space-y-6 text-center animate-in fade-in slide-in-from-bottom-2">
+                <div className="w-16 h-16 rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200 shadow-sm">
+                  <AlertTriangle className="w-8 h-8" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-900 border border-rose-300">
+                    <Activity className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                    <span>
+                      {selectedLanguage === "Urdu"
+                        ? "اے آئی سروس پر زیادہ لوڈ"
+                        : selectedLanguage === "Hindi"
+                        ? "एआई सेवा व्यस्त"
+                        : selectedLanguage === "Spanish"
+                        ? "Servicio IA Ocupado"
+                        : "High Demand Spike"}
+                    </span>
+                  </div>
+
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                    {selectedLanguage === "Urdu"
+                      ? "اے آئی سروس اس وقت مصروف ہے"
+                      : selectedLanguage === "Hindi"
+                      ? "एआई सेवा इस समय व्यस्त है"
+                      : selectedLanguage === "Spanish"
+                      ? "El servicio de IA está ocupado"
+                      : "AI Service Currently Busy"}
+                  </h3>
+
+                  <p className="text-sm text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
+                    {errorMessage}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={handleRunDiagnosis}
+                    className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-600/20 active:scale-95"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>
+                      {selectedLanguage === "Urdu"
+                        ? "دوبارہ چیک کریں"
+                        : selectedLanguage === "Hindi"
+                        ? "पुनः प्रयास करें"
+                        : selectedLanguage === "Spanish"
+                        ? "Reintentar"
+                        : "Try Again Now"}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleSelectPreset(SAMPLE_PRESETS[3].url);
+                    }}
+                    className="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95"
                   >
                     <Sparkles className="w-4 h-4 text-emerald-600" />
                     <span>
