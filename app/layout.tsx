@@ -13,7 +13,10 @@ export const metadata: Metadata = {
   description: "Snap a leaf photo to diagnose plant diseases instantly in easy Urdu & English. Get safe home remedies, chemical options, and climate warnings.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg",
     apple: "/icon.svg",
   },
 };

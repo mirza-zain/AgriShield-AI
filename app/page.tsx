@@ -35,6 +35,27 @@ import {
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord } from "@/lib/types";
 
+// Authentic Ionicons Leaf SVG Component
+function IoniconsLeaf({
+  className = "w-5 h-5",
+  mirrored = true,
+}: {
+  className?: string;
+  mirrored?: boolean;
+}) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 512 512"
+      className={className}
+      fill="currentColor"
+      style={mirrored ? { transform: "scaleX(-1)" } : undefined}
+    >
+      <path d="M161.35 242a16 16 0 0 1 22.62-.68c73.63 69.36 147.51 111.56 234.45 133.07c11.73-32 12.77-67.22 2.64-101.58c-13.44-45.59-44.74-85.31-90.49-114.86c-40.84-26.38-81.66-33.25-121.15-39.89c-49.82-8.38-96.88-16.3-141.79-63.85c-5-5.26-11.81-7.37-18.32-5.66c-7.44 2-12.43 7.88-14.82 17.6c-5.6 22.75-2 86.51 13.75 153.82c25.29 108.14 65.65 162.86 95.06 189.73c38 34.69 87.62 53.9 136.93 53.9a186 186 0 0 0 27.77-2.04c41.71-6.32 76.43-27.27 96-57.75c-89.49-23.28-165.94-67.55-242-139.16a16 16 0 0 1-.65-22.65m306.08 142.19c-16.83-2.59-33.13-5.84-49-9.77a157.7 157.7 0 0 1-12.13 25.68c-.73 1.25-1.5 2.49-2.29 3.71a584 584 0 0 0 58.56 12a16 16 0 1 0 4.87-31.62Z" />
+    </svg>
+  );
+}
+
 // Practical sample tests for judges & farmers
 const SAMPLE_PRESETS = [
   {
@@ -571,7 +592,7 @@ export default function AgriShieldDashboard() {
           {/* Logo & Simple Title */}
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-glow flex-shrink-0 transition-transform hover:scale-105">
-              <Leaf className="w-5 h-5 stroke-[2.4]" />
+              <IoniconsLeaf className="w-5 h-5" mirrored={true} />
             </div>
             <div>
               <div className="flex items-center space-x-2">
@@ -1479,7 +1500,7 @@ export default function AgriShieldDashboard() {
       <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
         <div className="flex items-center space-x-2">
           <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
-            <Leaf className="w-3.5 h-3.5" />
+            <IoniconsLeaf className="w-3.5 h-3.5" mirrored={true} />
           </div>
           <span className="font-bold text-slate-700">AgriShield AI</span>
           <span>•</span>
