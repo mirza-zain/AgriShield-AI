@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const providers = [
       async () => {
         const url = isPrivateOrLocal ? "https://ipwho.is/" : `https://ipwho.is/${clientIp}`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (!res.ok) return null;
         const d = await res.json();
         if (d.success !== false && d.latitude && d.longitude) {
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
         const url = isPrivateOrLocal
           ? "https://freeipapi.com/api/json"
           : `https://freeipapi.com/api/json/${clientIp}`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (!res.ok) return null;
         const d = await res.json();
         if (d.latitude && d.longitude) {
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         const url = isPrivateOrLocal
           ? "https://ipapi.co/json/"
           : `https://ipapi.co/${clientIp}/json/`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (!res.ok) return null;
         const d = await res.json();
         if (d.latitude && d.longitude) {

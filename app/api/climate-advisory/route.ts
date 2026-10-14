@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ClimateAdvisoryResult } from "@/lib/types";
 
+// Maximum duration for Next.js route handler to allow thinking models to reason
+export const maxDuration = 60;
+
 // Deterministic rule-based agronomic advisory for offline / rate-limit fallback
 function getRuleBasedClimateAdvisory(
   temperature: number,
@@ -163,11 +166,15 @@ export async function POST(req: NextRequest) {
         cropName,
         language
       );
-      return NextResponse.json({ advisory: fallbackResult, source: "offline_engine" });
+      console.log(`[Climate Advisory] API key not configured. Using rule-based offline engine.`);
+      return NextResponse.json({ advisory: fallbackResult, source: "offline_engine", modelUsed: "rule-based-engine" });
     }
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { timeout: 45000 },
+      });
 
       const advisorySchema: Schema = {
         type: Type.OBJECT,
@@ -248,7 +255,7 @@ Calculate the disease outbreak risk and provide a complete structured agronomic 
       for (const modelName of candidateModels) {
         try {
           const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("AI generation timeout (4.5s)")), 4500)
+            setTimeout(() => reject(new Error("AI generation timeout (45s)")), 45000)
           );
 
           const generatePromise = ai.models.generateContent({
@@ -266,10 +273,12 @@ Calculate the disease outbreak risk and provide a complete structured agronomic 
           const responseText = response.text ? response.text.trim() : "";
 
           if (responseText) {
+            console.log(`[Climate Advisory] Advisory generated successfully with model: ${modelName}`);
             const parsed = JSON.parse(responseText) as ClimateAdvisoryResult;
             return NextResponse.json({
               advisory: parsed,
               source: `model:${modelName}`,
+              modelUsed: modelName,
             });
           }
         } catch (modelError: any) {
@@ -279,6 +288,7 @@ Calculate the disease outbreak risk and provide a complete structured agronomic 
       }
 
       // If all models failed, use deterministic fallback
+      console.log("[Climate Advisory] All candidate models busy or unavailable. Using rule-based fallback advisory.");
       const fallback = getRuleBasedClimateAdvisory(
         temperature,
         humidity,
@@ -287,9 +297,10 @@ Calculate the disease outbreak risk and provide a complete structured agronomic 
         cropName,
         language
       );
-      return NextResponse.json({ advisory: fallback, source: "rule_fallback" });
+      return NextResponse.json({ advisory: fallback, source: "rule_fallback", modelUsed: "rule-based-engine" });
     } catch (aiInitError) {
       console.error("AI client error:", aiInitError);
+      console.log("[Climate Advisory] AI client init error. Using rule-based fallback advisory.");
       const fallback = getRuleBasedClimateAdvisory(
         temperature,
         humidity,
@@ -298,7 +309,7 @@ Calculate the disease outbreak risk and provide a complete structured agronomic 
         cropName,
         language
       );
-      return NextResponse.json({ advisory: fallback, source: "rule_fallback" });
+      return NextResponse.json({ advisory: fallback, source: "rule_fallback", modelUsed: "rule-based-engine" });
     }
   } catch (error: any) {
     console.error("Error in climate-advisory route:", error);

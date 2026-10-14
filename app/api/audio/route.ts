@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 
+// Maximum duration for Next.js route handler to allow audio synthesis
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   try {
     const { text, language = "English" } = await req.json();
@@ -14,7 +17,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "API key not configured" }, { status: 500 });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { timeout: 35000 },
+    });
 
     // Active Gemini Neural TTS models per official Google AI Studio catalog
     // Modern Gemini 3 Neural TTS models only (strictly no legacy 2.5)
@@ -26,6 +32,7 @@ export async function POST(req: NextRequest) {
     let audioData: string | null = null;
     let mimeType = "audio/wav";
     let lastError: any = null;
+    let usedModel: string = "";
 
     for (const model of ttsModels) {
       try {
@@ -38,9 +45,9 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // 15-second timeout per attempt to allow studio synthesis
+        // 35-second timeout per attempt to allow studio synthesis
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("TTS model timeout (15s)")), 15000)
+          setTimeout(() => reject(new Error("TTS model timeout (35s)")), 35000)
         );
 
         const response = await Promise.race([generatePromise, timeoutPromise]);
@@ -50,6 +57,8 @@ export async function POST(req: NextRequest) {
           if (part.inlineData.mimeType) {
             mimeType = part.inlineData.mimeType;
           }
+          usedModel = model;
+          console.log(`[Audio Engine] Neural TTS generated successfully with model: ${model}`);
           break;
         }
       } catch (err: any) {
@@ -65,6 +74,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       audioBase64: `data:${mimeType};base64,${audioData}`,
+      modelUsed: usedModel,
     });
   } catch (error: any) {
     console.error("Audio generation route error:", error);

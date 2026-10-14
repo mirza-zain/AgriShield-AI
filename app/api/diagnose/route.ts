@@ -4,6 +4,9 @@ import { getAdminDb } from "@/lib/firebase";
 import { DiagnosisResult, ScanRecord } from "@/lib/types";
 import { addSharedScan } from "@/lib/scanStore";
 
+// Maximum duration for Next.js route handler to allow thinking models to reason
+export const maxDuration = 60;
+
 // Instant agronomic diagnosis lookup matching all presets and offline scenarios
 function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
   if (image.includes("1644504113660-54f9d01b27d6") || image.includes("1541858619423-42850b8687c1")) {
@@ -175,6 +178,7 @@ export async function POST(req: NextRequest) {
 
     const isPresetUrl = image.startsWith("http://") || image.startsWith("https://");
     let diagnosis: DiagnosisResult | null = null;
+    let activeModel = isPresetUrl ? "Preset Knowledge Base" : "";
 
     if (isPresetUrl) {
       // INSTANT SUB-MILLISECOND PATH for Quick Test Samples:
@@ -198,7 +202,10 @@ export async function POST(req: NextRequest) {
 
       if (apiKey && apiKey !== "your_gemini_api_key_here") {
         try {
-          const ai = new GoogleGenAI({ apiKey });
+          const ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: { timeout: 45000 },
+          });
 
           const languagePrompt = `Analyze this image carefully. The requested language is ${language}.
 
@@ -308,11 +315,12 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
               });
 
               const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error("AI generation timeout (18s)")), 18000)
+                setTimeout(() => reject(new Error("AI generation timeout (45s)")), 45000)
               );
 
               const response = await Promise.race([generatePromise, timeoutPromise]);
               if (response.text) {
+                activeModel = modelName;
                 console.log(`Diagnosis generated successfully with model: ${modelName}`);
                 diagnosis = JSON.parse(response.text);
                 break;
@@ -333,10 +341,10 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
           (language === "Urdu"
             ? "یہ تصویر کسی فصل، پودے یا پتے کی معلوم نہیں ہوتی۔ براہِ کرم اپنے پودے، پتے یا زرعی پیداوار کی صاف تصویر اپلوڈ کریں۔"
             : language === "Hindi"
-            ? "यह तस्वीर किसी पौधे या फसल की नहीं लगती। कृपया अपने पौधे या पत्ते की साफ तस्वीर अपलोड करें।"
-            : language === "Spanish"
-            ? "Esta foto no parece ser una planta o cultivo. Por favor suba una foto clara de su planta o cosecha."
-            : "This photo does not appear to be a crop, plant leaf, or agricultural harvest. Please upload a clear photo of your plant or crop.");
+              ? "यह तस्वीर किसी पौधे या फसल की नहीं लगती। कृपया अपने पौधे या पत्ते की साफ तस्वीर अपलोड करें।"
+              : language === "Spanish"
+                ? "Esta foto no parece ser una planta o cultivo. Por favor suba una foto clara de su planta o cosecha."
+                : "This photo does not appear to be a crop, plant leaf, or agricultural harvest. Please upload a clear photo of your plant or crop.");
 
         // CRITICAL: DO NOT save to shared scans store or Firestore!
         return NextResponse.json(
@@ -358,10 +366,10 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
           language === "Urdu"
             ? "اس وقت اے آئی سروس پر زیادہ لوڈ (High Demand) ہے۔ پودے کو چیک نہیں کیا جا سکا۔ براہِ کرم چند لمحے بعد دوبارہ کوشش کریں۔"
             : language === "Hindi"
-            ? "एआई सेवा पर इस समय अत्यधिक लोड (High Demand) है। कृपया कुछ क्षण बाद पुनः प्रयास करें।"
-            : language === "Spanish"
-            ? "Los modelos de IA están experimentando alta demanda en este momento. Por favor intente de nuevo en unos momentos."
-            : "Gemini AI models are currently experiencing high demand. Please wait a moment and try again.";
+              ? "एआई सेवा पर इस समय अत्यधिक लोड (High Demand) है। कृपया कुछ क्षण बाद पुनः प्रयास करें।"
+              : language === "Spanish"
+                ? "Los modelos de IA están experimentando alta demanda en este momento. Por favor intente de nuevo en unos momentos."
+                : "Gemini AI models are currently experiencing high demand. Please wait a moment and try again.";
 
         return NextResponse.json(
           {
@@ -423,6 +431,7 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
       isPlantOrCrop: true,
       scanId,
       diagnosis,
+      modelUsed: activeModel || "gemini-3.8-flash",
     });
   } catch (error: any) {
     console.error("Diagnosis error:", error);

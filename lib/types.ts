@@ -14,6 +14,7 @@ export interface DiagnosisResult {
   };
   prevention_tips: string[];
   climate_impact_warning: string;
+  model_used?: string;
 }
 
 export interface ScanRecord extends DiagnosisResult {
@@ -65,5 +66,6 @@ export interface ClimateAdvisoryResult {
   spray_timing_advice: string;
   irrigation_advice: string;
   spoken_script: string;
+  model_used?: string;
 }
 
