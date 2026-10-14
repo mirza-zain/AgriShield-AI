@@ -21,6 +21,7 @@ import {
   Zap,
   Layers,
   CloudSun,
+  CloudRain,
   X,
   Smartphone,
   Copy,
@@ -266,12 +267,16 @@ export default function AgriShieldDashboard() {
   const [activeTreatmentTab, setActiveTreatmentTab] = useState<"immediate" | "organic" | "chemical">("immediate");
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
 
-  // Optional Observation Context (Photo Date & Region)
+  // Optional Observation Context (Photo Date & Region & Weather)
   const [observationDate, setObservationDate] = useState<string>("");
+  const [observationTime, setObservationTime] = useState<string>("");
   const [observationLocation, setObservationLocation] = useState<string>("");
+  const [observationCoords, setObservationCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [showObservationContext, setShowObservationContext] = useState<boolean>(false);
   const [isDateUserEdited, setIsDateUserEdited] = useState<boolean>(false);
   const [isDateFromExif, setIsDateFromExif] = useState<boolean>(false);
+  const [isTimeUserEdited, setIsTimeUserEdited] = useState<boolean>(false);
+  const [isTimeFromExif, setIsTimeFromExif] = useState<boolean>(false);
   const [isDetectingRegion, setIsDetectingRegion] = useState<boolean>(false);
 
   // Audio / Speech State
@@ -457,7 +462,7 @@ export default function AgriShieldDashboard() {
     });
   };
 
-  const extractExifDateFromImageFile = async (file: File): Promise<string | null> => {
+  const extractExifDateFromImageFile = async (file: File): Promise<{ date: string; time?: string } | null> => {
     try {
       if (!file.type.startsWith("image/")) return null;
       // Read first 128KB of image where EXIF header resides
@@ -479,9 +484,11 @@ export default function AgriShieldDashboard() {
               app1Bytes[3] === 0x66
             ) {
               const text = new TextDecoder("latin1").decode(app1Bytes);
-              const match = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])(?:\s(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d))?\b/);
+              const match = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])(?:\s([01]\d|2[0-3]):([0-5]\d):([0-5]\d))?\b/);
               if (match) {
-                return `${match[1]}-${match[2]}-${match[3]}`;
+                const date = `${match[1]}-${match[2]}-${match[3]}`;
+                const time = match[4] && match[5] ? `${match[4]}:${match[5]}` : undefined;
+                return { date, time };
               }
             }
             break;
@@ -496,9 +503,12 @@ export default function AgriShieldDashboard() {
 
       // 2. Scan first 64KB for standard EXIF timestamp format "YYYY:MM:DD HH:MM:SS" (covers HEIC/TIFF/WebP metadata)
       const text = new TextDecoder("latin1").decode(bytes.subarray(0, 65536));
-      const fullMatch = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])\s(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)\b/);
+      const fullMatch = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])\s([01]\d|2[0-3]):([0-5]\d):([0-5]\d)\b/);
       if (fullMatch) {
-        return `${fullMatch[1]}-${fullMatch[2]}-${fullMatch[3]}`;
+        return {
+          date: `${fullMatch[1]}-${fullMatch[2]}-${fullMatch[3]}`,
+          time: `${fullMatch[4]}:${fullMatch[5]}`,
+        };
       }
     } catch {
       // Ignore EXIF parsing failures
@@ -519,14 +529,22 @@ export default function AgriShieldDashboard() {
 
     // Only inspect genuine photo EXIF metadata (never use file.lastModified or upload time)
     if (!isDateUserEdited) {
-      const exifDate = await extractExifDateFromImageFile(file);
-      if (exifDate) {
-        setObservationDate(exifDate);
+      const exifData = await extractExifDateFromImageFile(file);
+      if (exifData) {
+        setObservationDate(exifData.date);
         setIsDateFromExif(true);
+        if (exifData.time && !isTimeUserEdited) {
+          setObservationTime(exifData.time);
+          setIsTimeFromExif(true);
+        }
       } else {
         // If image has no embedded EXIF date and user has not added one, leave empty
         setObservationDate("");
         setIsDateFromExif(false);
+        if (!isTimeUserEdited) {
+          setObservationTime("");
+          setIsTimeFromExif(false);
+        }
       }
     }
     try {
@@ -564,6 +582,8 @@ export default function AgriShieldDashboard() {
     if (!isDateUserEdited) {
       setObservationDate("");
       setIsDateFromExif(false);
+      setObservationTime("");
+      setIsTimeFromExif(false);
     }
     if (presetName) {
       showToast(`Loaded sample: ${presetName} 🌿`);
@@ -587,7 +607,9 @@ export default function AgriShieldDashboard() {
         thumbnail: thumbnailPreview || imagePreview,
         language: selectedLanguage,
         observationDate: observationDate.trim() || undefined,
+        observationTime: observationTime.trim() || undefined,
         observationLocation: observationLocation.trim() || undefined,
+        coordinates: observationCoords || undefined,
       };
 
       const res = await fetch("/api/diagnose", {
@@ -652,6 +674,7 @@ export default function AgriShieldDashboard() {
         treatment: data.diagnosis.treatment,
         prevention_tips: data.diagnosis.prevention_tips,
         climate_impact_warning: data.diagnosis.climate_impact_warning,
+        disease_origin: data.diagnosis.disease_origin,
         imageUrl: imagePreview || undefined,
         imageThumbnail: thumbnailPreview || imagePreview || undefined,
         language: selectedLanguage,
@@ -842,13 +865,17 @@ export default function AgriShieldDashboard() {
     setDiagnosis(scan);
     if (scan.agronomic_context) {
       setObservationDate(scan.agronomic_context.captured_at || "");
+      setObservationTime(scan.agronomic_context.observation_time || "");
       setObservationLocation(scan.agronomic_context.climate_zone || "");
     } else {
       setObservationDate("");
+      setObservationTime("");
       setObservationLocation("");
     }
     setIsDateUserEdited(false);
     setIsDateFromExif(false);
+    setIsTimeUserEdited(false);
+    setIsTimeFromExif(false);
     const activeImage = scan.imageUrl || scan.imageThumbnail || null;
     if (activeImage) {
       setImagePreview(activeImage);
@@ -1036,6 +1063,7 @@ export default function AgriShieldDashboard() {
             } catch {}
 
             setObservationLocation(regionLabel);
+            setObservationCoords({ lat: latitude, lon: longitude });
             await fetchWeatherForCoords(latitude, longitude, regionLabel, "gps");
             showToast(`Local Farm GPS locked: ${regionLabel} 📍`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
           } catch (err) {
@@ -1070,6 +1098,7 @@ export default function AgriShieldDashboard() {
         const label = data.label || data.city || "Regional Farm Zone (IP)";
         setObservationLocation(label);
         if (data.latitude && data.longitude) {
+          setObservationCoords({ lat: data.latitude, lon: data.longitude });
           await fetchWeatherForCoords(data.latitude, data.longitude, label, "ip");
         }
         showToast(toastMsg || `Location locked via IP: ${label} 🌐`, <Globe className="w-4 h-4 text-blue-400" />);
@@ -1126,6 +1155,8 @@ export default function AgriShieldDashboard() {
         setModalLonInput(Number(first.longitude).toFixed(4));
         const label = `${first.name}${first.admin1 ? `, ${first.admin1}` : ""}${first.country ? `, ${first.country}` : ""}`;
         await fetchWeatherForCoords(first.latitude, first.longitude, label, "map");
+        setObservationLocation(label);
+        setObservationCoords({ lat: first.latitude, lon: first.longitude });
         showToast(`Map centered on ${first.name} 📍`);
       } else {
         showToast("City not found. Enter coordinates manually below.");
@@ -1144,10 +1175,20 @@ export default function AgriShieldDashboard() {
       showToast("Please enter valid Latitude (-90 to 90) and Longitude (-180 to 180)");
       return;
     }
-    const customLabel = `Field (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)`;
+    let customLabel = `Field (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)`;
+    try {
+      const res = await fetch(`/api/locate?lat=${lat}&lon=${lon}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.label) customLabel = d.label;
+      }
+    } catch {}
+
+    setObservationCoords({ lat, lon });
     await fetchWeatherForCoords(lat, lon, customLabel, "map");
+    setObservationLocation(customLabel);
     setIsLocationModalOpen(false);
-    showToast(`Weather locked to Field Coords 📍`);
+    showToast(`Location locked to ${customLabel} 📍`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
   };
 
   const handleAskClimateDoctor = async () => {
@@ -1810,9 +1851,9 @@ export default function AgriShieldDashboard() {
                       <div className="flex items-center space-x-2 min-w-0 pr-2">
                         <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                         <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition-colors truncate">
-                          Optional: Photo Date & Agro-Region
+                          Optional: Photo Date, Time & Agro-Region
                         </span>
-                        {(observationDate || observationLocation) && (
+                        {(observationDate || observationTime || observationLocation) && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 flex-shrink-0">
                             Active
                           </span>
@@ -1820,7 +1861,7 @@ export default function AgriShieldDashboard() {
                       </div>
                       <div className="flex items-center space-x-1.5 flex-shrink-0">
                         <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
-                          Hones AI Seasonality
+                          Unlocks 7-Day Microclimate
                         </span>
                         <ChevronDown
                           className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
@@ -1832,17 +1873,17 @@ export default function AgriShieldDashboard() {
 
                     {showObservationContext && (
                       <div className="pt-2 border-t border-slate-200/70 space-y-3 animate-in fade-in duration-200">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
                           {/* Observation Date */}
-                          <div className="space-y-1">
+                          <div className="sm:col-span-4 space-y-1">
                             <div className="flex items-center justify-between">
                               <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5 flex-wrap">
                                 <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                <span>Observation Date</span>
+                                <span>Date</span>
                                 {isDateFromExif && observationDate && (
-                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center space-x-0.5">
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex items-center space-x-0.5">
                                     <span>📷</span>
-                                    <span>From Photo EXIF</span>
+                                    <span>EXIF</span>
                                   </span>
                                 )}
                               </label>
@@ -1871,17 +1912,61 @@ export default function AgriShieldDashboard() {
                             />
                             {!observationDate && (
                               <p className="text-[10px] text-slate-400 font-medium">
-                                Optional: Leave blank to diagnose without date
+                                Optional: e.g. photo day
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Observation Time */}
+                          <div className="sm:col-span-3 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5 flex-wrap">
+                                <span>Time</span>
+                                {isTimeFromExif && observationTime && (
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex items-center space-x-0.5">
+                                    <span>📷</span>
+                                    <span>EXIF</span>
+                                  </span>
+                                )}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const now = new Date();
+                                  const hh = String(now.getHours()).padStart(2, "0");
+                                  const mm = String(now.getMinutes()).padStart(2, "0");
+                                  setObservationTime(`${hh}:${mm}`);
+                                  setIsTimeUserEdited(true);
+                                  setIsTimeFromExif(false);
+                                }}
+                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline"
+                              >
+                                Now
+                              </button>
+                            </div>
+                            <input
+                              type="time"
+                              value={observationTime}
+                              onChange={(e) => {
+                                setObservationTime(e.target.value);
+                                setIsTimeUserEdited(true);
+                                setIsTimeFromExif(false);
+                              }}
+                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-800"
+                            />
+                            {!observationTime && (
+                              <p className="text-[10px] text-slate-400 font-medium">
+                                Midday default
                               </p>
                             )}
                           </div>
 
                           {/* Observation Location */}
-                          <div className="space-y-1">
+                          <div className="sm:col-span-5 space-y-1">
                             <div className="flex items-center justify-between">
                               <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
                                 <MapPin className="w-3 h-3 text-slate-400" />
-                                <span>Agricultural Region</span>
+                                <span>Agro-Region</span>
                               </label>
                               <button
                                 type="button"
@@ -1900,13 +1985,24 @@ export default function AgriShieldDashboard() {
                                 )}
                               </button>
                             </div>
-                            <input
-                              type="text"
-                              value={observationLocation}
-                              onChange={(e) => setObservationLocation(e.target.value)}
-                              placeholder="e.g. Multan, Punjab or Central Highlands"
-                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-800 placeholder:text-slate-400"
-                            />
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={observationLocation}
+                                onChange={(e) => setObservationLocation(e.target.value)}
+                                placeholder="e.g. Multan, Punjab"
+                                className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-800 placeholder:text-slate-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setIsLocationModalOpen(true)}
+                                className="flex-shrink-0 px-2.5 py-2 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-slate-600 hover:text-emerald-700 transition-all flex items-center space-x-1.5 shadow-2xs group"
+                                title="Pick location or village on OpenStreetMap"
+                              >
+                                <MapIcon className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                                <span className="text-[11px] font-bold hidden sm:inline">Map</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -1914,16 +2010,20 @@ export default function AgriShieldDashboard() {
                         <div className="flex items-center justify-between pt-1 text-[10px] text-slate-500">
                           <span className="flex items-center space-x-1">
                             <ShieldCheck className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                            <span>Zero GPS or plot addresses saved to Vault.</span>
+                            <span>Zero GPS or private plots stored to Community Vault.</span>
                           </span>
-                          {(observationDate || observationLocation) && (
+                          {(observationDate || observationTime || observationLocation) && (
                             <button
                               type="button"
                               onClick={() => {
                                 setObservationDate("");
+                                setObservationTime("");
                                 setObservationLocation("");
+                                setObservationCoords(null);
                                 setIsDateUserEdited(true);
                                 setIsDateFromExif(false);
+                                setIsTimeUserEdited(true);
+                                setIsTimeFromExif(false);
                               }}
                               className="text-slate-400 hover:text-rose-600 font-medium transition-colors"
                             >
@@ -2037,10 +2137,16 @@ export default function AgriShieldDashboard() {
                                 <span>{diagnosis.agronomic_context.season}</span>
                               </span>
                             )}
-                            {diagnosis.agronomic_context.month && (
+                            {diagnosis.agronomic_context.captured_at && (
                               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 border border-blue-200/80 text-[10px] font-bold">
                                 <span>📅</span>
-                                <span>{diagnosis.agronomic_context.month}</span>
+                                <span>{diagnosis.agronomic_context.captured_at}</span>
+                              </span>
+                            )}
+                            {diagnosis.agronomic_context.observation_time && (
+                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 border border-purple-200/80 text-[10px] font-bold">
+                                <span>⏰</span>
+                                <span>{diagnosis.agronomic_context.observation_time}</span>
                               </span>
                             )}
                             {diagnosis.agronomic_context.climate_zone && (
@@ -2112,6 +2218,37 @@ export default function AgriShieldDashboard() {
                         ))}
                       </ul>
                     </div>
+
+                    {/* Microclimate Observation & Past-Week Incubation Snapshot */}
+                    {diagnosis.agronomic_context?.weather_snapshot && (
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/80 via-emerald-50/70 to-teal-50/80 border border-blue-200/70 space-y-2 text-xs">
+                        <div className="flex items-center justify-between flex-wrap gap-1">
+                          <span className="font-black text-slate-800 flex items-center space-x-1.5">
+                            <CloudRain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <span>Microclimate at Specimen Observation:</span>
+                          </span>
+                          <span className="text-[11px] font-extrabold text-blue-900 bg-white/90 px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs">
+                            ⛅ {diagnosis.agronomic_context.weather_snapshot.temp}°C • 💧 {diagnosis.agronomic_context.weather_snapshot.humidity}% Humidity
+                            {diagnosis.agronomic_context.weather_snapshot.precipitation_mm !== undefined && diagnosis.agronomic_context.weather_snapshot.precipitation_mm > 0 ? ` • 🌧️ ${diagnosis.agronomic_context.weather_snapshot.precipitation_mm}mm rain` : ""}
+                          </span>
+                        </div>
+                        {diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm !== undefined && (
+                          <div className="text-[11px] text-slate-600 bg-white/70 p-2 rounded-xl border border-blue-100 flex items-center justify-between flex-wrap gap-1.5">
+                            <span className="font-bold text-slate-700">
+                              🌧️ 7-Day Pre-Observation Rainfall: <span className="text-blue-700">{diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm}mm</span>
+                            </span>
+                            <span className="font-bold text-slate-700">
+                              💧 7-Day Avg Humidity: <span className="text-emerald-700">{diagnosis.agronomic_context.weather_snapshot.past_week_avg_humidity}%</span>
+                            </span>
+                            {diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days !== undefined && (
+                              <span className="font-bold text-slate-700">
+                                🌿 Damp Days: <span className="text-amber-700">{diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days}/7 days</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Treatment Segmented Pill Tabs (Inspired by TastyTabs) */}
                     <div className="space-y-3">
@@ -2193,6 +2330,59 @@ export default function AgriShieldDashboard() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Disease Origin & Environmental Pathology (Why This Happened) */}
+                    {diagnosis.disease_origin && (
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200/80 shadow-sm space-y-3">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs">
+                            🔬
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center space-x-1.5">
+                              <span>
+                                {selectedLanguage === "Urdu"
+                                  ? "یہ بیماری کیوں لگی؟ (ماحولیاتی و موسمی اسباب)"
+                                  : "Why This Happened: Microclimate & Disease Origin"}
+                              </span>
+                            </h4>
+                            <p className="text-[10px] text-slate-500 font-medium">
+                              {selectedLanguage === "Urdu"
+                                ? "پودے کی بافتوں پر مرض کا حملہ اور پچھلے ہفتے کے موسمی عناصر کا اثر"
+                                : "Clinical pathology explanation correlating pathogen incubation with weekly weather"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          {/* Biological Reason */}
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1">
+                            <div className="font-black text-slate-800 flex items-center space-x-1.5">
+                              <span className="text-emerald-600">🌱</span>
+                              <span>
+                                {selectedLanguage === "Urdu" ? "بیماری کی حیاتیاتی وجہ:" : "Biological Cause & Spread:"}
+                              </span>
+                            </div>
+                            <p className="text-slate-700 leading-relaxed font-medium">
+                              {diagnosis.disease_origin.why_it_happened}
+                            </p>
+                          </div>
+
+                          {/* Weather Correlation */}
+                          <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200/70 space-y-1">
+                            <div className="font-black text-blue-900 flex items-center space-x-1.5">
+                              <span className="text-blue-600">⛅</span>
+                              <span>
+                                {selectedLanguage === "Urdu" ? "اس کیس میں موسمی عناصر کا عمل دخل:" : "Why In This Case (Weather Elements):"}
+                              </span>
+                            </div>
+                            <p className="text-blue-950 leading-relaxed font-medium">
+                              {diagnosis.disease_origin.weather_correlation}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Weather Warning Card */}
                     <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-1 text-xs text-amber-900">
@@ -2591,7 +2781,7 @@ export default function AgriShieldDashboard() {
                             <p className="text-xs text-emerald-800 font-bold truncate">
                               {scan.condition_detected}
                             </p>
-                            {scan.agronomic_context && (scan.agronomic_context.season || scan.agronomic_context.climate_zone) ? (
+                            {scan.agronomic_context && (scan.agronomic_context.season || scan.agronomic_context.climate_zone || scan.agronomic_context.weather_snapshot) ? (
                               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                                 {scan.agronomic_context.season && (
                                   <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200/80 text-[10px] font-bold">
@@ -2603,6 +2793,12 @@ export default function AgriShieldDashboard() {
                                   <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200/80 text-[10px] font-bold truncate max-w-[140px]">
                                     <span>🌾</span>
                                     <span className="truncate">{scan.agronomic_context.climate_zone}</span>
+                                  </span>
+                                )}
+                                {scan.agronomic_context.weather_snapshot && (
+                                  <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200/80 text-[10px] font-bold">
+                                    <span>⛅</span>
+                                    <span>{scan.agronomic_context.weather_snapshot.temp}°C</span>
                                   </span>
                                 )}
                               </div>

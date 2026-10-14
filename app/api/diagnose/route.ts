@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { getAdminDb } from "@/lib/firebase";
-import { DiagnosisResult, ScanRecord, AgronomicContext } from "@/lib/types";
+import { DiagnosisResult, ScanRecord, AgronomicContext, WeatherSnapshot, DiseaseOriginAnalysis } from "@/lib/types";
 import { addSharedScan } from "@/lib/scanStore";
 
 // Maximum duration for Next.js route handler to allow thinking models to reason
@@ -31,7 +31,15 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "کٹائی کے وقت سیب کو چوٹ یا ناخن لگنے سے بچائیں" : "Handle harvest gently to prevent skin punctures where fungi enter",
         language === "Urdu" ? "پھلوں کو ٹھنڈی اور ہوادار جگہ پر رکھیں" : "Store picked apples below 4°C in clean, ventilated dry crates"
       ],
-      climate_impact_warning: language === "Urdu" ? "بارش کے بعد گرمی اور زیادہ نمی سڑن کو گھنٹوں میں پھیلا دیتی ہے۔" : "Warm humid weather (>22°C) combined with wet ground triggers rapid fruit rot."
+      climate_impact_warning: language === "Urdu" ? "بارش کے بعد گرمی اور زیادہ نمی سڑن کو گھنٹوں میں پھیلا دیتی ہے۔" : "Warm humid weather (>22°C) combined with wet ground triggers rapid fruit rot.",
+      disease_origin: {
+        why_it_happened: language === "Urdu"
+          ? "سیب پر یہ سڑن مونیلینیا (Monilinia) پھپھوندی کے حملے سے ہوتی ہے جو کٹائی یا چوٹ لگنے کے بعد گودے میں داخل ہوتی ہے۔"
+          : "Brown rot develops when Monilinia fungal spores penetrate minor skin cracks or insect punctures on the fruit surface.",
+        weather_correlation: language === "Urdu"
+          ? "باغ میں گرمی (22 ڈگری سے اوپر) اور مسلسل 3 دن کی نمی نے پھپھوندی کے بیجوں کو تیزی سے اگنے میں مدد دی۔"
+          : "High humidity (>80%) combined with warm orchard temperatures created optimal spore germination conditions over the preceding days.",
+      },
     };
   }
 
@@ -57,7 +65,15 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "پھلوں کو گیلی زمین پر براہ راست نہ رہنے دیں" : "Avoid direct contact between fruit rind and waterlogged soil",
         language === "Urdu" ? "کدو کے کھیت میں مناسب نکاسی آب رکھیں" : "Ensure raised bed drainage and rotate crops away from cucurbits"
       ],
-      climate_impact_warning: language === "Urdu" ? "کھیت میں کھڑا پانی اور شدید نمی سڑن میں 60 فیصد اضافہ کرتی ہے۔" : "Standing puddle water and heavy late rains drive 60% higher fruit rot rate."
+      climate_impact_warning: language === "Urdu" ? "کھیت میں کھڑا پانی اور شدید نمی سڑن میں 60 فیصد اضافہ کرتی ہے۔" : "Standing puddle water and heavy late rains drive 60% higher fruit rot rate.",
+      disease_origin: {
+        why_it_happened: language === "Urdu"
+          ? "کدو کا گلنا ڈائیڈی میلا (Didymella) پھپھوندی کا نتیجہ ہے جو گیلی زمین کے براہ راست رابطے سے پھل پر حملہ کرتی ہے۔"
+          : "Black rot is caused by Didymella fungi attacking fruit rind resting on waterlogged, un-aerated soil.",
+        weather_correlation: language === "Urdu"
+          ? "پچھلے ہفتے کی بارش اور کھیت میں کھڑے پانی نے کدو کی جلد پر پانی بھرے زخم بنا کر سڑن تیز کر دی۔"
+          : "Consecutive rain days and standing soil puddle water softened rind cuticles, allowing rapid fungal invasion.",
+      },
     };
   }
 
@@ -83,7 +99,15 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "گرمی برداشت کرنے والی ہائبرڈ مکئی کے بیج کاشت کریں" : "Plant certified drought-tolerant maize hybrid seed varieties",
         language === "Urdu" ? "زمین کی گہری نمی بچانے کے لیے کم ہل چلائیں" : "Practice conservation tillage to preserve residual subsoil moisture"
       ],
-      climate_impact_warning: language === "Urdu" ? "مسلسل گرم لو اور 38 ڈگری سے زیادہ درجہ حرارت پیداوار گرا دیتا ہے۔" : "Consecutive days over 38°C during flowering severely diminish ear yield."
+      climate_impact_warning: language === "Urdu" ? "مسلسل گرم لو اور 38 ڈگری سے زیادہ درجہ حرارت پیداوار گرا دیتا ہے۔" : "Consecutive days over 38°C during flowering severely diminish ear yield.",
+      disease_origin: {
+        why_it_happened: language === "Urdu"
+          ? "مکئی کے پتوں کا جھلسنا مٹی میں طویل خشکی اور شدید دھوپ کے سبب ہوتا ہے، جس سے پودے کی بافتیں پانی نہ ملنے پر جل جاتی ہیں۔"
+          : "Maize leaf scorch is caused by prolonged soil moisture deficit and intense solar radiation, collapsing plant cell turgor.",
+        weather_correlation: language === "Urdu"
+          ? "پچھلے ہفتے بارش کی عدم موجودگی (0 ملی میٹر) اور درجہ حرارت 38 ڈگری سے اوپر رہنے نے پودے کے خلیات سے نمی ختم کر کے اسے جھلسا دیا۔"
+          : "Zero precipitation (0mm) over the preceding 7 days coupled with sustained peak heat (>38°C) depleted root-zone water, triggering severe heat-scorch.",
+      },
     };
   }
 
@@ -109,7 +133,15 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "فصل کٹنے کے بعد کھیت میں نمی برقرار رکھیں" : "Keep picked cobs out of direct sunlight to prevent drying",
         language === "Urdu" ? "اگلی فصل کے لیے دالوں کی کاشت کریں" : "Rotate with legumes to rebuild soil nitrogen for next season"
       ],
-      climate_impact_warning: language === "Urdu" ? "موسم کٹائی کے لیے بہترین ہے، بارش سے پہلے تڑوائی مکمل کریں۔" : "Current clear weather is ideal for harvest; complete picking before rain."
+      climate_impact_warning: language === "Urdu" ? "موسم کٹائی کے لیے بہترین ہے، بارش سے پہلے تڑوائی مکمل کریں۔" : "Current clear weather is ideal for harvest; complete picking before rain.",
+      disease_origin: {
+        why_it_happened: language === "Urdu"
+          ? "یہ فصل مکمل طور پر تندرست ہے، متوازن غذائیت اور سازگار ماحول نے پودے کو فنگس اور کیڑوں کے حملے سے محفوظ رکھا ہے۔"
+          : "Crop is in peak physiological health; optimal nutrient uptake and balanced environmental conditions prevented pathogen colonization.",
+        weather_correlation: language === "Urdu"
+          ? "پچھلے ہفتے کا معتدل درجہ حرارت (24-28 ڈگری) اور متوازن نمی (55%) نے سنہری دانوں کو بغیر کسی فنگس یا روٹ کے پکنے دیا۔"
+          : "Ideal weekly thermal range (24-28°C) and moderate humidity (55%) supported uniform kernel filling without fungal blight risk.",
+      },
     };
   }
 
@@ -135,7 +167,15 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "پودے کی اوپر والی کونپلیں چٹکی سے توڑتے رہیں تاکہ جھاڑی دار بنے" : "Pinch top leaf nodes regularly to promote bushy lateral growth",
         language === "Urdu" ? "صبح کے وقت جڑوں میں پانی دیں، پتوں کو گیلا نہ رکھیں" : "Water soil at base in morning; keep foliage dry overnight"
       ],
-      climate_impact_warning: language === "Urdu" ? "معتدل دھوپ اور گرم موسم پودے کے لیے نہایت سازگار ہے۔" : "Moderate sunshine and warm temperatures provide ideal growing conditions."
+      climate_impact_warning: language === "Urdu" ? "معتدل دھوپ اور گرم موسم پودے کے لیے نہایت سازگار ہے۔" : "Moderate sunshine and warm temperatures provide ideal growing conditions.",
+      disease_origin: {
+        why_it_happened: language === "Urdu"
+          ? "نیازبو کے پتے صاف اور جراثیم سے پاک ہیں، مناسب ہواداری اور جڑوں میں پانی دینے کی وجہ سے ڈاؤنی ملڈیو پیدا نہیں ہوئی۔"
+          : "Foliage is pristine with no downy mildew; proper plant spacing and root-level watering kept foliage dry and pathogen-free.",
+        weather_correlation: language === "Urdu"
+          ? "ہفتے بھر اچھی دھوپ اور پتوں پر رات کے وقت پانی نہ ٹھہرنے نے فنگس کے بیجوں کو پھوٹنے کا موقع نہیں دیا۔"
+          : "Consistent daylight exposure and low overnight leaf wetness prevented fungal spore incubation over the past 7 days.",
+      },
     };
   }
 
@@ -160,13 +200,180 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
       language === "Urdu" ? "کٹائی کے وقت پھلوں کو صاف اور خشک ڈبوں میں رکھیں" : "Use sanitized, dry harvest crates to prevent storage bruising",
       language === "Urdu" ? "پودے کی جڑوں پر ملچنگ کریں تاکہ زمین کی نمی برابر رہے" : "Mulch around vine base to keep soil moisture even and avoid splitting"
     ],
-    climate_impact_warning: language === "Urdu" ? "شدید بارش سے پہلے پکے ہوئے ٹماٹر توڑ لیں تاکہ پھٹنے سے بچیں۔" : "Pick ripe tomatoes before sudden heavy rains to prevent skin cracking."
+    climate_impact_warning: language === "Urdu" ? "شدید بارش سے پہلے پکے ہوئے ٹماٹر توڑ لیں تاکہ پھٹنے سے بچیں۔" : "Pick ripe tomatoes before sudden heavy rains to prevent skin cracking.",
+    disease_origin: {
+      why_it_happened: language === "Urdu"
+        ? "ٹماٹر کی فصل صحت مند ہے اور پودے کی قوت مدافعت مضبوط ہے، جس کی وجہ سے لیٹ بلائٹ یا پھلوں کے داغ نہیں لگے۔"
+        : "Vines and fruit possess strong cellular vitality; balanced irrigation prevented blossom end rot and fungal blight spores.",
+      weather_correlation: language === "Urdu"
+        ? "پچھلے ہفتے متوازن دھوپ اور بارش نہ ہونے سے ٹماٹر کی جلد نرم نہیں ہوئی اور پھل محفوظ طریقے سے پک گیا۔"
+        : "Stable dry weather and moderate humidity prevented skin splitting and bacterial speck infection across the past week.",
+    },
   };
 }
 
-// Derive privacy-safe agronomic context (season, month, agro-climatic zone) from optional user observation inputs
-function deriveAgronomicContext(dateStr?: string, locationStr?: string): AgronomicContext | undefined {
-  if (!dateStr && !locationStr) {
+function getWeatherConditionFromCode(code: number): string {
+  if (code === 0) return "Clear skies";
+  if (code === 1 || code === 2) return "Partly cloudy";
+  if (code === 3) return "Overcast";
+  if (code === 45 || code === 48) return "Fog / Mist";
+  if (code >= 51 && code <= 55) return "Light drizzle";
+  if (code >= 61 && code <= 65) return "Rain showers";
+  if (code >= 71 && code <= 77) return "Snow";
+  if (code >= 80 && code <= 82) return "Heavy rain";
+  if (code >= 95) return "Thunderstorm";
+  return "Cloudy";
+}
+
+async function resolveLocationCoordinates(locationName: string): Promise<{ lat: number; lon: number } | null> {
+  if (!locationName || locationName.trim().length < 2) return null;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locationName.trim())}&count=1&language=en&format=json`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      return {
+        lat: data.results[0].latitude,
+        lon: data.results[0].longitude,
+      };
+    }
+  } catch {
+    // Graceful fallback if geocoding fails or times out
+  }
+  return null;
+}
+
+async function fetchHistoricalWeather(
+  lat: number,
+  lon: number,
+  dateStr: string,
+  timeStr?: string
+): Promise<WeatherSnapshot | null> {
+  try {
+    const obsDate = new Date(dateStr);
+    if (isNaN(obsDate.getTime())) return null;
+
+    // 7-day incubation window: 6 days prior up to observation date (7 days inclusive)
+    const startDateObj = new Date(obsDate);
+    startDateObj.setDate(startDateObj.getDate() - 6);
+    const startDateStr = startDateObj.toISOString().split("T")[0];
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    const diffDays = Math.floor((new Date(todayStr).getTime() - obsDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Choose Forecast API for recent past (<= 5 days) or Archive API for older historical dates
+    const baseUrl = diffDays <= 5
+      ? "https://api.open-meteo.com/v1/forecast"
+      : "https://archive-api.open-meteo.com/v1/archive";
+
+    const params = new URLSearchParams({
+      latitude: lat.toFixed(4),
+      longitude: lon.toFixed(4),
+      start_date: startDateStr,
+      end_date: dateStr,
+      daily: "temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_mean",
+      hourly: "temperature_2m,relative_humidity_2m,precipitation,weather_code",
+      timezone: "auto",
+    });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let res = await fetch(`${baseUrl}?${params.toString()}`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    // If Archive failed on recent date or Forecast failed on old date, try the alternate endpoint
+    if (!res.ok) {
+      const altBaseUrl = diffDays <= 5
+        ? "https://archive-api.open-meteo.com/v1/archive"
+        : "https://api.open-meteo.com/v1/forecast";
+      const altController = new AbortController();
+      const altTimeoutId = setTimeout(() => altController.abort(), 5000);
+      res = await fetch(`${altBaseUrl}?${params.toString()}`, { signal: altController.signal });
+      clearTimeout(altTimeoutId);
+    }
+
+    if (!res.ok) return null;
+    const data = await res.json();
+
+    // 1. Calculate 7-day cumulative incubation metrics
+    const daily = data.daily || {};
+    const rainArray: number[] = daily.precipitation_sum || [];
+    const humidityArray: number[] = daily.relative_humidity_2m_mean || [];
+    const pastWeekRainfall = rainArray.reduce((acc, val) => acc + (val || 0), 0);
+    const pastWeekAvgHumidity = humidityArray.length > 0
+      ? Math.round(humidityArray.reduce((acc, val) => acc + (val || 0), 0) / humidityArray.length)
+      : 65;
+
+    let dampDays = 0;
+    for (let i = 0; i < rainArray.length; i++) {
+      if ((rainArray[i] && rainArray[i] > 1.0) || (humidityArray[i] && humidityArray[i] > 75)) {
+        dampDays++;
+      }
+    }
+
+    // Observation day metrics
+    const lastDayIdx = (daily.time?.length || 1) - 1;
+    const tempMax = daily.temperature_2m_max?.[lastDayIdx] ?? 28;
+    const tempMin = daily.temperature_2m_min?.[lastDayIdx] ?? 18;
+    const dayPrecip = daily.precipitation_sum?.[lastDayIdx] ?? 0;
+
+    // 2. Hourly extraction for exact time or midday (12:00)
+    let selectedTemp = Math.round((tempMax + tempMin) / 2);
+    let selectedHumidity = pastWeekAvgHumidity;
+    let selectedCondition = "Partly Cloudy";
+    let selectedPrecip = dayPrecip;
+
+    const hourly = data.hourly || {};
+    if (hourly.time && hourly.time.length > 0) {
+      const targetHour = timeStr ? timeStr.split(":")[0].padStart(2, "0") : "12";
+      const targetIso = `${dateStr}T${targetHour}`;
+      let matchedIdx = hourly.time.findIndex((t: string) => t.startsWith(targetIso));
+      if (matchedIdx === -1) {
+        matchedIdx = Math.max(0, hourly.time.length - 12);
+      }
+
+      if (matchedIdx >= 0 && matchedIdx < hourly.time.length) {
+        selectedTemp = Math.round(hourly.temperature_2m?.[matchedIdx] ?? selectedTemp);
+        selectedHumidity = Math.round(hourly.relative_humidity_2m?.[matchedIdx] ?? selectedHumidity);
+        selectedPrecip = Math.round((hourly.precipitation?.[matchedIdx] ?? selectedPrecip) * 10) / 10;
+        const code = hourly.weather_code?.[matchedIdx] ?? 2;
+        selectedCondition = getWeatherConditionFromCode(code);
+      }
+    }
+
+    return {
+      temp: selectedTemp,
+      temp_max: Math.round(tempMax),
+      temp_min: Math.round(tempMin),
+      humidity: selectedHumidity,
+      precipitation_mm: Math.round(selectedPrecip * 10) / 10,
+      condition: selectedCondition,
+      observation_time: timeStr ? `${dateStr} ${timeStr}` : dateStr,
+      past_week_rainfall_mm: Math.round(pastWeekRainfall * 10) / 10,
+      past_week_avg_humidity: pastWeekAvgHumidity,
+      consecutive_damp_days: dampDays,
+    };
+  } catch (err) {
+    console.warn("Historical weather fetch skipped/failed:", err);
+    return null;
+  }
+}
+
+// Derive privacy-safe agronomic context (season, month, agro-climatic zone, weather snapshot) from optional user observation inputs
+function deriveAgronomicContext(
+  dateStr?: string,
+  locationStr?: string,
+  timeStr?: string,
+  weatherSnapshot?: WeatherSnapshot | null
+): AgronomicContext | undefined {
+  if (!dateStr && !locationStr && !weatherSnapshot) {
     return undefined;
   }
 
@@ -199,7 +406,7 @@ function deriveAgronomicContext(dateStr?: string, locationStr?: string): Agronom
 
   const climateZone = locationStr ? locationStr.trim() : "";
 
-  if (!monthName && !climateZone) {
+  if (!monthName && !climateZone && !weatherSnapshot) {
     return undefined;
   }
 
@@ -208,6 +415,8 @@ function deriveAgronomicContext(dateStr?: string, locationStr?: string): Agronom
     month: monthName || undefined,
     climate_zone: climateZone || undefined,
     captured_at: capturedAt || undefined,
+    observation_time: timeStr || undefined,
+    weather_snapshot: weatherSnapshot || undefined,
     provided_by_user: true,
   };
 }
@@ -222,10 +431,41 @@ export async function POST(req: NextRequest) {
       location,
       userId,
       observationDate,
+      observationTime,
       observationLocation,
+      coordinates,
     } = body;
 
-    const agronomicContext = deriveAgronomicContext(observationDate, observationLocation);
+    // Resolve weather snapshot if observation date is provided
+    let weatherSnapshot: WeatherSnapshot | null = null;
+    if (observationDate) {
+      let lat: number | undefined = coordinates?.lat;
+      let lon: number | undefined = coordinates?.lon;
+
+      if ((lat === undefined || lon === undefined) && observationLocation) {
+        const resolved = await resolveLocationCoordinates(observationLocation);
+        if (resolved) {
+          lat = resolved.lat;
+          lon = resolved.lon;
+        }
+      }
+
+      if ((lat === undefined || lon === undefined) && location?.latitude && location?.longitude) {
+        lat = location.latitude;
+        lon = location.longitude;
+      }
+
+      if (lat !== undefined && lon !== undefined) {
+        weatherSnapshot = await fetchHistoricalWeather(lat, lon, observationDate, observationTime);
+      }
+    }
+
+    const agronomicContext = deriveAgronomicContext(
+      observationDate,
+      observationLocation,
+      observationTime,
+      weatherSnapshot
+    );
 
     if (!image) {
       return NextResponse.json(
@@ -284,11 +524,31 @@ LANGUAGE REQUIREMENT:
           let contextPrompt = "";
           if (agronomicContext) {
             const contextItems: string[] = [];
-            if (agronomicContext.month) contextItems.push(`Month of Photo: ${agronomicContext.month}`);
+            if (agronomicContext.captured_at) contextItems.push(`Observation Date: ${agronomicContext.captured_at}`);
+            if (agronomicContext.observation_time) contextItems.push(`Observation Time: ${agronomicContext.observation_time}`);
             if (agronomicContext.season) contextItems.push(`Season: ${agronomicContext.season}`);
             if (agronomicContext.climate_zone) contextItems.push(`Regional Agricultural Zone: ${agronomicContext.climate_zone}`);
             if (contextItems.length > 0) {
-              contextPrompt = `\n\nFIELD OBSERVATION TIMING & REGION (Provided by Farmer):\n${contextItems.join(" | ")}\n*Agronomic Analysis Guideline:* Consider this seasonal and regional climate timing when evaluating pathogen viability, typical disease emergence, and weather vulnerabilities for this time of year.`;
+              contextPrompt = `\n\nFIELD OBSERVATION TIMING & REGION (Provided by Farmer):\n${contextItems.join(" | ")}`;
+            }
+
+            if (weatherSnapshot) {
+              contextPrompt += `\n\nHISTORICAL MICROCLIMATE & PAST-WEEK INCUBATION WINDOW (Open-Meteo):
+- Observation Day Weather: ${weatherSnapshot.temp}°C (High: ${weatherSnapshot.temp_max}°C / Low: ${weatherSnapshot.temp_min}°C), ${weatherSnapshot.humidity}% Humidity, Rain: ${weatherSnapshot.precipitation_mm}mm (${weatherSnapshot.condition})
+- Preceding 7 Days Leading to Observation:
+  * Cumulative Past Week Rainfall: ${weatherSnapshot.past_week_rainfall_mm}mm
+  * 7-Day Average Relative Humidity: ${weatherSnapshot.past_week_avg_humidity}%
+  * Consecutive High-Moisture/Damp Days: ${weatherSnapshot.consecutive_damp_days} days
+
+PATHOLOGY & DISEASE ORIGIN DIRECTIVE:
+In your response, you MUST populate "disease_origin":
+1. "why_it_happened": Explain in simple, plain, everyday words for a smallholder farmer the biological cause of this plant condition and how the pathogen/stress operates.
+2. "weather_correlation": Explicitly explain why in THIS specific case it happened, correlating it directly with the past week's microclimate elements (e.g. how the ${weatherSnapshot.past_week_rainfall_mm}mm rain, ${weatherSnapshot.past_week_avg_humidity}% humidity, or damp days provided the incubation window for spores to germinate).`;
+            } else {
+              contextPrompt += `\n\nPATHOLOGY & DISEASE ORIGIN DIRECTIVE:
+In your response, provide "disease_origin":
+1. "why_it_happened": Explain in simple, plain, everyday words for a smallholder farmer the biological cause of this plant condition.
+2. "weather_correlation": Explain typical environmental and microclimate elements (e.g. moisture, thermal shifts, dew, or drought) that trigger this condition.`;
             }
           }
 
@@ -365,6 +625,20 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
                         items: { type: Type.STRING },
                       },
                       climate_impact_warning: { type: Type.STRING },
+                      disease_origin: {
+                        type: Type.OBJECT,
+                        properties: {
+                          why_it_happened: {
+                            type: Type.STRING,
+                            description: "Clear, conversational explanation in the requested language for a smallholder farmer explaining the biological cause of this disease or health condition and why it happens.",
+                          },
+                          weather_correlation: {
+                            type: Type.STRING,
+                            description: "Explanation in the requested language directly correlating the disease development with the microclimate elements (especially the past week's rainfall, humidity, and damp foliage conditions).",
+                          },
+                        },
+                        required: ["why_it_happened", "weather_correlation"],
+                      },
                     },
                     required: [
                       "is_plant_or_crop",
@@ -377,6 +651,7 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
                       "treatment",
                       "prevention_tips",
                       "climate_impact_warning",
+                      "disease_origin",
                     ],
                   },
                 },
@@ -452,6 +727,18 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
 
     // Ensure is_plant_or_crop is true for accepted scans
     diagnosis.is_plant_or_crop = true;
+
+    // Ensure disease_origin exists with fallback if model omitted it
+    if (!diagnosis.disease_origin) {
+      diagnosis.disease_origin = {
+        why_it_happened: language === "Urdu"
+          ? `${diagnosis.condition_detected} پودے پر ناموافق ماحول یا فنگس کے حملے کے باعث پیدا ہوتی ہے۔`
+          : `${diagnosis.condition_detected} typically develops when favorable pathogen spores encounter susceptible crop tissue.`,
+        weather_correlation: language === "Urdu"
+          ? `ہوا میں نمی اور درجہ حرارت کی تبدیلی اس مرض کے پھیلاؤ کا بنیادی سبب بنتی ہے۔`
+          : `Environmental microclimate factors like humidity and thermal shifts contributed to symptom onset.`,
+      };
+    }
 
     // Prepare complete scan record with valid full image and thumbnail data URLs
     const scanId = `scan-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;

@@ -16,6 +16,25 @@ export interface DiagnosisResult {
   climate_impact_warning: string;
   model_used?: string;
   agronomic_context?: AgronomicContext;
+  disease_origin?: DiseaseOriginAnalysis;
+}
+
+export interface DiseaseOriginAnalysis {
+  why_it_happened: string;
+  weather_correlation: string;
+}
+
+export interface WeatherSnapshot {
+  temp?: number;
+  temp_max?: number;
+  temp_min?: number;
+  humidity?: number;
+  precipitation_mm?: number;
+  condition?: string;
+  observation_time?: string;
+  past_week_rainfall_mm?: number;
+  past_week_avg_humidity?: number;
+  consecutive_damp_days?: number;
 }
 
 export interface AgronomicContext {
@@ -23,6 +42,8 @@ export interface AgronomicContext {
   month?: string;
   climate_zone?: string;
   captured_at?: string;
+  observation_time?: string;
+  weather_snapshot?: WeatherSnapshot;
   provided_by_user: boolean;
 }
 
