@@ -135,7 +135,7 @@ const LANGUAGES = [
 const ANALYSIS_STEPS = [
   "Reading leaf resolution & light...",
   "Scanning leaf surface & symptoms...",
-  "Consulting Gemini AI plant doctor...",
+  "Consulting AI plant doctor...",
   "Formulating remedies & weather alert..."
 ];
 
@@ -170,7 +170,7 @@ export default function AgriShieldDashboard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notCropNotice, setNotCropNotice] = useState<{ isInvalid: boolean; message: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; icon?: React.ReactNode } | null>(null);
-  
+
   // PWA Install Prompt State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(false);
@@ -707,54 +707,56 @@ export default function AgriShieldDashboard() {
   });
 
   return (
-    <div className="min-h-screen text-slate-800 pb-36 sm:pb-24 font-sans selection:bg-emerald-500 selection:text-white bg-[#f8fafc]">
+    <div className="min-h-screen text-slate-800 pb-0 sm:pb-0 font-sans selection:bg-emerald-500 selection:text-white bg-[#f8fafc] overflow-x-hidden">
       {/* Floating Interactive Toast Feedback */}
       {toast && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10 flex items-center space-x-2.5 text-xs font-bold transition-all animate-bounce">
-          {toast.icon || <Sparkles className="w-4 h-4 text-emerald-400" />}
-          <span>{toast.message}</span>
+        <div className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto bg-slate-900/95 text-white px-4 sm:px-5 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10 flex items-center space-x-2 text-xs font-bold transition-all max-w-[92vw] sm:max-w-md w-auto animate-in fade-in slide-in-from-top-2">
+            {toast.icon || <Sparkles className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+            <span className="truncate">{toast.message}</span>
+          </div>
         </div>
       )}
 
       {/* Top Glassmorphic Navbar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-2 sm:gap-3">
           {/* Logo & Simple Title */}
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-glow flex-shrink-0 transition-transform hover:scale-105">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-glow flex-shrink-0 transition-transform hover:scale-105">
               <IoniconsLeaf className="w-5 h-5" mirrored={true} />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900">
+            <div className="min-w-0">
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 truncate">
                   AgriShield
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100/90 text-emerald-800 border border-emerald-200/80 uppercase tracking-wider">
+                <span className="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-100/90 text-emerald-800 border border-emerald-200/80 uppercase tracking-wider flex-shrink-0">
                   AI Doctor
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 hidden sm:block font-medium">
+              <p className="text-[11px] text-slate-500 hidden md:block font-medium truncate">
                 Crop Pathology, Neural Audio & Climate Advisory for Farmers
               </p>
             </div>
           </div>
 
           {/* Right Action Bar: Install App + Language Dropdown */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             {!isInstalled && (
               <button
                 onClick={handleInstallClick}
-                className="hidden sm:inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 shadow-sm transition-all active:scale-95"
+                className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 shadow-sm transition-all active:scale-95"
                 title="Install app on your phone"
               >
-                <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                <Smartphone className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                 <span>Install PWA</span>
               </button>
             )}
 
             {/* Language Selector */}
-            <div className="relative flex items-center">
-              <div className="absolute left-2.5 pointer-events-none text-slate-500">
+            <div className="relative flex items-center flex-shrink-0">
+              <div className="absolute left-2 sm:left-2.5 pointer-events-none text-slate-500">
                 <Globe className="w-3.5 h-3.5 text-emerald-600" />
               </div>
               <select
@@ -765,7 +767,7 @@ export default function AgriShieldDashboard() {
                   setSelectedLanguage(e.target.value);
                   showToast(`Language set to ${e.target.value} 🌐`);
                 }}
-                className="pl-8 pr-8 py-2 bg-slate-100/90 hover:bg-slate-200/80 text-slate-900 font-bold text-xs sm:text-sm rounded-xl border border-slate-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none shadow-sm transition-all"
+                className="pl-7 sm:pl-8 pr-7 sm:pr-8 py-1.5 sm:py-2 bg-slate-100/90 hover:bg-slate-200/80 text-slate-900 font-bold text-xs sm:text-sm rounded-xl border border-slate-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none shadow-sm transition-all"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
@@ -773,65 +775,65 @@ export default function AgriShieldDashboard() {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2 sm:right-2.5 pointer-events-none" />
             </div>
           </div>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 sm:pt-7 space-y-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-6">
         {/* App-Style Segmented Navigation (Inspired by YAFTY / TastyTabs) */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="inline-flex p-1.5 rounded-2xl bg-slate-200/70 border border-slate-300/70 shadow-inner gap-1">
+          <div className="w-full sm:w-auto flex items-center p-1 sm:p-1.5 rounded-2xl bg-slate-200/80 border border-slate-300/70 shadow-inner gap-1">
             <button
               onClick={() => setActiveViewTab("doctor")}
-              className={`px-4 sm:px-6 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 transition-all ${
-                activeViewTab === "doctor"
+              className={`flex-1 sm:flex-initial px-2.5 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 sm:space-x-2 transition-all min-w-0 ${activeViewTab === "doctor"
                   ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
-              <Sprout className="w-4 h-4 text-emerald-600" />
-              <span>Plant Doctor</span>
+              <Sprout className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="hidden sm:inline whitespace-nowrap">Plant Doctor</span>
+              <span className="sm:hidden truncate">Doctor</span>
               {diagnosis && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping flex-shrink-0" />
               )}
             </button>
 
             <button
               onClick={() => setActiveViewTab("vault")}
-              className={`px-4 sm:px-6 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 transition-all ${
-                activeViewTab === "vault"
+              className={`flex-1 sm:flex-initial px-2.5 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 sm:space-x-2 transition-all min-w-0 ${activeViewTab === "vault"
                   ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
-              <Layers className="w-4 h-4 text-emerald-600" />
-              <span>Farm Vault</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-bold border border-slate-200">
+              <Layers className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+              <span className="hidden sm:inline whitespace-nowrap">Farm Vault</span>
+              <span className="sm:hidden truncate">Vault</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 text-slate-700 font-bold border border-slate-200 flex-shrink-0">
                 {historyFeed.length}
               </span>
             </button>
 
             <button
               onClick={() => setActiveViewTab("advisory")}
-              className={`px-4 sm:px-6 py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center space-x-2 transition-all ${
-                activeViewTab === "advisory"
+              className={`flex-1 sm:flex-initial px-2.5 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 sm:space-x-2 transition-all min-w-0 ${activeViewTab === "advisory"
                   ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
                   : "text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
-              <CloudSun className="w-4 h-4 text-amber-500" />
-              <span>Climate Shield</span>
+              <CloudSun className="w-4 h-4 text-amber-500 flex-shrink-0" />
+              <span className="hidden sm:inline whitespace-nowrap">Climate Shield</span>
+              <span className="sm:hidden truncate">Climate</span>
             </button>
           </div>
 
-          {/* Quick Stats Pill */}
-          <div className="hidden md:flex items-center space-x-3 text-xs text-slate-500 font-medium bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm">
+          {/* Quick Stats Pill (Desktop Only) */}
+          <div className="hidden lg:flex items-center space-x-3 text-xs text-slate-500 font-medium bg-white px-3.5 py-2 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
             <span className="flex items-center space-x-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span>Active Model: Gemini 3.8 / 3.1</span>
+              <span>AI Pathology Engine: Gemini 3</span>
             </span>
             <span>•</span>
             <span className="flex items-center space-x-1">
@@ -846,7 +848,7 @@ export default function AgriShieldDashboard() {
           <div className="space-y-6">
             {/* Specimen & Report Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-              
+
               {/* LEFT COLUMN (6 Cols): Specimen Inspection Bay */}
               <div className="lg:col-span-6 space-y-5">
                 <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 sm:p-6 space-y-5">
@@ -887,13 +889,12 @@ export default function AgriShieldDashboard() {
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
-                    className={`relative rounded-2xl border-2 border-dashed transition-all overflow-hidden flex flex-col items-center justify-center min-h-[280px] sm:min-h-[340px] p-4 text-center ${
-                      dragActive
+                    className={`relative rounded-2xl border-2 border-dashed transition-all overflow-hidden flex flex-col items-center justify-center min-h-[280px] sm:min-h-[340px] p-4 text-center ${dragActive
                         ? "border-emerald-500 bg-emerald-50/70 scale-[1.01]"
                         : imagePreview
-                        ? "border-emerald-500/40 bg-slate-950"
-                        : "border-slate-300 hover:border-emerald-500/80 bg-slate-50/70 hover:bg-slate-50"
-                    }`}
+                          ? "border-emerald-500/40 bg-slate-950"
+                          : "border-slate-300 hover:border-emerald-500/80 bg-slate-50/70 hover:bg-slate-50"
+                      }`}
                   >
                     {imagePreview ? (
                       <div className="relative w-full h-72 sm:h-96 rounded-xl overflow-hidden flex items-center justify-center bg-black">
@@ -956,20 +957,20 @@ export default function AgriShieldDashboard() {
                         />
 
                         {/* Tactile Action Buttons */}
-                        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-sm pt-2">
                           <button
                             onClick={() => cameraInputRef.current?.click()}
-                            className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center space-x-2 shadow-md shadow-emerald-600/20 active:scale-95 transition-all"
+                            className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 shadow-md shadow-emerald-600/20 active:scale-95 transition-all whitespace-nowrap"
                           >
-                            <Camera className="w-4 h-4" />
-                            <span>Snap with Camera</span>
+                            <Camera className="w-4 h-4 flex-shrink-0" />
+                            <span>Snap Camera</span>
                           </button>
 
                           <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs sm:text-sm flex items-center space-x-2 active:scale-95 transition-all shadow-sm"
+                            className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 active:scale-95 transition-all shadow-sm whitespace-nowrap"
                           >
-                            <Upload className="w-4 h-4 text-emerald-600" />
+                            <Upload className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                             <span>Choose Photo</span>
                           </button>
                         </div>
@@ -979,41 +980,40 @@ export default function AgriShieldDashboard() {
 
                   {/* Compact Horizontal Specimen Shelf (Presets) */}
                   <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-700 flex items-center space-x-1.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Quick Test Samples (No Photo Needed):</span>
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="font-bold text-slate-700 flex items-center space-x-1.5 truncate">
+                        <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                        <span className="truncate">Quick Test Samples (No Photo Needed):</span>
                       </span>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        Tap any to test
+                      <span className="text-[11px] text-slate-400 font-medium flex-shrink-0">
+                        Tap to test
                       </span>
                     </div>
 
-                    <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 pt-0.5">
+                    <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-1 px-1">
                       {SAMPLE_PRESETS.map((preset) => {
                         const isSelected = activePresetUrl === preset.url;
                         return (
                           <button
                             key={preset.name}
                             onClick={() => handleSelectPreset(preset.url, preset.name)}
-                            className={`flex-shrink-0 flex items-center space-x-2.5 px-3 py-2 rounded-2xl border transition-all text-left ${
-                              isSelected
+                            className={`flex-shrink-0 flex items-center space-x-2.5 px-3 py-2 rounded-2xl border transition-all text-left ${isSelected
                                 ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
                                 : "border-slate-200 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300"
-                            }`}
+                              }`}
                           >
                             <img
                               src={preset.url}
                               alt={preset.name}
-                              className="w-8 h-8 rounded-lg object-cover border border-slate-200"
+                              className="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0"
                             />
-                            <div className="pr-1">
-                              <div className="font-bold text-slate-900 text-xs">
+                            <div className="pr-1 min-w-0">
+                              <div className="font-bold text-slate-900 text-xs whitespace-nowrap">
                                 {preset.name}
                               </div>
-                              <div className="text-[10px] text-slate-500 font-medium flex items-center space-x-1">
-                                <span className={`w-1.5 h-1.5 rounded-full ${preset.dotColor}`} />
-                                <span>{preset.badge}</span>
+                              <div className="text-[10px] text-slate-500 font-medium flex items-center space-x-1 whitespace-nowrap">
+                                <span className={`w-1.5 h-1.5 rounded-full ${preset.dotColor} flex-shrink-0`} />
+                                <span className="truncate">{preset.badge}</span>
                               </div>
                             </div>
                           </button>
@@ -1027,16 +1027,15 @@ export default function AgriShieldDashboard() {
                     <button
                       disabled={!imagePreview || isAnalyzing}
                       onClick={handleRunDiagnosis}
-                      className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center space-x-3 shadow-lg transition-all ${
-                        !imagePreview || isAnalyzing
+                      className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center space-x-3 shadow-lg transition-all ${!imagePreview || isAnalyzing
                           ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
                           : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/25 active:scale-[0.98]"
-                      }`}
+                        }`}
                     >
                       {isAnalyzing ? (
                         <>
                           <RefreshCw className="w-5 h-5 animate-spin" />
-                          <span>Consulting Gemini AI Doctor...</span>
+                          <span>Consulting AI Plant Doctor...</span>
                         </>
                       ) : (
                         <>
@@ -1084,18 +1083,18 @@ export default function AgriShieldDashboard() {
                 ) : diagnosis ? (
                   // Rich Clinical Doctor Report Card
                   <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 sm:p-7 space-y-5">
-                    
+
                     {/* Report Header: Crop Title, Scientific Name, Severity Chip */}
-                    <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
-                      <div>
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-100 pb-4">
+                      <div className="space-y-0.5 min-w-0">
                         <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 flex items-center space-x-1">
-                          <Sprout className="w-3.5 h-3.5" />
-                          <span>Plant Doctor Clinical Prescription</span>
+                          <Sprout className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span>Plant Doctor Prescription</span>
                         </span>
-                        <h3 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+                        <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 leading-tight break-words">
                           {diagnosis.crop_name}
                         </h3>
-                        <p className="text-xs text-slate-500 font-medium">
+                        <p className="text-xs text-slate-500 font-medium italic truncate">
                           Scientific: {diagnosis.scientific_name}
                         </p>
                       </div>
@@ -1104,7 +1103,7 @@ export default function AgriShieldDashboard() {
                         const badgeInfo = getSeverityBadge(diagnosis.severity, diagnosis.condition_detected);
                         return (
                           <div
-                            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-black border ${badgeInfo.bg} shadow-sm flex-shrink-0`}
+                            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-black border ${badgeInfo.bg} shadow-sm self-start sm:self-auto flex-shrink-0`}
                           >
                             <span className={`w-2 h-2 rounded-full ${badgeInfo.dot} animate-ping`} />
                             <span>{badgeInfo.badge}</span>
@@ -1115,11 +1114,11 @@ export default function AgriShieldDashboard() {
 
                     {/* Condition Detected & Doctor Confidence Meter */}
                     <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-2.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-500 uppercase tracking-wide">
+                      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1 sm:gap-2">
+                        <span className="font-bold text-slate-500 uppercase tracking-wide text-[11px] sm:text-xs flex-shrink-0">
                           Condition Detected:
                         </span>
-                        <span className="font-black text-slate-900 text-sm sm:text-base">
+                        <span className="font-black text-slate-900 text-sm sm:text-base break-words text-left sm:text-right">
                           {diagnosis.condition_detected}
                         </span>
                       </div>
@@ -1133,9 +1132,8 @@ export default function AgriShieldDashboard() {
                         </div>
                         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                           <div
-                            className={`h-full transition-all duration-700 ${
-                              getSeverityBadge(diagnosis.severity, diagnosis.condition_detected).meterColor
-                            }`}
+                            className={`h-full transition-all duration-700 ${getSeverityBadge(diagnosis.severity, diagnosis.condition_detected).meterColor
+                              }`}
                             style={{ width: `${Math.round(diagnosis.confidence_score * 100)}%` }}
                           />
                         </div>
@@ -1145,7 +1143,7 @@ export default function AgriShieldDashboard() {
                     {/* Leaf Symptoms */}
                     <div className="space-y-2">
                       <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
-                        <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                        <Activity className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                         <span>Visible Leaf Symptoms:</span>
                       </h4>
                       <ul className="space-y-1.5">
@@ -1163,48 +1161,46 @@ export default function AgriShieldDashboard() {
 
                     {/* Treatment Segmented Pill Tabs (Inspired by TastyTabs) */}
                     <div className="space-y-3">
-                      <div className="flex rounded-2xl bg-slate-100 p-1 text-xs font-bold text-slate-600">
+                      <div className="flex rounded-2xl bg-slate-100 p-1 text-[11px] sm:text-xs font-bold text-slate-600 gap-1">
                         <button
                           onClick={() => setActiveTreatmentTab("immediate")}
-                          className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 ${
-                            activeTreatmentTab === "immediate"
+                          className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "immediate"
                               ? "bg-white text-slate-900 shadow-sm font-black"
                               : "hover:text-slate-900"
-                          }`}
+                            }`}
                         >
-                          <Zap className="w-3.5 h-3.5 text-amber-500" />
-                          <span>Do Today</span>
+                          <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                          <span className="truncate">Do Today</span>
                         </button>
                         <button
                           onClick={() => setActiveTreatmentTab("organic")}
-                          className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 ${
-                            activeTreatmentTab === "organic"
+                          className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "organic"
                               ? "bg-white text-emerald-800 shadow-sm font-black"
                               : "hover:text-slate-900"
-                          }`}
+                            }`}
                         >
-                          <Sprout className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Home Remedy</span>
+                          <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                          <span className="hidden sm:inline truncate">Home Remedy</span>
+                          <span className="sm:hidden truncate">Remedy</span>
                         </button>
                         <button
                           onClick={() => setActiveTreatmentTab("chemical")}
-                          className={`flex-1 py-2.5 rounded-xl transition-all flex items-center justify-center space-x-1.5 ${
-                            activeTreatmentTab === "chemical"
+                          className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "chemical"
                               ? "bg-white text-blue-800 shadow-sm font-black"
                               : "hover:text-slate-900"
-                          }`}
+                            }`}
                         >
-                          <FlaskConical className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Shop Spray</span>
+                          <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                          <span className="truncate">Shop Spray</span>
                         </button>
                       </div>
 
-                      <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/90 text-xs text-slate-800 leading-relaxed min-h-[96px] flex flex-col justify-between space-y-2">
+                      <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200 bg-slate-50/90 text-xs text-slate-800 leading-relaxed min-h-[96px] flex flex-col justify-between space-y-2">
                         <div>
                           {activeTreatmentTab === "immediate" && (
                             <div className="space-y-1.5">
                               <span className="font-black text-slate-900 flex items-center space-x-1.5">
-                                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                                <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                                 <span>Immediate First-Aid:</span>
                               </span>
                               <p className="font-medium text-slate-700 leading-relaxed">
@@ -1215,7 +1211,7 @@ export default function AgriShieldDashboard() {
                           {activeTreatmentTab === "organic" && (
                             <div className="space-y-1.5">
                               <span className="font-black text-emerald-900 flex items-center space-x-1.5">
-                                <Sprout className="w-3.5 h-3.5 text-emerald-600" />
+                                <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                                 <span>Natural Safe Remedy:</span>
                               </span>
                               <p className="font-medium text-slate-700 leading-relaxed">
@@ -1226,7 +1222,7 @@ export default function AgriShieldDashboard() {
                           {activeTreatmentTab === "chemical" && (
                             <div className="space-y-1.5">
                               <span className="font-black text-blue-900 flex items-center space-x-1.5">
-                                <FlaskConical className="w-3.5 h-3.5 text-blue-600" />
+                                <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
                                 <span>Chemical / Ag-Shop Spray:</span>
                               </span>
                               <p className="font-medium text-slate-700 leading-relaxed">
@@ -1237,17 +1233,17 @@ export default function AgriShieldDashboard() {
                         </div>
 
                         {/* Prescribed Action Footer Badge */}
-                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
-                          <span>Treatment Language: {selectedLanguage}</span>
-                          <span className="text-emerald-700 font-bold">Safe for Smallholder Farms ✓</span>
+                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 gap-2">
+                          <span className="truncate">Language: {selectedLanguage}</span>
+                          <span className="text-emerald-700 font-bold flex-shrink-0">Safe for Farms ✓</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Weather Warning Card */}
-                    <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-1 text-xs text-amber-900">
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-1 text-xs text-amber-900">
                       <div className="font-black flex items-center space-x-1.5 text-amber-800">
-                        <CloudSun className="w-4 h-4 text-amber-600" />
+                        <CloudSun className="w-4 h-4 text-amber-600 flex-shrink-0" />
                         <span>Climate Shield Weather Alert:</span>
                       </div>
                       <p className="leading-relaxed text-amber-950 font-medium">
@@ -1258,7 +1254,7 @@ export default function AgriShieldDashboard() {
                     {/* Prevention Tips */}
                     <div className="space-y-2">
                       <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                         <span>How to Protect Other Crops:</span>
                       </h4>
                       <ul className="text-xs text-slate-700 space-y-1.5">
@@ -1272,86 +1268,89 @@ export default function AgriShieldDashboard() {
                     </div>
 
                     {/* Conversational Voice Action Bar with Equalizer */}
-                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <div className="space-y-2.5 pt-2 border-t border-slate-100">
                       {speechStatusText && (
                         <div className="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 min-w-0">
                             {isSpeaking && (
-                              <div className="flex items-end space-x-0.5 h-4">
+                              <div className="flex items-end space-x-0.5 h-4 flex-shrink-0">
                                 <span className="w-1 bg-emerald-600 rounded-full sound-bar-1" />
                                 <span className="w-1 bg-emerald-600 rounded-full sound-bar-2" />
                                 <span className="w-1 bg-emerald-600 rounded-full sound-bar-3" />
                                 <span className="w-1 bg-emerald-600 rounded-full sound-bar-4" />
                               </div>
                             )}
-                            <span>{speechStatusText}</span>
+                            <span className="truncate">{speechStatusText}</span>
                           </div>
                           <button
                             onClick={stopSpeech}
-                            className="underline text-emerald-700 font-bold ml-2 text-xs"
+                            className="underline text-emerald-700 font-bold ml-2 text-xs flex-shrink-0"
                           >
                             Stop
                           </button>
                         </div>
                       )}
 
-                      {/* Primary Actions: Listen Aloud, Copy, WhatsApp, PDF */}
-                      <div className="flex flex-wrap items-center justify-between gap-2.5">
+                      {/* Primary Actions: Clean 2-Tier Architecture */}
+                      <div className="space-y-2">
+                        {/* Tier 1: Listen Aloud Voice Action */}
                         <button
                           onClick={toggleSpeech}
                           disabled={audioLoading}
-                          className={`flex-1 min-w-[140px] py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border transition-all ${
-                            isSpeaking
+                          className={`w-full py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border transition-all ${isSpeaking
                               ? "bg-rose-50 text-rose-700 border-rose-300 shadow-sm"
                               : audioLoading
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-300 cursor-wait"
-                              : "bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-300 shadow-sm active:scale-95"
-                          }`}
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 cursor-wait"
+                                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-300 shadow-sm active:scale-95"
+                            }`}
                         >
                           {audioLoading ? (
                             <>
-                              <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
-                              <span>Generating Voice...</span>
+                              <RefreshCw className="w-4 h-4 animate-spin text-emerald-600 flex-shrink-0" />
+                              <span>Generating Neural Voice...</span>
                             </>
                           ) : isSpeaking ? (
                             <>
-                              <VolumeX className="w-4 h-4 text-rose-600" />
-                              <span>Stop Voice</span>
+                              <VolumeX className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                              <span>Stop Spoken Voice</span>
                             </>
                           ) : (
                             <>
-                              <Volume2 className="w-4 h-4 text-emerald-600" />
+                              <Volume2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                               <span>Listen Aloud ({selectedLanguage})</span>
                             </>
                           )}
                         </button>
 
-                        <button
-                          onClick={handleCopyAdvice}
-                          className="py-3 px-3.5 rounded-2xl font-semibold text-xs flex items-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors shadow-sm active:scale-95"
-                          title="Copy Prescription"
-                        >
-                          <Copy className="w-4 h-4 text-slate-500" />
-                          <span className="hidden sm:inline">Copy</span>
-                        </button>
+                        {/* Tier 2: 3-Column Utility Grid (Copy, WhatsApp, PDF) */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={handleCopyAdvice}
+                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors shadow-sm active:scale-95"
+                            title="Copy Prescription"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                            <span>Copy</span>
+                          </button>
 
-                        <button
-                          onClick={handleShareWhatsApp}
-                          className="py-3 px-3.5 rounded-2xl font-semibold text-xs flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm active:scale-95"
-                          title="Share on WhatsApp"
-                        >
-                          <Share2 className="w-4 h-4" />
-                          <span className="hidden sm:inline">WhatsApp</span>
-                        </button>
+                          <button
+                            onClick={handleShareWhatsApp}
+                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm active:scale-95"
+                            title="Share on WhatsApp"
+                          >
+                            <Share2 className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>WhatsApp</span>
+                          </button>
 
-                        <button
-                          onClick={handlePrint}
-                          className="py-3 px-3.5 rounded-2xl font-semibold text-xs flex items-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors shadow-sm active:scale-95"
-                          title="Print / Save PDF"
-                        >
-                          <Printer className="w-4 h-4 text-slate-500" />
-                          <span className="hidden sm:inline">PDF</span>
-                        </button>
+                          <button
+                            onClick={handlePrint}
+                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors shadow-sm active:scale-95"
+                            title="Print / Save PDF"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                            <span>PDF</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1369,10 +1368,10 @@ export default function AgriShieldDashboard() {
                           {selectedLanguage === "Urdu"
                             ? "غیر زرعی تصویر"
                             : selectedLanguage === "Hindi"
-                            ? "गैर-कृषि तस्वीर"
-                            : selectedLanguage === "Spanish"
-                            ? "No es una Planta"
-                            : "Not a Plant or Crop"}
+                              ? "गैर-कृषि तस्वीर"
+                              : selectedLanguage === "Spanish"
+                                ? "No es una Planta"
+                                : "Not a Plant or Crop"}
                         </span>
                       </div>
 
@@ -1380,10 +1379,10 @@ export default function AgriShieldDashboard() {
                         {selectedLanguage === "Urdu"
                           ? "یہ تصویر کسی فصل یا پودے کی نہیں ہے"
                           : selectedLanguage === "Hindi"
-                          ? "यह तस्वीर किसी पौधे या फसल की नहीं है"
-                          : selectedLanguage === "Spanish"
-                          ? "Esta imagen no es de una planta o cultivo"
-                          : "Hey, this is not a plant or crop!"}
+                            ? "यह तस्वीर किसी पौधे या फसल की नहीं है"
+                            : selectedLanguage === "Spanish"
+                              ? "Esta imagen no es de una planta o cultivo"
+                              : "Hey, this is not a plant or crop!"}
                       </h3>
 
                       <p className="text-sm text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
@@ -1503,9 +1502,9 @@ export default function AgriShieldDashboard() {
         {activeViewTab === "vault" && (
           <div className="space-y-6">
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 sm:p-8 space-y-6">
-              
+
               {/* Vault Header & Search Bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                 <div>
                   <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 mb-1.5">
                     <Layers className="w-3.5 h-3.5 text-emerald-700" />
@@ -1520,7 +1519,7 @@ export default function AgriShieldDashboard() {
                 </div>
 
                 {/* Instant Filter Search Bar */}
-                <div className="relative min-w-[260px] sm:min-w-[320px]">
+                <div className="relative w-full sm:w-72 lg:w-80 flex-shrink-0">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
@@ -1541,10 +1540,10 @@ export default function AgriShieldDashboard() {
               </div>
 
               {/* Severity Filter Chips */}
-              <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-bold text-slate-500 uppercase tracking-wide text-[11px]">
-                    Filter by Severity:
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+                  <span className="font-bold text-slate-500 uppercase tracking-wide text-[11px] whitespace-nowrap flex-shrink-0">
+                    Severity:
                   </span>
                   {(["all", "Critical", "Moderate", "Low"] as const).map((sev) => {
                     const isSelected = vaultSeverityFilter === sev;
@@ -1552,11 +1551,10 @@ export default function AgriShieldDashboard() {
                       <button
                         key={sev}
                         onClick={() => setVaultSeverityFilter(sev)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all ${
-                          isSelected
+                        className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex-shrink-0 text-xs ${isSelected
                             ? "bg-slate-900 text-white shadow-sm"
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                        }`}
+                          }`}
                       >
                         {sev === "all" ? "All Scans" : sev}
                       </button>
@@ -1564,7 +1562,7 @@ export default function AgriShieldDashboard() {
                   })}
                 </div>
 
-                <div className="text-[11px] text-slate-500 font-medium">
+                <div className="text-[11px] text-slate-500 font-medium whitespace-nowrap flex-shrink-0">
                   Showing {filteredVaultScans.length} of {historyFeed.length} records
                 </div>
               </div>
@@ -1594,11 +1592,10 @@ export default function AgriShieldDashboard() {
                       <div
                         key={scan.id}
                         onClick={() => handleLoadPastScan(scan)}
-                        className={`group bg-white rounded-2xl border p-4 shadow-sm hover:shadow-card-hover transition-all cursor-pointer flex flex-col justify-between space-y-3 hover:-translate-y-0.5 ${
-                          isSelected
+                        className={`group bg-white rounded-2xl border p-4 shadow-sm hover:shadow-card-hover transition-all cursor-pointer flex flex-col justify-between space-y-3 hover:-translate-y-0.5 ${isSelected
                             ? "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/30"
                             : "border-slate-200/90 hover:border-emerald-300"
-                        }`}
+                          }`}
                       >
                         <div className="space-y-2.5">
                           {/* Image preview with severity chip */}
@@ -1721,9 +1718,9 @@ export default function AgriShieldDashboard() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                   <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                    <span className="font-bold text-slate-900">How accurate is the Gemini AI diagnosis?</span>
+                    <span className="font-bold text-slate-900">How accurate is the AI pathology diagnosis?</span>
                     <p className="text-slate-600 font-medium">
-                      AgriShield uses multimodal Gemini 3 vision calibrated against academic plant pathology datasets. It identifies leaf spots, blights, and rot with up to 98% confidence.
+                      AgriShield uses advanced multimodal computer vision calibrated against academic plant pathology datasets. It identifies leaf spots, blights, and rot with up to 98% confidence.
                     </p>
                   </div>
                   <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
@@ -1740,7 +1737,7 @@ export default function AgriShieldDashboard() {
       </main>
 
       {/* Mobile Floating Action Dock (Inspired by Expo Router & TastyTabs) */}
-      <div className="fixed bottom-3 left-4 right-4 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/90 p-2 sm:hidden flex items-center justify-around shadow-2xl rounded-2xl">
+      <div className="fixed bottom-3 left-3 right-3 z-40 bg-white/95 backdrop-blur-xl border border-slate-200/90 p-1.5 sm:hidden flex items-center justify-around shadow-2xl rounded-2xl max-w-md mx-auto">
         <button
           onClick={() => {
             setActiveViewTab("doctor");
@@ -1748,19 +1745,18 @@ export default function AgriShieldDashboard() {
               reportRef.current.scrollIntoView({ behavior: "smooth" });
             }
           }}
-          className={`flex-1 py-2.5 px-2 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1 transition-all ${
-            activeViewTab === "doctor"
+          className={`flex-1 py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center space-y-0.5 transition-all ${activeViewTab === "doctor"
               ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
               : "text-slate-600"
-          }`}
+            }`}
         >
-          <Sprout className="w-4 h-4 text-emerald-600" />
-          <span>Doctor</span>
+          <Sprout className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="truncate">Doctor</span>
         </button>
 
         <button
           onClick={() => cameraInputRef.current?.click()}
-          className="mx-1 p-3 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 active:scale-90 transition-all flex items-center justify-center"
+          className="mx-1 p-2.5 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 active:scale-90 transition-all flex items-center justify-center flex-shrink-0"
           title="Snap Photo"
         >
           <Camera className="w-5 h-5" />
@@ -1768,47 +1764,112 @@ export default function AgriShieldDashboard() {
 
         <button
           onClick={() => setActiveViewTab("vault")}
-          className={`flex-1 py-2.5 px-2 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1 transition-all ${
-            activeViewTab === "vault"
+          className={`flex-1 py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center space-y-0.5 transition-all ${activeViewTab === "vault"
               ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
               : "text-slate-600"
-          }`}
+            }`}
         >
-          <Layers className="w-4 h-4 text-emerald-600" />
-          <span>Vault ({historyFeed.length})</span>
+          <Layers className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="truncate">Vault ({historyFeed.length})</span>
         </button>
 
         <button
           onClick={() => setActiveViewTab("advisory")}
-          className={`flex-1 py-2.5 px-2 rounded-xl font-bold text-xs flex flex-col items-center justify-center space-y-1 transition-all ${
-            activeViewTab === "advisory"
+          className={`flex-1 py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center space-y-0.5 transition-all ${activeViewTab === "advisory"
               ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
               : "text-slate-600"
-          }`}
+            }`}
         >
-          <CloudSun className="w-4 h-4 text-amber-500" />
-          <span>Advisory</span>
+          <CloudSun className="w-4 h-4 text-amber-500 flex-shrink-0" />
+          <span className="truncate">Advisory</span>
         </button>
       </div>
 
-      {/* Clean Footer */}
-      <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14 pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-        <div className="flex items-center space-x-2">
-          <div className="w-6 h-6 rounded-lg bg-emerald-600 flex items-center justify-center text-white">
-            <IoniconsLeaf className="w-3.5 h-3.5" mirrored={true} />
+      {/* Cooperative & AI Footer (Crafted by Team MemoryLeak101) */}
+      <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 sm:mt-16 pt-8 border-t border-slate-200/90 text-slate-600 space-y-6 pb-16 sm:pb-8">
+        {/* Main Footer Brand & Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+
+          {/* Col 1: Brand & Team MemoryLeak101 */}
+          <div className="md:col-span-6 space-y-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+                <IoniconsLeaf className="w-4 h-4" mirrored={true} />
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="font-extrabold text-slate-900 text-base sm:text-lg">
+                  AgriShield AI
+                </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200/80 uppercase">
+                  Field Edition
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed max-w-md font-medium">
+              Empowering smallholder farmers, agricultural cooperatives, and field extension teams with instant multimodal crop pathology, spoken native-language remedies, and microclimate risk alerts.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="font-medium text-slate-600">
+                Crafted with 💚 by <strong className="font-bold text-slate-900">Team MemoryLeak101</strong>
+              </span>
+              <span className="text-slate-300 hidden sm:inline">•</span>
+              <span className="inline-flex items-center space-x-1.5 text-[11px] font-semibold text-emerald-800">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+                <span>Field Diagnostics Active</span>
+              </span>
+            </div>
           </div>
-          <span className="font-bold text-slate-700">AgriShield AI</span>
-          <span>•</span>
-          <span>Smallholder Pathology & Climate Advisory</span>
+
+          {/* Col 2: Cooperative Standards & Capabilities */}
+          <div className="md:col-span-6 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-1">
+              <div className="font-bold text-slate-900 flex items-center space-x-1.5">
+                <Volume2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Conversational Spoken Audio</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-normal font-medium">
+                Everyday spoken remedies in conversational Urdu, Bolchaal Hindi, and Spanish.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-1">
+              <div className="font-bold text-slate-900 flex items-center space-x-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span>Farmer Privacy First</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-normal font-medium">
+                Client-compressed images. Zero monetization or tracking of farm specimen photos.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-1">
+              <div className="font-bold text-slate-900 flex items-center space-x-1.5">
+                <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                <span>Instant Offline Cache</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-normal font-medium">
+                Progressive Web App with cached sample presets for low-connectivity field zones.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs space-y-1">
+              <div className="font-bold text-slate-900 flex items-center space-x-1.5">
+                <CloudSun className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                <span>Microclimate Shield</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-normal font-medium">
+                Thermal drought and monsoon humidity early-warning pathology triggers.
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <span className="flex items-center space-x-1">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Google Gemini Neural Intelligence</span>
-          </span>
-          <span>•</span>
-          <span>PWA Ready</span>
+        {/* Bottom Utility Bar: Clean Single-Line Copyright */}
+        <div className="pt-4 border-t border-slate-200/70 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400 font-medium text-center sm:text-left">
+          <span>© {new Date().getFullYear()} AgriShield AI • Built for Sustainable Agriculture</span>
+          <span>Field Station v1.0</span>
         </div>
       </footer>
     </div>
