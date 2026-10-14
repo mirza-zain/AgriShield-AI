@@ -17,7 +17,12 @@ export async function GET() {
         if (!snapshot.empty) {
           const scans: ScanRecord[] = [];
           snapshot.forEach((doc) => {
-            scans.push({ id: doc.id, ...doc.data() } as ScanRecord);
+            const data = doc.data() as ScanRecord;
+            // Clean up any historic truncated thumbnails ending with ...
+            if (data.imageThumbnail && data.imageThumbnail.endsWith("...")) {
+              data.imageThumbnail = data.imageUrl && !data.imageUrl.endsWith("...") ? data.imageUrl : undefined;
+            }
+            scans.push({ id: doc.id, ...data });
           });
           return NextResponse.json({ success: true, scans });
         }
@@ -26,9 +31,19 @@ export async function GET() {
       }
     }
 
+    const cleanSharedScans = getSharedScans().map((scan) => {
+      if (scan.imageThumbnail && scan.imageThumbnail.endsWith("...")) {
+        return {
+          ...scan,
+          imageThumbnail: scan.imageUrl && !scan.imageUrl.endsWith("...") ? scan.imageUrl : undefined,
+        };
+      }
+      return scan;
+    });
+
     return NextResponse.json({
       success: true,
-      scans: getSharedScans(),
+      scans: cleanSharedScans,
     });
   } catch (error: any) {
     console.error("History fetch error:", error);

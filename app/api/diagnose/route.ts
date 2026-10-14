@@ -164,7 +164,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { image, language = "English", location, userId } = body;
+    const { image, thumbnail, language = "English", location, userId } = body;
 
     if (!image) {
       return NextResponse.json(
@@ -377,12 +377,15 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
     // Ensure is_plant_or_crop is true for accepted scans
     diagnosis.is_plant_or_crop = true;
 
-    // Prepare complete scan record
+    // Prepare complete scan record with valid full image and thumbnail data URLs
     const scanId = `scan-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const scanThumbnail = thumbnail || image;
+
     const newScanRecord: ScanRecord = {
       ...diagnosis,
       id: scanId,
-      imageThumbnail: image.startsWith("http") ? image : `data:image/jpeg;base64,${(image.split(",")[1] || image).slice(0, 500)}...`,
+      imageUrl: image,
+      imageThumbnail: scanThumbnail,
       language,
       createdAt: new Date().toISOString(),
       location: location || {
@@ -400,10 +403,15 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
     // Fire-and-forget non-blocking background write to Firestore if available
     const adminDb = getAdminDb();
     if (adminDb) {
+      const firestorePayload = { ...newScanRecord };
+      // Ensure payload respects Firestore's 1MB document limit
+      if (firestorePayload.imageUrl && firestorePayload.imageUrl.length > 700000) {
+        firestorePayload.imageUrl = firestorePayload.imageThumbnail;
+      }
       adminDb
         .collection("scans")
         .doc(scanId)
-        .set(newScanRecord)
+        .set(firestorePayload)
         .catch((firestoreErr) => {
           console.warn("Background Firestore write skipped:", firestoreErr);
         });
