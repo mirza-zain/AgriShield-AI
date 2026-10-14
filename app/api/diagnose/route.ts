@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { getAdminDb } from "@/lib/firebase";
-import { DiagnosisResult, ScanRecord } from "@/lib/types";
+import { DiagnosisResult, ScanRecord, AgronomicContext } from "@/lib/types";
 import { addSharedScan } from "@/lib/scanStore";
 
 // Maximum duration for Next.js route handler to allow thinking models to reason
@@ -164,10 +164,68 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
   };
 }
 
+// Derive privacy-safe agronomic context (season, month, agro-climatic zone) from optional user observation inputs
+function deriveAgronomicContext(dateStr?: string, locationStr?: string): AgronomicContext | undefined {
+  if (!dateStr && !locationStr) {
+    return undefined;
+  }
+
+  let monthName = "";
+  let season = "";
+  let capturedAt = "";
+
+  if (dateStr) {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      const monthIdx = d.getMonth();
+      const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      monthName = months[monthIdx];
+      capturedAt = `${monthName} ${d.getFullYear()}`;
+
+      if (monthIdx >= 2 && monthIdx <= 4) {
+        season = "Spring (Pre-Monsoon)";
+      } else if (monthIdx >= 5 && monthIdx <= 7) {
+        season = "Summer (Monsoon)";
+      } else if (monthIdx >= 8 && monthIdx <= 10) {
+        season = "Autumn (Post-Monsoon)";
+      } else {
+        season = "Winter (Dormant / Cool Season)";
+      }
+    }
+  }
+
+  const climateZone = locationStr ? locationStr.trim() : "";
+
+  if (!monthName && !climateZone) {
+    return undefined;
+  }
+
+  return {
+    season: season || undefined,
+    month: monthName || undefined,
+    climate_zone: climateZone || undefined,
+    captured_at: capturedAt || undefined,
+    provided_by_user: true,
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { image, thumbnail, language = "English", location, userId } = body;
+    const body = await req.json().catch(() => ({}));
+    const {
+      image,
+      thumbnail,
+      language = "English",
+      location,
+      userId,
+      observationDate,
+      observationLocation,
+    } = body;
+
+    const agronomicContext = deriveAgronomicContext(observationDate, observationLocation);
 
     if (!image) {
       return NextResponse.json(
@@ -223,6 +281,17 @@ LANGUAGE REQUIREMENT:
 - If Urdu, use simple everyday conversational Urdu (روزمرہ کی آسان اور عام فہم اردو).
 - If English, keep sentences short and clear. If Hindi, use simple Bolchaal Hindi.`;
 
+          let contextPrompt = "";
+          if (agronomicContext) {
+            const contextItems: string[] = [];
+            if (agronomicContext.month) contextItems.push(`Month of Photo: ${agronomicContext.month}`);
+            if (agronomicContext.season) contextItems.push(`Season: ${agronomicContext.season}`);
+            if (agronomicContext.climate_zone) contextItems.push(`Regional Agricultural Zone: ${agronomicContext.climate_zone}`);
+            if (contextItems.length > 0) {
+              contextPrompt = `\n\nFIELD OBSERVATION TIMING & REGION (Provided by Farmer):\n${contextItems.join(" | ")}\n*Agronomic Analysis Guideline:* Consider this seasonal and regional climate timing when evaluating pathogen viability, typical disease emergence, and weather vulnerabilities for this time of year.`;
+            }
+          }
+
           // Active Gemini 3 models per AGENTS.md catalog: gemini-3.8-flash (Primary), gemini-3.6-flash, gemini-3.5-flash-lite, gemini-flash-latest
           const candidateModels = [
             "gemini-3.8-flash",
@@ -234,7 +303,6 @@ LANGUAGE REQUIREMENT:
 
           for (const modelName of candidateModels) {
             try {
-              // 18-second timeout giving adequate time for multimodal JSON output without premature kill
               const generatePromise = ai.models.generateContent({
                 model: modelName,
                 contents: [
@@ -248,7 +316,7 @@ LANGUAGE REQUIREMENT:
                         },
                       },
                       {
-                        text: languagePrompt,
+                        text: languagePrompt + contextPrompt,
                       },
                     ],
                   },
@@ -396,10 +464,9 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
       imageThumbnail: scanThumbnail,
       language,
       createdAt: new Date().toISOString(),
-      location: location || {
-        latitude: 31.5204,
-        longitude: 74.3587,
-        city: "Agricultural District",
+      agronomic_context: agronomicContext || undefined,
+      location: {
+        city: agronomicContext?.climate_zone || "Agricultural District",
         country: "Regional Station",
       },
       userId: userId || "guest_farmer",
@@ -430,7 +497,10 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
       success: true,
       isPlantOrCrop: true,
       scanId,
-      diagnosis,
+      diagnosis: {
+        ...diagnosis,
+        agronomic_context: agronomicContext || undefined,
+      },
       modelUsed: activeModel || "gemini-3.8-flash",
     });
   } catch (error: any) {

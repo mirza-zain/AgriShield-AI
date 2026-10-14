@@ -2,6 +2,78 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
+    const latParam = req.nextUrl.searchParams.get("lat");
+    const lonParam = req.nextUrl.searchParams.get("lon");
+    if (latParam && lonParam) {
+      const lat = parseFloat(latParam);
+      const lon = parseFloat(lonParam);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        // 1. Try BigDataCloud reverse geocode
+        try {
+          const geoRes = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
+            { signal: AbortSignal.timeout(4000) }
+          );
+          if (geoRes.ok) {
+            const d = await geoRes.json();
+            const city = d.city || d.locality || d.principalSubdivision || "Agricultural Zone";
+            const country = d.countryName || "";
+            const label = country ? `${city}, ${country}` : city;
+            return NextResponse.json({
+              success: true,
+              latitude: lat,
+              longitude: lon,
+              city,
+              country,
+              label,
+              source: "gps",
+            });
+          }
+        } catch {}
+
+        // 2. Try Nominatim reverse geocode
+        try {
+          const nomRes = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`,
+            {
+              headers: { "User-Agent": "AgriShield-AI/1.0" },
+              signal: AbortSignal.timeout(4000),
+            }
+          );
+          if (nomRes.ok) {
+            const nd = await nomRes.json();
+            const city =
+              nd.address?.city ||
+              nd.address?.town ||
+              nd.address?.county ||
+              nd.address?.state ||
+              "Local District";
+            const country = nd.address?.country || "";
+            const label = country ? `${city}, ${country}` : city;
+            return NextResponse.json({
+              success: true,
+              latitude: lat,
+              longitude: lon,
+              city,
+              country,
+              label,
+              source: "gps",
+            });
+          }
+        } catch {}
+
+        return NextResponse.json({
+          success: true,
+          latitude: lat,
+          longitude: lon,
+          city: "Local Farm",
+          country: "GPS Coordinates",
+          label: "Local Farm (GPS)",
+          source: "gps",
+        });
+      }
+    }
+
     const forwarded = req.headers.get("x-forwarded-for");
     const realIp = req.headers.get("x-real-ip");
     let clientIp = (forwarded ? forwarded.split(",")[0].trim() : realIp) || "";

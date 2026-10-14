@@ -11,6 +11,7 @@ import {
   VolumeX,
   Printer,
   ChevronDown,
+  Calendar,
   RefreshCw,
   Globe,
   Activity,
@@ -265,6 +266,14 @@ export default function AgriShieldDashboard() {
   const [activeTreatmentTab, setActiveTreatmentTab] = useState<"immediate" | "organic" | "chemical">("immediate");
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
 
+  // Optional Observation Context (Photo Date & Region)
+  const [observationDate, setObservationDate] = useState<string>("");
+  const [observationLocation, setObservationLocation] = useState<string>("");
+  const [showObservationContext, setShowObservationContext] = useState<boolean>(false);
+  const [isDateUserEdited, setIsDateUserEdited] = useState<boolean>(false);
+  const [isDateFromExif, setIsDateFromExif] = useState<boolean>(false);
+  const [isDetectingRegion, setIsDetectingRegion] = useState<boolean>(false);
+
   // Audio / Speech State
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [audioLoading, setAudioLoading] = useState<boolean>(false);
@@ -448,6 +457,55 @@ export default function AgriShieldDashboard() {
     });
   };
 
+  const extractExifDateFromImageFile = async (file: File): Promise<string | null> => {
+    try {
+      if (!file.type.startsWith("image/")) return null;
+      // Read first 128KB of image where EXIF header resides
+      const slice = file.slice(0, 131072);
+      const arrayBuffer = await slice.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      // 1. If JPEG (SOI: 0xFF, 0xD8), scan APP1 markers for Exif header
+      if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+        let offset = 2;
+        while (offset < bytes.length - 4) {
+          if (bytes[offset] === 0xff && bytes[offset + 1] === 0xe1) {
+            const length = (bytes[offset + 2] << 8) | bytes[offset + 3];
+            const app1Bytes = bytes.subarray(offset + 4, Math.min(bytes.length, offset + 2 + length));
+            if (
+              app1Bytes[0] === 0x45 &&
+              app1Bytes[1] === 0x78 &&
+              app1Bytes[2] === 0x69 &&
+              app1Bytes[3] === 0x66
+            ) {
+              const text = new TextDecoder("latin1").decode(app1Bytes);
+              const match = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])(?:\s(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d))?\b/);
+              if (match) {
+                return `${match[1]}-${match[2]}-${match[3]}`;
+              }
+            }
+            break;
+          } else if (bytes[offset] === 0xff && (bytes[offset + 1] & 0xf0) === 0xe0) {
+            const length = (bytes[offset + 2] << 8) | bytes[offset + 3];
+            offset += 2 + length;
+          } else {
+            offset++;
+          }
+        }
+      }
+
+      // 2. Scan first 64KB for standard EXIF timestamp format "YYYY:MM:DD HH:MM:SS" (covers HEIC/TIFF/WebP metadata)
+      const text = new TextDecoder("latin1").decode(bytes.subarray(0, 65536));
+      const fullMatch = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])\s(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)\b/);
+      if (fullMatch) {
+        return `${fullMatch[1]}-${fullMatch[2]}-${fullMatch[3]}`;
+      }
+    } catch {
+      // Ignore EXIF parsing failures
+    }
+    return null;
+  };
+
   const handleFile = async (file: File) => {
     setErrorMessage(null);
     setNotCropNotice(null);
@@ -457,6 +515,19 @@ export default function AgriShieldDashboard() {
     if (!file.type.startsWith("image/")) {
       setErrorMessage("Please select a photo of a plant leaf or crop.");
       return;
+    }
+
+    // Only inspect genuine photo EXIF metadata (never use file.lastModified or upload time)
+    if (!isDateUserEdited) {
+      const exifDate = await extractExifDateFromImageFile(file);
+      if (exifDate) {
+        setObservationDate(exifDate);
+        setIsDateFromExif(true);
+      } else {
+        // If image has no embedded EXIF date and user has not added one, leave empty
+        setObservationDate("");
+        setIsDateFromExif(false);
+      }
     }
     try {
       // Parallel generation: full diagnosis image (~70KB) and lightweight vault thumbnail (~15KB)
@@ -490,6 +561,10 @@ export default function AgriShieldDashboard() {
     setActivePresetUrl(url);
     setImagePreview(url);
     setThumbnailPreview(url);
+    if (!isDateUserEdited) {
+      setObservationDate("");
+      setIsDateFromExif(false);
+    }
     if (presetName) {
       showToast(`Loaded sample: ${presetName} 🌿`);
     }
@@ -511,6 +586,8 @@ export default function AgriShieldDashboard() {
         image: imagePreview,
         thumbnail: thumbnailPreview || imagePreview,
         language: selectedLanguage,
+        observationDate: observationDate.trim() || undefined,
+        observationLocation: observationLocation.trim() || undefined,
       };
 
       const res = await fetch("/api/diagnose", {
@@ -579,7 +656,11 @@ export default function AgriShieldDashboard() {
         imageThumbnail: thumbnailPreview || imagePreview || undefined,
         language: selectedLanguage,
         createdAt: new Date().toISOString(),
-        location: { latitude: 31.5204, longitude: 74.3587, city: "Your Farm", country: "Field Station" },
+        agronomic_context: data.diagnosis.agronomic_context,
+        location: {
+          city: data.diagnosis.agronomic_context?.climate_zone || "Agricultural District",
+          country: "Regional Station",
+        },
       };
 
       setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
@@ -759,6 +840,15 @@ export default function AgriShieldDashboard() {
     setActivePresetUrl(null);
     setSelectedScanId(scan.id || null);
     setDiagnosis(scan);
+    if (scan.agronomic_context) {
+      setObservationDate(scan.agronomic_context.captured_at || "");
+      setObservationLocation(scan.agronomic_context.climate_zone || "");
+    } else {
+      setObservationDate("");
+      setObservationLocation("");
+    }
+    setIsDateUserEdited(false);
+    setIsDateFromExif(false);
     const activeImage = scan.imageUrl || scan.imageThumbnail || null;
     if (activeImage) {
       setImagePreview(activeImage);
@@ -903,8 +993,16 @@ export default function AgriShieldDashboard() {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords;
-          await fetchWeatherForCoords(latitude, longitude, "Local Farm Coordinates", "gps");
-          showToast("Local Farm GPS weather locked 📍");
+          let label = "Local Farm (GPS)";
+          try {
+            const res = await fetch(`/api/locate?lat=${latitude}&lon=${longitude}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.label) label = data.label;
+            }
+          } catch {}
+          await fetchWeatherForCoords(latitude, longitude, label, "gps");
+          showToast(`Local Farm GPS weather locked: ${label} 📍`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
         },
         async (err) => {
           console.warn("GPS access denied or unavailable, attempting auto-IP fallback...", err.message);
@@ -917,6 +1015,72 @@ export default function AgriShieldDashboard() {
       // Mobile Chrome/Safari strictly block navigator.geolocation on non-HTTPS origins.
       fallbackToIpLocation(isSecure ? undefined : "Mobile HTTP requires HTTPS for GPS. Auto-locked via IP 🌐");
     }
+  };
+
+  const handleDetectCurrentObservationRegion = async () => {
+    setIsDetectingRegion(true);
+    const isSecure = typeof window !== "undefined" && window.isSecureContext;
+
+    if (isSecure && typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const { latitude, longitude } = pos.coords;
+            let regionLabel = "Local Farm (GPS)";
+            try {
+              const res = await fetch(`/api/locate?lat=${latitude}&lon=${longitude}`);
+              if (res.ok) {
+                const data = await res.json();
+                if (data.label) regionLabel = data.label;
+              }
+            } catch {}
+
+            setObservationLocation(regionLabel);
+            await fetchWeatherForCoords(latitude, longitude, regionLabel, "gps");
+            showToast(`Local Farm GPS locked: ${regionLabel} 📍`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+          } catch (err) {
+            console.warn("GPS reverse geocoding error:", err);
+            setObservationLocation("Local Farm (GPS)");
+            showToast("Local Farm GPS locked 📍", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+          } finally {
+            setIsDetectingRegion(false);
+          }
+        },
+        async (err) => {
+          console.warn("GPS access denied or blocked, falling back to IP:", err.message);
+          await fallbackObservationToIp("GPS denied. Auto-locked via Regional IP 🌐");
+          setIsDetectingRegion(false);
+        },
+        { timeout: 8000, enableHighAccuracy: false }
+      );
+    } else {
+      // Insecure context (e.g. mobile over HTTP) where GPS is blocked by browser policy
+      await fallbackObservationToIp(
+        isSecure ? "GPS unavailable. Auto-locked via Regional IP 🌐" : "Mobile HTTP requires HTTPS for GPS. Auto-locked via IP 🌐"
+      );
+      setIsDetectingRegion(false);
+    }
+  };
+
+  const fallbackObservationToIp = async (toastMsg?: string) => {
+    try {
+      const res = await fetch("/api/locate");
+      if (res.ok) {
+        const data = await res.json();
+        const label = data.label || data.city || "Regional Farm Zone (IP)";
+        setObservationLocation(label);
+        if (data.latitude && data.longitude) {
+          await fetchWeatherForCoords(data.latitude, data.longitude, label, "ip");
+        }
+        showToast(toastMsg || `Location locked via IP: ${label} 🌐`, <Globe className="w-4 h-4 text-blue-400" />);
+        return;
+      }
+    } catch (e) {
+      console.warn("IP locate error:", e);
+    }
+
+    setObservationLocation(activeLocationLabel || "Punjab Farm Belt");
+    showToast("GPS blocked. Using Regional Farm Preset 🌾");
   };
 
   const handleSearchCity = async (e: React.FormEvent) => {
@@ -1636,12 +1800,147 @@ export default function AgriShieldDashboard() {
                     </div>
                   </div>
 
+                  {/* Optional Field Observation Timing & Region Accordion */}
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-3 transition-all">
+                    <button
+                      type="button"
+                      onClick={() => setShowObservationContext((prev) => !prev)}
+                      className="w-full flex items-center justify-between text-left group"
+                    >
+                      <div className="flex items-center space-x-2 min-w-0 pr-2">
+                        <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition-colors truncate">
+                          Optional: Photo Date & Agro-Region
+                        </span>
+                        {(observationDate || observationLocation) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 flex-shrink-0">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-1.5 flex-shrink-0">
+                        <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
+                          Hones AI Seasonality
+                        </span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                            showObservationContext ? "rotate-180 text-emerald-600" : ""
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {showObservationContext && (
+                      <div className="pt-2 border-t border-slate-200/70 space-y-3 animate-in fade-in duration-200">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {/* Observation Date */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5 flex-wrap">
+                                <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                <span>Observation Date</span>
+                                {isDateFromExif && observationDate && (
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center space-x-0.5">
+                                    <span>📷</span>
+                                    <span>From Photo EXIF</span>
+                                  </span>
+                                )}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const today = new Date().toISOString().split("T")[0];
+                                  setObservationDate(today);
+                                  setIsDateUserEdited(true);
+                                  setIsDateFromExif(false);
+                                }}
+                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline"
+                              >
+                                Today
+                              </button>
+                            </div>
+                            <input
+                              type="date"
+                              value={observationDate}
+                              onChange={(e) => {
+                                setObservationDate(e.target.value);
+                                setIsDateUserEdited(true);
+                                setIsDateFromExif(false);
+                              }}
+                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-800"
+                            />
+                            {!observationDate && (
+                              <p className="text-[10px] text-slate-400 font-medium">
+                                Optional: Leave blank to diagnose without date
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Observation Location */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                <MapPin className="w-3 h-3 text-slate-400" />
+                                <span>Agricultural Region</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={handleDetectCurrentObservationRegion}
+                                disabled={isDetectingRegion}
+                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center space-x-1 disabled:opacity-50"
+                                title="Detect current region via GPS (or IP if blocked)"
+                              >
+                                {isDetectingRegion ? (
+                                  <>
+                                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                    <span>Detecting...</span>
+                                  </>
+                                ) : (
+                                  <span>Use Current</span>
+                                )}
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={observationLocation}
+                              onChange={(e) => setObservationLocation(e.target.value)}
+                              placeholder="e.g. Multan, Punjab or Central Highlands"
+                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-medium text-slate-800 placeholder:text-slate-400"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Privacy Explanation & Reset */}
+                        <div className="flex items-center justify-between pt-1 text-[10px] text-slate-500">
+                          <span className="flex items-center space-x-1">
+                            <ShieldCheck className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                            <span>Zero GPS or plot addresses saved to Vault.</span>
+                          </span>
+                          {(observationDate || observationLocation) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setObservationDate("");
+                                setObservationLocation("");
+                                setIsDateUserEdited(true);
+                                setIsDateFromExif(false);
+                              }}
+                              className="text-slate-400 hover:text-rose-600 font-medium transition-colors"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Primary Diagnosis Execution CTA */}
                   <div className="space-y-2 pt-1">
                     <button
-                      disabled={!imagePreview || isAnalyzing}
+                      disabled={!imagePreview || isAnalyzing || !!selectedScanId}
                       onClick={handleRunDiagnosis}
-                      className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center space-x-3 shadow-lg transition-all ${!imagePreview || isAnalyzing
+                      className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center space-x-3 shadow-lg transition-all ${!imagePreview || isAnalyzing || !!selectedScanId
                         ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
                         : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/25 active:scale-[0.98]"
                         }`}
@@ -1651,6 +1950,11 @@ export default function AgriShieldDashboard() {
                           <RefreshCw className="w-5 h-5 animate-spin" />
                           <span>Consulting AI Plant Doctor...</span>
                         </>
+                      ) : selectedScanId ? (
+                        <>
+                          <Bookmark className="w-5 h-5 text-slate-400" />
+                          <span>Viewing Cached Vault Record</span>
+                        </>
                       ) : (
                         <>
                           <Sparkles className="w-5 h-5" />
@@ -1658,6 +1962,12 @@ export default function AgriShieldDashboard() {
                         </>
                       )}
                     </button>
+
+                    {selectedScanId && (
+                      <p className="text-center text-[11px] text-slate-400 font-medium">
+                        To run a fresh diagnosis, snap/upload a new plant photo or select a test sample above.
+                      </p>
+                    )}
 
                     {/* Stepped Progress Indicator */}
                     {isAnalyzing && (
@@ -1719,6 +2029,28 @@ export default function AgriShieldDashboard() {
                         <p className="text-xs text-slate-500 font-medium italic truncate">
                           Scientific: {diagnosis.scientific_name}
                         </p>
+                        {diagnosis.agronomic_context && (
+                          <div className="flex items-center space-x-1.5 flex-wrap gap-y-1 pt-1">
+                            {diagnosis.agronomic_context.season && (
+                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/80 text-[10px] font-bold">
+                                <span>🍂</span>
+                                <span>{diagnosis.agronomic_context.season}</span>
+                              </span>
+                            )}
+                            {diagnosis.agronomic_context.month && (
+                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 border border-blue-200/80 text-[10px] font-bold">
+                                <span>📅</span>
+                                <span>{diagnosis.agronomic_context.month}</span>
+                              </span>
+                            )}
+                            {diagnosis.agronomic_context.climate_zone && (
+                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 border border-emerald-200/80 text-[10px] font-bold truncate max-w-[200px]">
+                                <span>🌾</span>
+                                <span className="truncate">{diagnosis.agronomic_context.climate_zone}</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {(() => {
@@ -2259,6 +2591,22 @@ export default function AgriShieldDashboard() {
                             <p className="text-xs text-emerald-800 font-bold truncate">
                               {scan.condition_detected}
                             </p>
+                            {scan.agronomic_context && (scan.agronomic_context.season || scan.agronomic_context.climate_zone) ? (
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {scan.agronomic_context.season && (
+                                  <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200/80 text-[10px] font-bold">
+                                    <span>🍂</span>
+                                    <span>{scan.agronomic_context.season}</span>
+                                  </span>
+                                )}
+                                {scan.agronomic_context.climate_zone && (
+                                  <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200/80 text-[10px] font-bold truncate max-w-[140px]">
+                                    <span>🌾</span>
+                                    <span className="truncate">{scan.agronomic_context.climate_zone}</span>
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
 
                           <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed font-medium">

@@ -15,6 +15,15 @@ export interface DiagnosisResult {
   prevention_tips: string[];
   climate_impact_warning: string;
   model_used?: string;
+  agronomic_context?: AgronomicContext;
+}
+
+export interface AgronomicContext {
+  season?: string;
+  month?: string;
+  climate_zone?: string;
+  captured_at?: string;
+  provided_by_user: boolean;
 }
 
 export interface ScanRecord extends DiagnosisResult {
@@ -24,8 +33,8 @@ export interface ScanRecord extends DiagnosisResult {
   language: string;
   createdAt: string;
   location?: {
-    latitude: number;
-    longitude: number;
+    latitude?: number;
+    longitude?: number;
     city?: string;
     country?: string;
   };
