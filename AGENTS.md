@@ -98,6 +98,11 @@ When modifying or expanding this codebase, strictly follow these rules:
 * If testing commands or scripts, never print or echo environment variables or private keys into terminal logs, git commits, or responses.
 * Refer developers strictly to `.env.example` placeholders without looking at actual secret values on disk.
 
+### F. Strict Commit & Review Protocol: NEVER Commit Autonomously
+* **DO NOT COMMIT UNLESS THE USER EXPLICITLY ASKS**: AI assistants/agents must **NEVER** run `git commit`, `git push`, or create commits autonomously. Only commit when the user explicitly commands it in their prompt (e.g., *"commit this"*, *"let's commit"*). No auto-committing under any circumstance.
+* **HUMAN REVIEW FIRST**: Everything must be reviewed and approved by the human developer before any commit action.
+* **ACTIVE IMPLEMENTATION PLAN & TASK LIST**: Maintain an active implementation plan and task list for all non-trivial tasks so the user has full transparency over what is being changed and executed.
+
 ---
 
 ## 6. Deployment to Google Cloud Run
