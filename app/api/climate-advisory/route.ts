@@ -12,7 +12,10 @@ function getRuleBasedClimateAdvisory(
   rainProb: number,
   windSpeed: number,
   cropName: string,
-  language: string
+  language: string,
+  pastWeekRainfallMm?: number,
+  pastWeekAvgHumidity?: number,
+  consecutiveDampDays?: number
 ): ClimateAdvisoryResult {
   const isUrdu = language === "Urdu";
   const isHindi = language === "Hindi";
@@ -32,6 +35,9 @@ function getRuleBasedClimateAdvisory(
   if (isHeatStress) riskScore += 35;
   if (isRainRisk) riskScore += 30;
   if (humidity > 85) riskScore += 15;
+  if (pastWeekRainfallMm !== undefined && pastWeekRainfallMm > 15) riskScore += 15;
+  if (consecutiveDampDays !== undefined && consecutiveDampDays >= 3) riskScore += 15;
+  if (pastWeekAvgHumidity !== undefined && pastWeekAvgHumidity >= 75) riskScore += 10;
 
   riskScore = Math.min(100, Math.max(10, riskScore));
 
@@ -39,6 +45,22 @@ function getRuleBasedClimateAdvisory(
   else if (riskScore >= 55) riskLevel = "High";
   else if (riskScore >= 35) riskLevel = "Moderate";
   else riskLevel = "Low";
+
+  const ongoingImpactUrdu = pastWeekRainfallMm !== undefined
+    ? `گزشتہ ہفتے ${pastWeekRainfallMm} ملی میٹر بارش اور ${pastWeekAvgHumidity ?? humidity} فیصد اوسط نمی کی وجہ سے کھیت میں نمی اور فنگس کے جراثیم جمع ہو چکے ہیں، اس لیے فصل کو جھلساؤ سے بچانا ضروری ہے۔`
+    : `گزشتہ دنوں کی مسلسل نمی کی وجہ سے پودوں میں بیماریوں کے جراثیم پنپنے کا خطرہ موجود ہے۔`;
+
+  const ongoingImpactHindi = pastWeekRainfallMm !== undefined
+    ? `पिछले 7 दिनों में ${pastWeekRainfallMm} मिमी बारिश और ${pastWeekAvgHumidity ?? humidity}% औसत नमी के कारण मिट्टी और पत्तों पर फफूंद का दबाव बढ़ गया है।`
+    : `पिछले दिनों की लगातार नमी से फसलों में बीमारी के संक्रमण का खतरा बना हुआ है।`;
+
+  const ongoingImpactSpanish = pastWeekRainfallMm !== undefined
+    ? `Durante los últimos 7 días, ${pastWeekRainfallMm}mm de lluvia y una humedad promedio del ${pastWeekAvgHumidity ?? humidity}% acumularon esporas e hidratación en el follaje.`
+    : `La humedad acumulada en los días previos mantiene la presión de inóculo sobre el cultivo.`;
+
+  const ongoingImpactEnglish = pastWeekRainfallMm !== undefined
+    ? `Over the past 7 days, ${pastWeekRainfallMm}mm of cumulative rainfall and ${pastWeekAvgHumidity ?? humidity}% average humidity have saturated topsoil and created a prime incubation window for fungal spores.`
+    : `Sustained ambient dampness over recent days has elevated latent pathogen pressure in the canopy.`;
 
   if (isFungalSweetSpot) {
     if (isUrdu) {
@@ -50,7 +72,10 @@ function getRuleBasedClimateAdvisory(
         action_today: "پتوں کے نچلے حصے کا معائنہ کریں۔ پودوں کے درمیان ہوا کا گزر بحال رکھیں اور شام کو پانی نہ دیں۔",
         spray_timing_advice: "دھوپ نکلنے پر سپرے کریں۔ بارش کے دوران سپرے ضائع ہو جائے گا۔",
         irrigation_advice: "کھیت میں کھڑا پانی فوری نکالیں، صرف ضرورت کے مطابق صبح کے وقت پانی دیں۔",
-        spoken_script: `سلام کسان بھائی۔ ہوا میں نمی ${humidity} فیصد ہے جو پھپھوندی کی بیماریوں کو بڑھاتی ہے۔ آج پتوں کے نچلے حصے دیکھیں اور کھیت میں پانی کھڑا نہ ہونے دیں۔`,
+        ongoing_climate_impact: ongoingImpactUrdu,
+        spoken_script: pastWeekRainfallMm !== undefined && pastWeekRainfallMm > 10
+          ? `سلام کسان بھائی۔ گزشتہ ہفتے ${pastWeekRainfallMm} ملی میٹر بارش اور آج ${humidity} فیصد نمی کی وجہ سے فنگس کا شدید خطرہ ہے۔ آج پتوں کا معائنہ کریں اور کھیت میں پانی کھڑا نہ ہونے دیں۔`
+          : `سلام کسان بھائی۔ ہوا میں نمی ${humidity} فیصد ہے جو پھپھوندی کی بیماریوں کو بڑھاتی ہے۔ آج پتوں کے نچلے حصے دیکھیں اور کھیت میں پانی کھڑا نہ ہونے دیں۔`,
       };
     }
     if (isHindi) {
@@ -62,6 +87,7 @@ function getRuleBasedClimateAdvisory(
         action_today: "पत्तियों के नीचे जांचें। पौधों के बीच हवा का प्रवाह रखें और शाम को सिंचाई से बचें।",
         spray_timing_advice: "धूप निकलने पर ही स्प्रे करें। बारिश से ठीक पहले स्प्रे न करें।",
         irrigation_advice: "खेत से अतिरिक्त पानी निकालें, केवल सुबह के समय हल्की सिंचाई करें।",
+        ongoing_climate_impact: ongoingImpactHindi,
         spoken_script: `नमस्ते किसान भाई। हवा में नमी ${humidity} प्रतिशत है जो फफूंद रोग फैला सकती है। आज पत्तियों के नीचे जांच करें और खेत में पानी न रुकने दें।`,
       };
     }
@@ -74,6 +100,7 @@ function getRuleBasedClimateAdvisory(
         action_today: "Inspeccione el envés de las hojas y mejore la ventilación entre surcos.",
         spray_timing_advice: "Aplique tratamientos foliares con sol matutino; evite antes de la lluvia.",
         irrigation_advice: "Evite encharcamientos; riegue temprano por goteo.",
+        ongoing_climate_impact: ongoingImpactSpanish,
         spoken_script: `Hola agricultor. La humedad del ${humidity} por ciento favorece hongos como tizón. Revise hoy sus hojas y evite acumulación de agua.`,
       };
     }
@@ -85,7 +112,10 @@ function getRuleBasedClimateAdvisory(
       action_today: "Inspect undersides of leaves and ensure good airflow between crop rows. Avoid overhead evening watering.",
       spray_timing_advice: "Apply protective organic sprays during clear morning sun; avoid right before rainfall.",
       irrigation_advice: "Ensure field drainage furrows are clear; reduce watering frequency.",
-      spoken_script: `Hello. Relative humidity is ${humidity} percent, which accelerates fungal spores. Check leaf undersides today and prevent standing water in furrows.`,
+      ongoing_climate_impact: ongoingImpactEnglish,
+      spoken_script: pastWeekRainfallMm !== undefined && pastWeekRainfallMm > 10
+        ? `Farmer alert: With ${pastWeekRainfallMm}mm of rain this past week and current ${humidity} percent humidity, fungal spores are active. Inspect leaf undersides and prevent standing furrow water.`
+        : `Hello. Relative humidity is ${humidity} percent, which accelerates fungal spores. Check leaf undersides today and prevent standing water in furrows.`,
     };
   }
 
@@ -99,6 +129,7 @@ function getRuleBasedClimateAdvisory(
         action_today: "پودوں کی جڑوں کے گرد خشک گھاس یا پرالی بچھا کر نمی محفوظ کریں۔",
         spray_timing_advice: "دوپہر کی تیز دھوپ میں ہرگز سپرے نہ کریں۔ صرف سورج غروب ہونے کے بعد سپرے کریں۔",
         irrigation_advice: "صبح سویرے سورج نکلنے سے پہلے ہلکا پانی لگائیں۔",
+        ongoing_climate_impact: ongoingImpactUrdu,
         spoken_script: `کسان بھائی، درجہ حرارت ${temperature} ڈگری تک پہنچ چکا ہے۔ صبح جلدی پانی لگائیں اور دوپہر میں کوئی کیمیکل سپرے نہ کریں۔`,
       };
     }
@@ -110,6 +141,7 @@ function getRuleBasedClimateAdvisory(
       action_today: "Apply straw mulch around crop root zones to reduce moisture evaporation by 40%.",
       spray_timing_advice: "Never spray chemicals during peak midday heat; spray strictly at sunset.",
       irrigation_advice: "Irrigate early in the morning before 8:00 AM to prevent root scalding.",
+      ongoing_climate_impact: ongoingImpactEnglish,
       spoken_script: `Farmer alert: Temperatures around ${temperature} degrees Celsius will cause heat stress. Irrigate early morning and avoid any midday foliar spraying.`,
     };
   }
@@ -124,6 +156,7 @@ function getRuleBasedClimateAdvisory(
       action_today: "کھیت کا معمول کا معائنہ کریں اور جڑی بوٹیاں تلف کریں۔",
       spray_timing_advice: "معمول کے حفاظتی نیم تیل کا سپرے کرنے کے لیے موسم نہایت موزوں ہے۔",
       irrigation_advice: "معمول کے شیڈول کے مطابق پانی دیں۔",
+      ongoing_climate_impact: ongoingImpactUrdu,
       spoken_script: `آج کا موسم ${targetCrop} کے لیے بہترین ہے۔ معمول کے مطابق دیکھ بھال کریں اور پودوں کو صاف رکھیں۔`,
     };
   }
@@ -136,6 +169,7 @@ function getRuleBasedClimateAdvisory(
     action_today: "Conduct routine field scouting and remove emerging weeds around bases.",
     spray_timing_advice: "Excellent calm weather window for preventive organic neem or bio-stimulant foliar spray.",
     irrigation_advice: "Maintain standard balanced irrigation schedule.",
+    ongoing_climate_impact: ongoingImpactEnglish,
     spoken_script: `Today's microclimate conditions are favorable for ${targetCrop}. Maintain routine irrigation and field scouting.`,
   };
 }
@@ -153,6 +187,9 @@ export async function POST(req: NextRequest) {
     const weatherCondition = String(body.weather_condition || "Clear");
     const cropName = body.crop_name ? String(body.crop_name).trim() : "";
     const language = String(body.language || "English").trim();
+    const pastWeekRainfallMm = body.past_week_rainfall_mm !== undefined ? Number(body.past_week_rainfall_mm) : undefined;
+    const pastWeekAvgHumidity = body.past_week_avg_humidity !== undefined ? Number(body.past_week_avg_humidity) : undefined;
+    const consecutiveDampDays = body.consecutive_damp_days !== undefined ? Number(body.consecutive_damp_days) : undefined;
 
     const apiKey = process.env.GEMINI_API_KEY;
 
@@ -164,7 +201,10 @@ export async function POST(req: NextRequest) {
         rainProbability,
         windSpeed,
         cropName,
-        language
+        language,
+        pastWeekRainfallMm,
+        pastWeekAvgHumidity,
+        consecutiveDampDays
       );
       console.log(`[Climate Advisory] API key not configured. Using rule-based offline engine.`);
       return NextResponse.json({ advisory: fallbackResult, source: "offline_engine", modelUsed: "rule-based-engine" });
@@ -207,9 +247,13 @@ export async function POST(req: NextRequest) {
             type: Type.STRING,
             description: "Watering adjustment based on current moisture and rain probability",
           },
+          ongoing_climate_impact: {
+            type: Type.STRING,
+            description: "Practical explanation of how the past 7 days of rainfall, sustained humidity, or damp conditions have built up pathogen pressure or soil saturation in the crop field.",
+          },
           spoken_script: {
             type: Type.STRING,
-            description: "Concise conversational audio script (2-3 sentences max) to be read aloud via TTS in the requested language",
+            description: "Concise conversational audio script (2-3 sentences max) to be read aloud via TTS in the requested language, acknowledging both current weather and the past week's dampness/humidity accumulation.",
           },
         },
         required: [
@@ -220,6 +264,7 @@ export async function POST(req: NextRequest) {
           "action_today",
           "spray_timing_advice",
           "irrigation_advice",
+          "ongoing_climate_impact",
           "spoken_script",
         ],
       };
@@ -234,16 +279,29 @@ CRITICAL LANGUAGE RULES:
 - If language is "English", use short, clear, direct sentences.
 - Focus on practical field advice: pruning, drainage, spray timing, and irrigation.`;
 
-      const prompt = `Analyze these real-time field weather parameters:
+      let microclimateContext = "";
+      if (pastWeekRainfallMm !== undefined || pastWeekAvgHumidity !== undefined || consecutiveDampDays !== undefined) {
+        microclimateContext = `
+- Ongoing 7-Day Microclimate Trend:
+  * Cumulative Past 7-Day Rainfall: ${pastWeekRainfallMm ?? "N/A"}mm
+  * Preceding 7-Day Average Humidity: ${pastWeekAvgHumidity ?? "N/A"}%
+  * Damp/Wet Incubation Days in Past Week: ${consecutiveDampDays ?? "N/A"} of 7 days
+`;
+      }
+
+      const prompt = `Analyze these real-time and ongoing field microclimate parameters:
 - Ambient Temperature: ${temperature}°C
 - Relative Humidity: ${humidity}%
 - Rain Probability: ${rainProbability}%
 - Wind Speed: ${windSpeed} km/h
 - Current Sky Condition: ${weatherCondition}
-- Target Crop: ${cropName || "General regional crops (Vegetables, Wheat, Rice, Corn, Cotton)"}
+${microclimateContext}- Target Crop: ${cropName || "General regional crops (Vegetables, Wheat, Rice, Corn, Cotton)"}
 - Target Language: ${language}
 
-Calculate the disease outbreak risk and provide a complete structured agronomic advisory.`;
+Provide a complete structured agronomic advisory:
+1. "risk_level" and "risk_score": Assess current outbreak risk factoring in both today's weather AND preceding 7-day rainfall/humidity accumulation.
+2. "ongoing_climate_impact": Explain clearly to the farmer how the past 7 days of rainfall (${pastWeekRainfallMm ?? 0}mm), average humidity (${pastWeekAvgHumidity ?? humidity}%), and damp days have created latent fungal/bacterial incubation or waterlogged soil conditions.
+3. "spoken_script": Concise spoken advice (2-3 sentences max) mentioning both current weather and the past week's dampness/humidity build-up.`;
 
       const candidateModels = [
         "gemini-3.8-flash",
@@ -295,7 +353,10 @@ Calculate the disease outbreak risk and provide a complete structured agronomic 
         rainProbability,
         windSpeed,
         cropName,
-        language
+        language,
+        pastWeekRainfallMm,
+        pastWeekAvgHumidity,
+        consecutiveDampDays
       );
       return NextResponse.json({ advisory: fallback, source: "rule_fallback", modelUsed: "rule-based-engine" });
     } catch (aiInitError) {
@@ -307,7 +368,10 @@ Calculate the disease outbreak risk and provide a complete structured agronomic 
         rainProbability,
         windSpeed,
         cropName,
-        language
+        language,
+        pastWeekRainfallMm,
+        pastWeekAvgHumidity,
+        consecutiveDampDays
       );
       return NextResponse.json({ advisory: fallback, source: "rule_fallback", modelUsed: "rule-based-engine" });
     }

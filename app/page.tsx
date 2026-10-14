@@ -45,7 +45,7 @@ import {
   Compass,
   Map as MapIcon,
 } from "lucide-react";
-import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult } from "@/lib/types";
+import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 
 // Authentic Ionicons Leaf SVG Component
 function IoniconsLeaf({
@@ -922,7 +922,7 @@ export default function AgriShieldDashboard() {
       stopAdvisorySpeech();
 
       const res = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&past_days=7&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,relative_humidity_2m_mean&timezone=auto`
       );
 
       if (!res.ok) throw new Error("Weather service unreachable");
@@ -932,22 +932,42 @@ export default function AgriShieldDashboard() {
       const daily = data.daily;
       const weatherInfo = getWeatherCodeDescription(current?.weather_code || 0);
 
+      // In Open-Meteo with past_days=7, indices 0..6 represent the preceding 7 days,
+      // and index 7 (or the last available index if shorter) corresponds to today.
+      const todayIdx = daily?.time ? Math.min(7, daily.time.length - 1) : 0;
+      const pastRainArray: number[] = (daily?.precipitation_sum || []).slice(0, todayIdx);
+      const pastHumidityArray: number[] = (daily?.relative_humidity_2m_mean || []).slice(0, todayIdx);
+      const pastWeekRainfall = pastRainArray.reduce((acc: number, val: number) => acc + (val || 0), 0);
+      const pastWeekAvgHumidity = pastHumidityArray.length > 0
+        ? Math.round(pastHumidityArray.reduce((acc: number, val: number) => acc + (val || 0), 0) / pastHumidityArray.length)
+        : Math.round(current?.relative_humidity_2m ?? 65);
+
+      let dampDays = 0;
+      for (let i = 0; i < pastRainArray.length; i++) {
+        if ((pastRainArray[i] && pastRainArray[i] > 1.0) || (pastHumidityArray[i] && pastHumidityArray[i] > 75)) {
+          dampDays++;
+        }
+      }
+
       const telemetry: ClimateTelemetry = {
         temperature: Math.round(current?.temperature_2m ?? 26),
         humidity: Math.round(current?.relative_humidity_2m ?? 65),
         precipitation_probability:
-          daily?.precipitation_probability_max?.[0] !== undefined
-            ? daily.precipitation_probability_max[0]
+          daily?.precipitation_probability_max?.[todayIdx] !== undefined
+            ? daily.precipitation_probability_max[todayIdx]
             : Math.round((current?.precipitation ?? 0) * 20),
         precipitation_mm: current?.precipitation ?? 0,
         wind_speed: Math.round(current?.wind_speed_10m ?? 10),
         weather_condition: weatherInfo.condition,
         weather_code: current?.weather_code || 0,
-        temp_max: daily?.temperature_2m_max?.[0] ? Math.round(daily.temperature_2m_max[0]) : undefined,
-        temp_min: daily?.temperature_2m_min?.[0] ? Math.round(daily.temperature_2m_min[0]) : undefined,
+        temp_max: daily?.temperature_2m_max?.[todayIdx] !== undefined ? Math.round(daily.temperature_2m_max[todayIdx]) : undefined,
+        temp_min: daily?.temperature_2m_min?.[todayIdx] !== undefined ? Math.round(daily.temperature_2m_min[todayIdx]) : undefined,
         location_name: label,
         latitude: lat,
         longitude: lon,
+        past_week_rainfall_mm: Math.round(pastWeekRainfall * 10) / 10,
+        past_week_avg_humidity: pastWeekAvgHumidity,
+        consecutive_damp_days: dampDays,
       };
 
       setWeatherTelemetry(telemetry);
@@ -964,6 +984,9 @@ export default function AgriShieldDashboard() {
         location_name: label,
         latitude: lat,
         longitude: lon,
+        past_week_rainfall_mm: 14.2,
+        past_week_avg_humidity: 76,
+        consecutive_damp_days: 3,
       });
     } finally {
       setWeatherLoading(false);
@@ -1197,7 +1220,7 @@ export default function AgriShieldDashboard() {
     try {
       setAdvisoryLoading(true);
 
-      const payload = {
+      const payload: ClimateAdvisoryPayload = {
         temperature: weatherTelemetry.temperature,
         humidity: weatherTelemetry.humidity,
         precipitation_probability: weatherTelemetry.precipitation_probability,
@@ -1205,6 +1228,10 @@ export default function AgriShieldDashboard() {
         weather_condition: weatherTelemetry.weather_condition,
         crop_name: diagnosis?.crop_name || "",
         language: selectedLanguage,
+        past_week_rainfall_mm: weatherTelemetry.past_week_rainfall_mm,
+        past_week_avg_humidity: weatherTelemetry.past_week_avg_humidity,
+        consecutive_damp_days: weatherTelemetry.consecutive_damp_days,
+        location_name: weatherTelemetry.location_name,
       };
 
       const res = await fetch("/api/climate-advisory", {
@@ -2948,83 +2975,121 @@ export default function AgriShieldDashboard() {
 
               {/* LIVE WEATHER HUD: 4 Core Metric Cards */}
               {weatherTelemetry ? (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  {/* Temperature Card */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200/80 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-900">Temperature</span>
-                      <Thermometer className="w-4 h-4 text-amber-600" />
-                    </div>
-                    <div className="mt-2 flex items-baseline space-x-1.5">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
-                        {weatherTelemetry.temperature}°C
-                      </span>
-                      {weatherTelemetry.temp_max !== undefined && (
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          H: {weatherTelemetry.temp_max}° / L: {weatherTelemetry.temp_min}°
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    {/* Temperature Card */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200/80 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-900">Temperature</span>
+                        <Thermometer className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div className="mt-2 flex items-baseline space-x-1.5">
+                        <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                          {weatherTelemetry.temperature}°C
                         </span>
-                      )}
+                        {weatherTelemetry.temp_max !== undefined && (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            H: {weatherTelemetry.temp_max}° / L: {weatherTelemetry.temp_min}°
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-amber-800/90 font-medium mt-1 truncate">
+                        {weatherTelemetry.weather_condition}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-amber-800/90 font-medium mt-1 truncate">
-                      {weatherTelemetry.weather_condition}
-                    </p>
-                  </div>
 
-                  {/* Relative Humidity Card */}
-                  <div className={`p-4 rounded-2xl border shadow-xs ${weatherTelemetry.humidity >= 75
-                      ? "bg-rose-50/70 border-rose-200 text-rose-950"
-                      : "bg-blue-50/70 border-blue-200 text-blue-950"
-                    }`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold">Relative Humidity</span>
-                      <Droplets className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="mt-2 flex items-baseline space-x-1.5">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
-                        {weatherTelemetry.humidity}%
-                      </span>
-                    </div>
-                    <p className="text-[11px] font-semibold mt-1">
-                      {weatherTelemetry.humidity >= 75 ? "🔴 Fungal spore trigger (>75%)" : "🟢 Moderate leaf moisture"}
-                    </p>
-                  </div>
-
-                  {/* Rain Probability Card */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50/70 to-cyan-50/50 border border-sky-200/80 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-sky-900">Rain Probability</span>
-                      <CloudSun className="w-4 h-4 text-sky-600" />
-                    </div>
-                    <div className="mt-2 flex items-baseline space-x-1.5">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
-                        {weatherTelemetry.precipitation_probability}%
-                      </span>
-                      {weatherTelemetry.precipitation_mm ? (
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          {weatherTelemetry.precipitation_mm}mm
+                    {/* Relative Humidity Card */}
+                    <div className={`p-4 rounded-2xl border shadow-xs ${weatherTelemetry.humidity >= 75
+                        ? "bg-rose-50/70 border-rose-200 text-rose-950"
+                        : "bg-blue-50/70 border-blue-200 text-blue-950"
+                      }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold">Relative Humidity</span>
+                        <Droplets className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div className="mt-2 flex items-baseline space-x-1.5">
+                        <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                          {weatherTelemetry.humidity}%
                         </span>
-                      ) : null}
+                      </div>
+                      <p className="text-[11px] font-semibold mt-1">
+                        {weatherTelemetry.humidity >= 75 ? "🔴 Fungal spore trigger (>75%)" : "🟢 Moderate leaf moisture"}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-sky-800 font-medium mt-1">
-                      {weatherTelemetry.precipitation_probability >= 50 ? "Waterlogging risk high" : "Low precipitation expected"}
-                    </p>
+
+                    {/* Rain Probability Card */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50/70 to-cyan-50/50 border border-sky-200/80 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-sky-900">Rain Probability</span>
+                        <CloudSun className="w-4 h-4 text-sky-600" />
+                      </div>
+                      <div className="mt-2 flex items-baseline space-x-1.5">
+                        <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                          {weatherTelemetry.precipitation_probability}%
+                        </span>
+                        {weatherTelemetry.precipitation_mm ? (
+                          <span className="text-[11px] text-slate-500 font-medium">
+                            {weatherTelemetry.precipitation_mm}mm
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-[11px] text-sky-800 font-medium mt-1">
+                        {weatherTelemetry.precipitation_probability >= 50 ? "Waterlogging risk high" : "Low precipitation expected"}
+                      </p>
+                    </div>
+
+                    {/* Wind Speed Card */}
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/50 border border-emerald-200/80 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-900">Wind Velocity</span>
+                        <Wind className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <div className="mt-2 flex items-baseline space-x-1.5">
+                        <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                          {weatherTelemetry.wind_speed} <span className="text-sm font-bold">km/h</span>
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800 font-medium mt-1">
+                        {weatherTelemetry.wind_speed > 25 ? "Spray drift warning (>25km/h)" : "Calm foliar spray window"}
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Wind Speed Card */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/50 border border-emerald-200/80 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-900">Wind Velocity</span>
-                      <Wind className="w-4 h-4 text-emerald-600" />
+                  {/* ONGOING 7-DAY MICROCLIMATE TREND */}
+                  {(weatherTelemetry.past_week_rainfall_mm !== undefined || weatherTelemetry.past_week_avg_humidity !== undefined) && (
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-teal-50/90 border border-blue-200/80 shadow-xs flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700">
+                          <Droplets className="w-4 h-4" />
+                        </span>
+                        <div>
+                          <span className="font-extrabold text-blue-950">Ongoing 7-Day Microclimate Trend:</span>
+                          <span className="text-blue-800 ml-1.5 font-medium hidden sm:inline">Preceding weather driving current fungal & bacterial spore loads</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {weatherTelemetry.past_week_rainfall_mm !== undefined && (
+                          <span className="px-2.5 py-1 rounded-full bg-white/90 border border-blue-200 font-bold text-blue-900 shadow-2xs">
+                            🌧️ 7-Day Rain: {weatherTelemetry.past_week_rainfall_mm}mm
+                          </span>
+                        )}
+                        {weatherTelemetry.past_week_avg_humidity !== undefined && (
+                          <span className="px-2.5 py-1 rounded-full bg-white/90 border border-indigo-200 font-bold text-indigo-900 shadow-2xs">
+                            💧 7-Day Avg Humidity: {weatherTelemetry.past_week_avg_humidity}%
+                          </span>
+                        )}
+                        {weatherTelemetry.consecutive_damp_days !== undefined && (
+                          <span className={`px-2.5 py-1 rounded-full border font-bold shadow-2xs ${
+                            weatherTelemetry.consecutive_damp_days >= 3
+                              ? "bg-rose-50 border-rose-200 text-rose-800"
+                              : "bg-white/90 border-teal-200 text-teal-900"
+                          }`}>
+                            🌿 Damp Days: {weatherTelemetry.consecutive_damp_days}/7
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-2 flex items-baseline space-x-1.5">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
-                        {weatherTelemetry.wind_speed} <span className="text-sm font-bold">km/h</span>
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-emerald-800 font-medium mt-1">
-                      {weatherTelemetry.wind_speed > 25 ? "Spray drift warning (>25km/h)" : "Calm foliar spray window"}
-                    </p>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <div className="py-8 text-center text-slate-400 text-xs font-medium space-y-2">
@@ -3187,6 +3252,19 @@ export default function AgriShieldDashboard() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Preceding Microclimate & Spore Build-up Impact */}
+                    {climateAdvisory.ongoing_climate_impact && (
+                      <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 space-y-1 text-xs">
+                        <span className="font-bold text-indigo-950 flex items-center space-x-1.5">
+                          <Droplets className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>🌧️ Preceding Microclimate & Spore Build-up Impact:</span>
+                        </span>
+                        <p className="text-slate-700 font-medium leading-relaxed">
+                          {climateAdvisory.ongoing_climate_impact}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

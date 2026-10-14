@@ -75,6 +75,9 @@ export interface ClimateTelemetry {
   location_name?: string;
   latitude?: number;
   longitude?: number;
+  past_week_rainfall_mm?: number;
+  past_week_avg_humidity?: number;
+  consecutive_damp_days?: number;
 }
 
 export interface ClimateAdvisoryPayload {
@@ -85,6 +88,10 @@ export interface ClimateAdvisoryPayload {
   weather_condition: string;
   crop_name?: string;
   language: string;
+  past_week_rainfall_mm?: number;
+  past_week_avg_humidity?: number;
+  consecutive_damp_days?: number;
+  location_name?: string;
 }
 
 export interface ClimateAdvisoryResult {
@@ -96,6 +103,7 @@ export interface ClimateAdvisoryResult {
   spray_timing_advice: string;
   irrigation_advice: string;
   spoken_script: string;
+  ongoing_climate_impact?: string;
   model_used?: string;
 }
 
