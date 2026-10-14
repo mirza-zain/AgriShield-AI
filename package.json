@@ -31,6 +31,10 @@
   "overrides": {
     "braces": "^3.0.3",
     "@grpc/grpc-js": "^1.13.6"
+  },
+  "allowScripts": {
+    "protobufjs@7.6.6": true,
+    "@google/genai@2.29.0": true,
+    "@firebase/util@1.12.1": true
   }
 }
-

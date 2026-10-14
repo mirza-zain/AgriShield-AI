@@ -1,3 +1,15 @@
+export interface TreatmentCostEstimate {
+  organic_cost_level?: string;
+  chemical_cost_level?: string;
+  estimated_yield_saved?: string;
+}
+
+export interface HealthyComparison {
+  healthy_traits: string[];
+  key_difference: string;
+  recovery_signs: string;
+}
+
 export interface DiagnosisResult {
   is_plant_or_crop?: boolean;
   rejection_reason?: string;
@@ -14,6 +26,10 @@ export interface DiagnosisResult {
   };
   prevention_tips: string[];
   climate_impact_warning: string;
+  treatment_cost_estimate?: TreatmentCostEstimate;
+  lesion_box?: [number, number, number, number]; // legacy single box [ymin, xmin, ymax, xmax]
+  lesion_boxes?: Array<[number, number, number, number]>; // multiple detected spots/lesions
+  healthy_comparison?: HealthyComparison;
   model_used?: string;
   agronomic_context?: AgronomicContext;
   disease_origin?: DiseaseOriginAnalysis;

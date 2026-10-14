@@ -32,6 +32,20 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "پھلوں کو ٹھنڈی اور ہوادار جگہ پر رکھیں" : "Store picked apples below 4°C in clean, ventilated dry crates"
       ],
       climate_impact_warning: language === "Urdu" ? "بارش کے بعد گرمی اور زیادہ نمی سڑن کو گھنٹوں میں پھیلا دیتی ہے۔" : "Warm humid weather (>22°C) combined with wet ground triggers rapid fruit rot.",
+      lesion_boxes: [[280, 220, 680, 620]],
+      healthy_comparison: {
+        healthy_traits: [
+          language === "Urdu" ? "چمکدار اور سخت سرخ چھلکا بغیر کسی داغ کے" : "Smooth, firm skin with no brown soft indentations",
+          language === "Urdu" ? "ٹھوس اور رس بھرا گودا اور پختہ ڈنڈی" : "Solid crisp flesh and intact healthy stem",
+          language === "Urdu" ? "پھپھوندی کے دائروں سے مکمل پاک" : "Completely free of fungal spore rings or punctures",
+        ],
+        key_difference: language === "Urdu"
+          ? "صحت مند سیب پر چھلکا سخت اور محفوظ ہوتا ہے، جبکہ اس سیب پر فنگس کے دھبے اور گودے کی سڑن پھیل چکی ہے۔"
+          : "A healthy apple has an intact protective waxy skin, whereas this fruit exhibits sunken fungal rot and decaying pulp.",
+        recovery_signs: language === "Urdu"
+          ? "درخت پر باقی پھلوں پر اگلے 5 سے 7 دنوں میں کوئی نیا نرم بھورا داغ نہ بنے تو فنگس کا پھیلاؤ رک جائے گا۔"
+          : "Zero expanding brown spots on remaining fruit within 5 to 7 days after sanitizing and applying protective spray.",
+      },
       disease_origin: {
         why_it_happened: language === "Urdu"
           ? "سیب پر یہ سڑن مونیلینیا (Monilinia) پھپھوندی کے حملے سے ہوتی ہے جو کٹائی یا چوٹ لگنے کے بعد گودے میں داخل ہوتی ہے۔"
@@ -66,6 +80,20 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "کدو کے کھیت میں مناسب نکاسی آب رکھیں" : "Ensure raised bed drainage and rotate crops away from cucurbits"
       ],
       climate_impact_warning: language === "Urdu" ? "کھیت میں کھڑا پانی اور شدید نمی سڑن میں 60 فیصد اضافہ کرتی ہے۔" : "Standing puddle water and heavy late rains drive 60% higher fruit rot rate.",
+      lesion_boxes: [[320, 150, 740, 520], [380, 540, 790, 860]],
+      healthy_comparison: {
+        healthy_traits: [
+          language === "Urdu" ? "سخت اور خشک چھلکا جو ناخن سے نہ دبے" : "Hard, dry rind resistant to fingernail puncture",
+          language === "Urdu" ? "یکساں نارنجی یا سنہری رنگ بغیر نرم داغوں کے" : "Uniform deep orange or golden skin without water-soaked spots",
+          language === "Urdu" ? "مضبوط لکڑی نما ڈنٹھل اور صاف نچلا حصہ" : "Tough woody intact stem with clean dry bottom",
+        ],
+        key_difference: language === "Urdu"
+          ? "صحت مند کدو کا چھلکا خشک اور سخت ہوتا ہے، جبکہ اس کدو پر گیلی مٹی کی وجہ سے کالی سڑن اور پھپھوندی کا حملہ ہے۔"
+          : "Healthy pumpkins possess a thick impenetrable rind, whereas this fruit decayed from direct contact with wet muddy ground.",
+        recovery_signs: language === "Urdu"
+          ? "کھیت میں پرالی بچھانے کے بعد 5 دنوں میں باقی کدو خشک رہیں گے اور ان پر کوئی نیا کالا دھبہ نہیں آئے گا۔"
+          : "Fruit elevated onto dry straw mulch shows zero expanding black lesions within 5 to 7 days.",
+      },
       disease_origin: {
         why_it_happened: language === "Urdu"
           ? "کدو کا گلنا ڈائیڈی میلا (Didymella) پھپھوندی کا نتیجہ ہے جو گیلی زمین کے براہ راست رابطے سے پھل پر حملہ کرتی ہے۔"
@@ -100,6 +128,20 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "زمین کی گہری نمی بچانے کے لیے کم ہل چلائیں" : "Practice conservation tillage to preserve residual subsoil moisture"
       ],
       climate_impact_warning: language === "Urdu" ? "مسلسل گرم لو اور 38 ڈگری سے زیادہ درجہ حرارت پیداوار گرا دیتا ہے۔" : "Consecutive days over 38°C during flowering severely diminish ear yield.",
+      lesion_boxes: [[120, 180, 480, 450], [420, 450, 880, 820]],
+      healthy_comparison: {
+        healthy_traits: [
+          language === "Urdu" ? "چوڑے، گہرے سبز پتے جو دھوپ میں لٹکے نہ ہوں" : "Broad, upright emerald-green leaves with solid cell turgor",
+          language === "Urdu" ? "مضبوط، موٹا تنا اور سرسبز ریشمی بال" : "Sturdy hydrated stalks and fresh moist cob silks",
+          language === "Urdu" ? "پتوں پر جلنے یا بھورے ہونے کا کوئی نشان نہیں" : "No sun-bleached margins or brittle rolled leaf edges",
+        ],
+        key_difference: language === "Urdu"
+          ? "صحت مند مکئی میں پتے سیدھے اور گہرے سبز ہوتے ہیں، جبکہ یہاں پانی کی شدید کمی سے پتے خشک، مڑے ہوئے اور جھلسے ہوئے ہیں۔"
+          : "Healthy maize leaves maintain active transpiration and photosynthetic area, whereas heat drought rolled and desiccated this foliage.",
+        recovery_signs: language === "Urdu"
+          ? "پانی اور اینٹی اسٹریس اسپرے کے 3 سے 5 دنوں بعد نئے اوپری پتے کھلیں گے اور ہریالی بحال ہوگی۔"
+          : "Foliage rehydrates, upper leaves unroll, and wilt symptoms visibly subside within 3 to 5 days after deep watering.",
+      },
       disease_origin: {
         why_it_happened: language === "Urdu"
           ? "مکئی کے پتوں کا جھلسنا مٹی میں طویل خشکی اور شدید دھوپ کے سبب ہوتا ہے، جس سے پودے کی بافتیں پانی نہ ملنے پر جل جاتی ہیں۔"
@@ -134,6 +176,20 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "اگلی فصل کے لیے دالوں کی کاشت کریں" : "Rotate with legumes to rebuild soil nitrogen for next season"
       ],
       climate_impact_warning: language === "Urdu" ? "موسم کٹائی کے لیے بہترین ہے، بارش سے پہلے تڑوائی مکمل کریں۔" : "Current clear weather is ideal for harvest; complete picking before rain.",
+      lesion_boxes: [],
+      healthy_comparison: {
+        healthy_traits: [
+          language === "Urdu" ? "مکمل سنہری اور دودھیا دانے جو آخری سرے تک بھرے ہوں" : "Plump golden kernels tightly filled all the way to cob tip",
+          language === "Urdu" ? "تروتازہ سبز چھلکا اور صاف نم ریشم" : "Crisp emerald-green husk leaves and clean moist silks",
+          language === "Urdu" ? "سنڈی کے سوراخوں یا فنگس کی کالک سے بالکل پاک" : "Zero earworm boring holes, mold fuzz, or black smut",
+        ],
+        key_difference: language === "Urdu"
+          ? "یہ فصل 100% صحت مند معیار پر پوری اترتی ہے اور منڈی کے لیے اعلیٰ ترین گریڈ ہے۔"
+          : "This harvest represents peak Grade A reference quality with zero pathological or pest defects.",
+        recovery_signs: language === "Urdu"
+          ? "فصل پہلے ہی مکمل تندرست ہے، کٹائی کے بعد سائے میں رکھنے سے قدرتی مٹھاس برقرار رہے گی۔"
+          : "Produce is in prime health; rapid cool storage preserves kernel moisture and natural sugars.",
+      },
       disease_origin: {
         why_it_happened: language === "Urdu"
           ? "یہ فصل مکمل طور پر تندرست ہے، متوازن غذائیت اور سازگار ماحول نے پودے کو فنگس اور کیڑوں کے حملے سے محفوظ رکھا ہے۔"
@@ -168,6 +224,20 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "صبح کے وقت جڑوں میں پانی دیں، پتوں کو گیلا نہ رکھیں" : "Water soil at base in morning; keep foliage dry overnight"
       ],
       climate_impact_warning: language === "Urdu" ? "معتدل دھوپ اور گرم موسم پودے کے لیے نہایت سازگار ہے۔" : "Moderate sunshine and warm temperatures provide ideal growing conditions.",
+      lesion_boxes: [],
+      healthy_comparison: {
+        healthy_traits: [
+          language === "Urdu" ? "چمکدار زمردی سبز پتے جن کی سطح لچکدار اور تروتازہ ہو" : "Vibrant emerald green leaves with crisp cellular turgor",
+          language === "Urdu" ? "ہموار پتے بغیر کسی زردی یا بھورے پھپھوندی کے داغ کے" : "Uniform lamina with zero chlorosis or downy mildew spots",
+          language === "Urdu" ? "تیز خوشبو اور نئی سرسبز کونپلوں کا تیزی سے پھوٹنا" : "Potent aromatic essential oils and vigorous node branching",
+        ],
+        key_difference: language === "Urdu"
+          ? "پودا بالکل بے داغ ہے، نہ تو کوئی فنگس ہے اور نہ ہی کیڑوں کا نقصان۔"
+          : "Specimen displays 100% pristine foliage free of fungal sporulation or insect stippling.",
+        recovery_signs: language === "Urdu"
+          ? "پودا مسلسل تندرست ہے، ہر 4 سے 6 دن میں نئی صاف سبز پتوں کی جوڑیاں نکلتی رہیں گی۔"
+          : "Active continuous growth with clean aromatic leaf pairs emerging every 4 to 6 days.",
+      },
       disease_origin: {
         why_it_happened: language === "Urdu"
           ? "نیازبو کے پتے صاف اور جراثیم سے پاک ہیں، مناسب ہواداری اور جڑوں میں پانی دینے کی وجہ سے ڈاؤنی ملڈیو پیدا نہیں ہوئی۔"
@@ -201,6 +271,20 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
       language === "Urdu" ? "پودے کی جڑوں پر ملچنگ کریں تاکہ زمین کی نمی برابر رہے" : "Mulch around vine base to keep soil moisture even and avoid splitting"
     ],
     climate_impact_warning: language === "Urdu" ? "شدید بارش سے پہلے پکے ہوئے ٹماٹر توڑ لیں تاکہ پھٹنے سے بچیں۔" : "Pick ripe tomatoes before sudden heavy rains to prevent skin cracking.",
+    lesion_boxes: [],
+    healthy_comparison: {
+      healthy_traits: [
+        language === "Urdu" ? "ہموار، چمکدار لال جلد بغیر کسی شگاف یا داغ کے" : "Smooth, glossy red skin without splitting or fungal specks",
+        language === "Urdu" ? "تروتازہ سبز تارے نما پھول اور مضبوط ڈنڈی" : "Fresh green star-shaped calyx leaves and firm vine pedicel",
+        language === "Urdu" ? "ٹھوس اور رس بھرا گودا جو دبانے پر مضبوط رہے" : "Dense, solid pulp with balanced firmness and sugar content",
+      ],
+      key_difference: language === "Urdu"
+        ? "پھل بغیر کسی داغ یا بلائٹ کے بہترین حالت میں پکا ہوا ہے۔"
+        : "Fruit exhibits prime physiological maturity with zero early blight or bacterial spot lesions.",
+      recovery_signs: language === "Urdu"
+        ? "پودا صحت مند ہے، باقی ہرے ٹماٹر اگلے 5 سے 7 دنوں میں لال اور چمکدار بن جائیں گے۔"
+        : "Continuous optimal fruit set with green tomatoes ripening uniformly over the next 5 to 7 days.",
+    },
     disease_origin: {
       why_it_happened: language === "Urdu"
         ? "ٹماٹر کی فصل صحت مند ہے اور پودے کی قوت مدافعت مضبوط ہے، جس کی وجہ سے لیٹ بلائٹ یا پھلوں کے داغ نہیں لگے۔"
@@ -424,6 +508,142 @@ function deriveAgronomicContext(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
+
+    // 1. LIGHTWEIGHT TEXT-ONLY TRANSLATION MODE (Zero image tokens, Zero duplicates, <1.5s)
+    if (body.mode === "translate" && body.diagnosis) {
+      const targetLang = body.targetLanguage || "Urdu";
+      const sourceDiag: DiagnosisResult = body.diagnosis;
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey || apiKey === "your_gemini_api_key_here") {
+        return NextResponse.json({
+          success: true,
+          diagnosis: sourceDiag,
+        });
+      }
+
+      try {
+        const ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: { timeout: 25000 },
+        });
+
+        const prompt = `You are an expert agricultural plant doctor translation assistant for AgriShield AI.
+Translate this plant diagnosis into natural, conversational, everyday ${targetLang} (if Urdu, use simple روزمرہ کی عام فہم اور آسان اردو).
+Keep all medical facts, crop identification, and severity strictly intact.
+Do NOT use classical, academic, or Sanskritized/Persianized bookish jargon.
+
+Source diagnosis to translate:
+${JSON.stringify({
+  crop_name: sourceDiag.crop_name,
+  scientific_name: sourceDiag.scientific_name,
+  condition_detected: sourceDiag.condition_detected,
+  symptoms: sourceDiag.symptoms,
+  treatment: sourceDiag.treatment,
+  treatment_cost_estimate: sourceDiag.treatment_cost_estimate,
+  prevention_tips: sourceDiag.prevention_tips,
+  climate_impact_warning: sourceDiag.climate_impact_warning,
+  disease_origin: sourceDiag.disease_origin,
+  healthy_comparison: sourceDiag.healthy_comparison,
+})}`;
+
+        const res = await ai.models.generateContent({
+          model: "gemini-3.5-flash-lite",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                crop_name: { type: Type.STRING },
+                scientific_name: { type: Type.STRING },
+                condition_detected: { type: Type.STRING },
+                symptoms: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                treatment: {
+                  type: Type.OBJECT,
+                  properties: {
+                    immediate_action: { type: Type.STRING },
+                    organic_remedy: { type: Type.STRING },
+                    chemical_alternative: { type: Type.STRING },
+                  },
+                  required: ["immediate_action", "organic_remedy", "chemical_alternative"],
+                },
+                treatment_cost_estimate: {
+                  type: Type.OBJECT,
+                  properties: {
+                    organic_cost_level: { type: Type.STRING },
+                    chemical_cost_level: { type: Type.STRING },
+                    estimated_yield_saved: { type: Type.STRING },
+                  },
+                },
+                prevention_tips: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                climate_impact_warning: { type: Type.STRING },
+                disease_origin: {
+                  type: Type.OBJECT,
+                  properties: {
+                    why_it_happened: { type: Type.STRING },
+                    weather_correlation: { type: Type.STRING },
+                  },
+                  required: ["why_it_happened", "weather_correlation"],
+                },
+                healthy_comparison: {
+                  type: Type.OBJECT,
+                  properties: {
+                    healthy_traits: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    key_difference: { type: Type.STRING },
+                    recovery_signs: { type: Type.STRING },
+                  },
+                  required: ["healthy_traits", "key_difference", "recovery_signs"],
+                },
+              },
+              required: [
+                "crop_name",
+                "scientific_name",
+                "condition_detected",
+                "symptoms",
+                "treatment",
+                "prevention_tips",
+                "climate_impact_warning",
+              ],
+            },
+          },
+        });
+
+        if (res.text) {
+          const translatedFields = JSON.parse(res.text);
+          const mergedDiagnosis: DiagnosisResult = {
+            ...sourceDiag,
+            ...translatedFields,
+            lesion_boxes: sourceDiag.lesion_boxes,
+            lesion_box: sourceDiag.lesion_box,
+            confidence_score: sourceDiag.confidence_score,
+            severity: sourceDiag.severity,
+            is_plant_or_crop: sourceDiag.is_plant_or_crop,
+          };
+          return NextResponse.json({
+            success: true,
+            diagnosis: mergedDiagnosis,
+            translated: true,
+          });
+        }
+      } catch (transErr) {
+        console.warn("Translation fallback failed:", transErr);
+      }
+
+      return NextResponse.json({
+        success: true,
+        diagnosis: sourceDiag,
+      });
+    }
     const {
       image,
       thumbnail,
@@ -434,6 +654,7 @@ export async function POST(req: NextRequest) {
       observationTime,
       observationLocation,
       coordinates,
+      skipHistory = false,
     } = body;
 
     // Resolve weather snapshot if observation date is provided
@@ -552,13 +773,13 @@ In your response, provide "disease_origin":
             }
           }
 
-          // Active Gemini 3 models per AGENTS.md catalog: gemini-3.8-flash (Primary), gemini-3.6-flash, gemini-3.5-flash-lite, gemini-flash-latest
+          // Active Gemini 3 models optimized for deep visual pathology inspection:
+          // gemini-3.8-flash (primary deep vision reasoning), cascading to gemini-3.5-flash-lite and gemini-flash-latest
           const candidateModels = [
             "gemini-3.8-flash",
-            "gemini-3.6-flash",
             "gemini-3.5-flash-lite",
+            "gemini-3.6-flash",
             "gemini-flash-latest",
-            "gemini-3.1-flash-lite",
           ];
 
           for (const modelName of candidateModels) {
@@ -586,7 +807,9 @@ In your response, provide "disease_origin":
 FIRST: Carefully verify whether the image contains a plant, crop, leaf, vegetable, fruit, or agricultural harvest.
 - If it is NOT a plant or crop (e.g., human, face, selfie, animal, car, electronics, room, furniture), you MUST set is_plant_or_crop to false.
 - In rejection_reason, politely tell the farmer/user what was detected and ask for a clear photo of a plant or crop.
-Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
+Severity must strictly be one of: "Low", "Moderate", or "Critical".
+In lesion_boxes, identify coordinates [ymin, xmin, ymax, xmax] (scaled 0-1000) for all visible diseased spots, lesions, or necrosis across the specimen. Return multiple boxes if multiple spots exist. If completely healthy, return an empty array.
+TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, and under 2 sentences per field. No conversational filler.`,
                   responseMimeType: "application/json",
                   responseSchema: {
                     type: Type.OBJECT,
@@ -620,11 +843,27 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
                         },
                         required: ["immediate_action", "organic_remedy", "chemical_alternative"],
                       },
+                      treatment_cost_estimate: {
+                        type: Type.OBJECT,
+                        properties: {
+                          organic_cost_level: { type: Type.STRING, description: "Estimated cost category in user language, e.g. 'Free / Very Low' or 'مفت / انتہائی کم خرچ'" },
+                          chemical_cost_level: { type: Type.STRING, description: "Estimated chemical market cost category, e.g. 'Moderate' or 'درمیانہ خرچ'" },
+                          estimated_yield_saved: { type: Type.STRING, description: "Estimated crop harvest percentage protected by timely action, e.g. '30-45% Harvest Protected'" },
+                        },
+                      },
                       prevention_tips: {
                         type: Type.ARRAY,
                         items: { type: Type.STRING },
                       },
                       climate_impact_warning: { type: Type.STRING },
+                      lesion_boxes: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.ARRAY,
+                          items: { type: Type.INTEGER },
+                        },
+                        description: "Array of bounding boxes [ymin, xmin, ymax, xmax] scaled 0 to 1000 for all visible lesion spots, necrotic patches, or diseased areas. Can contain multiple boxes if multiple spots exist.",
+                      },
                       disease_origin: {
                         type: Type.OBJECT,
                         properties: {
@@ -638,6 +877,25 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
                           },
                         },
                         required: ["why_it_happened", "weather_correlation"],
+                      },
+                      healthy_comparison: {
+                        type: Type.OBJECT,
+                        properties: {
+                          healthy_traits: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: "2 or 3 observable visual traits of a 100% healthy leaf or plant of this crop in the requested language",
+                          },
+                          key_difference: {
+                            type: Type.STRING,
+                            description: "Clear practical contrast between this diagnosed leaf condition vs a normal healthy leaf in the requested language",
+                          },
+                          recovery_signs: {
+                            type: Type.STRING,
+                            description: "Observable visible signs in 5 to 7 days showing the plant is recovering after treatment in the requested language",
+                          },
+                        },
+                        required: ["healthy_traits", "key_difference", "recovery_signs"],
                       },
                     },
                     required: [
@@ -759,24 +1017,26 @@ Severity must strictly be one of: "Low", "Moderate", or "Critical".`,
       userId: userId || "guest_farmer",
     };
 
-    // Save to shared in-memory store ONLY FOR VALID CROPS
-    addSharedScan(newScanRecord);
+    // Save to shared in-memory store and Firestore ONLY FOR VALID CROPS AND NOT WHEN skipHistory IS TRUE
+    if (!skipHistory) {
+      addSharedScan(newScanRecord);
 
-    // Fire-and-forget non-blocking background write to Firestore if available
-    const adminDb = getAdminDb();
-    if (adminDb) {
-      const firestorePayload = { ...newScanRecord };
-      // Ensure payload respects Firestore's 1MB document limit
-      if (firestorePayload.imageUrl && firestorePayload.imageUrl.length > 700000) {
-        firestorePayload.imageUrl = firestorePayload.imageThumbnail;
+      // Fire-and-forget non-blocking background write to Firestore if available
+      const adminDb = getAdminDb();
+      if (adminDb) {
+        const firestorePayload = { ...newScanRecord };
+        // Ensure payload respects Firestore's 1MB document limit
+        if (firestorePayload.imageUrl && firestorePayload.imageUrl.length > 700000) {
+          firestorePayload.imageUrl = firestorePayload.imageThumbnail;
+        }
+        adminDb
+          .collection("scans")
+          .doc(scanId)
+          .set(firestorePayload)
+          .catch((firestoreErr) => {
+            console.warn("Background Firestore write skipped:", firestoreErr);
+          });
       }
-      adminDb
-        .collection("scans")
-        .doc(scanId)
-        .set(firestorePayload)
-        .catch((firestoreErr) => {
-          console.warn("Background Firestore write skipped:", firestoreErr);
-        });
     }
 
     // Return instant diagnosis to user immediately!

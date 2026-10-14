@@ -44,6 +44,12 @@ import {
   Thermometer,
   Compass,
   Map as MapIcon,
+  Mic,
+  MicOff,
+  Send,
+  MessageSquare,
+  Bot,
+  User,
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 
@@ -135,8 +141,6 @@ const SAMPLE_PRESETS = [
 const LANGUAGES = [
   { code: "English", label: "English", sublabel: "Easy English", flag: "🇬🇧" },
   { code: "Urdu", label: "اردو", sublabel: "آسان اردو", flag: "🇵🇰" },
-  { code: "Hindi", label: "हिन्दी", sublabel: "सरल हिन्दी", flag: "🇮🇳" },
-  { code: "Spanish", label: "Español", sublabel: "Fácil", flag: "🇪🇸" },
 ];
 
 const ANALYSIS_STEPS = [
@@ -316,6 +320,17 @@ export default function AgriShieldDashboard() {
   const [advisoryLoading, setAdvisoryLoading] = useState<boolean>(false);
   const [isAdvisorySpeaking, setIsAdvisorySpeaking] = useState<boolean>(false);
   const [advisoryAudioLoading, setAdvisoryAudioLoading] = useState<boolean>(false);
+  const [isTranslating, setIsTranslating] = useState<boolean>(false);
+  const languageDiagnosisCacheRef = useRef<Record<string, DiagnosisResult>>({});
+
+  // Dr. Crop Chat & Voice Assistant State
+  const [reportSubTab, setReportSubTab] = useState<"treatment" | "origin" | "chat">("treatment");
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [chatInput, setChatInput] = useState<string>("");
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Debug & Telemetry State
   const [diagnoseModelUsed, setDiagnoseModelUsed] = useState<string>("");
@@ -327,6 +342,8 @@ export default function AgriShieldDashboard() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const advisoryAudioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const audioAbortControllerRef = useRef<AbortController | null>(null);
+  const advisoryAudioAbortControllerRef = useRef<AbortController | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Trigger floating toast notification
@@ -422,7 +439,7 @@ export default function AgriShieldDashboard() {
     }
   };
 
-  const compressImageFile = (file: File, maxDim = 1024, quality = 0.78): Promise<string> => {
+  const compressImageFile = (file: File, maxDim = 2048, quality = 0.92): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -522,6 +539,9 @@ export default function AgriShieldDashboard() {
     setSelectedScanId(null);
     setActivePresetUrl(null);
     setDiagnoseModelUsed("");
+    languageDiagnosisCacheRef.current = {};
+    setChatMessages([]);
+    setReportSubTab("treatment");
     if (!file.type.startsWith("image/")) {
       setErrorMessage("Please select a photo of a plant leaf or crop.");
       return;
@@ -550,7 +570,7 @@ export default function AgriShieldDashboard() {
     try {
       // Parallel generation: full diagnosis image (~70KB) and lightweight vault thumbnail (~15KB)
       const [compressedUrl, thumbUrl] = await Promise.all([
-        compressImageFile(file, 1024, 0.78),
+        compressImageFile(file, 2048, 0.92),
         compressImageFile(file, 360, 0.65),
       ]);
       if (compressedUrl) {
@@ -577,6 +597,9 @@ export default function AgriShieldDashboard() {
     setNotCropNotice(null);
     setSelectedScanId(null);
     setActivePresetUrl(url);
+    languageDiagnosisCacheRef.current = {};
+    setChatMessages([]);
+    setReportSubTab("treatment");
     setImagePreview(url);
     setThumbnailPreview(url);
     if (!isDateUserEdited) {
@@ -590,9 +613,21 @@ export default function AgriShieldDashboard() {
     }
   };
 
-  const handleRunDiagnosis = async () => {
+  const handleRunDiagnosis = async (
+    overrideLangOrEvent?: string | React.MouseEvent,
+    skipHistoryFlag = false
+  ) => {
     if (!imagePreview) {
       setErrorMessage("Please take a photo or select a test sample first.");
+      return;
+    }
+
+    const targetLang = typeof overrideLangOrEvent === "string" ? overrideLangOrEvent : selectedLanguage;
+
+    // Check if we already have this language cached in memory
+    if (languageDiagnosisCacheRef.current[targetLang]) {
+      setDiagnosis(languageDiagnosisCacheRef.current[targetLang]);
+      showToast(`Showing cached ${targetLang} diagnosis ⚡`);
       return;
     }
 
@@ -605,11 +640,12 @@ export default function AgriShieldDashboard() {
       const payload = {
         image: imagePreview,
         thumbnail: thumbnailPreview || imagePreview,
-        language: selectedLanguage,
+        language: targetLang,
         observationDate: observationDate.trim() || undefined,
         observationTime: observationTime.trim() || undefined,
         observationLocation: observationLocation.trim() || undefined,
         coordinates: observationCoords || undefined,
+        skipHistory: skipHistoryFlag,
       };
 
       const res = await fetch("/api/diagnose", {
@@ -657,37 +693,42 @@ export default function AgriShieldDashboard() {
       setNotCropNotice(null);
       setErrorMessage(null);
       setDiagnosis(data.diagnosis);
+      languageDiagnosisCacheRef.current[targetLang] = data.diagnosis;
+
       if (data.modelUsed) {
         setDiagnoseModelUsed(data.modelUsed);
         console.log(`[AgriShield Debug] Plant Doctor model used: ${data.modelUsed}`);
       }
 
-      // Instant optimistic prepend into Vault
-      const newScanItem: ScanRecord = {
-        id: data.scanId || `scan-${Date.now()}`,
-        crop_name: data.diagnosis.crop_name,
-        scientific_name: data.diagnosis.scientific_name,
-        condition_detected: data.diagnosis.condition_detected,
-        confidence_score: data.diagnosis.confidence_score,
-        severity: data.diagnosis.severity,
-        symptoms: data.diagnosis.symptoms,
-        treatment: data.diagnosis.treatment,
-        prevention_tips: data.diagnosis.prevention_tips,
-        climate_impact_warning: data.diagnosis.climate_impact_warning,
-        disease_origin: data.diagnosis.disease_origin,
-        imageUrl: imagePreview || undefined,
-        imageThumbnail: thumbnailPreview || imagePreview || undefined,
-        language: selectedLanguage,
-        createdAt: new Date().toISOString(),
-        agronomic_context: data.diagnosis.agronomic_context,
-        location: {
-          city: data.diagnosis.agronomic_context?.climate_zone || "Agricultural District",
-          country: "Regional Station",
-        },
-      };
+      if (!skipHistoryFlag) {
+        // Instant optimistic prepend into Vault only for original new scans
+        const newScanItem: ScanRecord = {
+          id: data.scanId || `scan-${Date.now()}`,
+          crop_name: data.diagnosis.crop_name,
+          scientific_name: data.diagnosis.scientific_name,
+          condition_detected: data.diagnosis.condition_detected,
+          confidence_score: data.diagnosis.confidence_score,
+          severity: data.diagnosis.severity,
+          symptoms: data.diagnosis.symptoms,
+          treatment: data.diagnosis.treatment,
+          prevention_tips: data.diagnosis.prevention_tips,
+          climate_impact_warning: data.diagnosis.climate_impact_warning,
+          disease_origin: data.diagnosis.disease_origin,
+          imageUrl: imagePreview || undefined,
+          imageThumbnail: thumbnailPreview || imagePreview || undefined,
+          language: targetLang,
+          createdAt: new Date().toISOString(),
+          agronomic_context: data.diagnosis.agronomic_context,
+          location: {
+            city: data.diagnosis.agronomic_context?.climate_zone || "Agricultural District",
+            country: "Regional Station",
+          },
+        };
 
-      setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
-      setSelectedScanId(newScanItem.id || null);
+        setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
+        setSelectedScanId(newScanItem.id || null);
+        fetchHistory(false);
+      }
 
       showToast("Diagnosis completed successfully! 🩺", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
 
@@ -697,8 +738,6 @@ export default function AgriShieldDashboard() {
           reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 150);
       }
-
-      fetchHistory(false);
     } catch (err: any) {
       console.error("Diagnosis error:", err);
       setErrorMessage(err.message || "Could not analyze the photo. Please check your network connection.");
@@ -707,7 +746,179 @@ export default function AgriShieldDashboard() {
     }
   };
 
+  const translateCurrentDiagnosis = async (targetLang: string, baseDiag?: DiagnosisResult) => {
+    const diagToTranslate = baseDiag || diagnosis;
+    if (!diagToTranslate) return;
+
+    try {
+      setIsTranslating(true);
+      showToast(targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے... 🌐" : "Translating report to English... 🌐");
+
+      const res = await fetch("/api/diagnose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "translate",
+          diagnosis: diagToTranslate,
+          targetLanguage: targetLang,
+        }),
+      });
+
+      const data = await res.json();
+      if (data?.diagnosis) {
+        setDiagnosis(data.diagnosis);
+        languageDiagnosisCacheRef.current[targetLang] = data.diagnosis;
+        showToast(targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے ✓" : "Report translated to English ✓");
+      }
+    } catch (err) {
+      console.warn("Translation failed:", err);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleSendChatMessage = async (textToSend?: string) => {
+    const text = (textToSend || chatInput).trim();
+    if (!text || isChatLoading) return;
+
+    setChatInput("");
+    const newMessages: Array<{ role: "user" | "assistant"; content: string }> = [
+      ...chatMessages,
+      { role: "user", content: text },
+    ];
+    setChatMessages(newMessages);
+    setIsChatLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages,
+          diagnosisContext: diagnosis,
+          language: selectedLanguage,
+        }),
+      });
+
+      const data = await res.json();
+      if (data?.reply) {
+        setChatMessages([...newMessages, { role: "assistant", content: data.reply }]);
+      }
+    } catch (err) {
+      console.error("Chat error:", err);
+      setChatMessages([
+        ...newMessages,
+        {
+          role: "assistant",
+          content:
+            selectedLanguage === "Urdu"
+              ? "معاف کیجیے گا، جواب حاصل نہیں ہو سکا۔ براہِ کرم دوبارہ کوشش کریں۔"
+              : "Sorry, I could not fetch a response. Please check your network and try again.",
+        },
+      ]);
+    } finally {
+      setIsChatLoading(false);
+      setTimeout(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
+  };
+
+  const toggleVoiceRecording = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showToast(selectedLanguage === "Urdu" ? "اس براؤزر میں آواز کی سہولت موجود نہیں۔ لکھ کر سوال پوچھیں۔" : "Voice input is not supported in this browser. Please type your question.");
+      return;
+    }
+
+    if (isRecording) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = selectedLanguage === "Urdu" ? "ur-PK" : "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsRecording(true);
+        showToast(selectedLanguage === "Urdu" ? "بولیں، سن رہا ہوں... 🎙️" : "Listening... Speak your question 🎙️");
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0]?.[0]?.transcript;
+        if (transcript) {
+          setChatInput(transcript);
+          handleSendChatMessage(transcript);
+        }
+      };
+
+      recognition.onerror = (e: any) => {
+        console.warn("Speech recognition error:", e);
+        setIsRecording(false);
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn("Speech recognition init failed:", err);
+      setIsRecording(false);
+    }
+  };
+
+  const speakChatMessage = async (text: string) => {
+    if (isSpeaking) {
+      stopSpeech();
+      return;
+    }
+    stopSpeech();
+    try {
+      setSpeechStatusText(selectedLanguage === "Urdu" ? "ڈاکٹر کراپ کی آواز تیار ہو رہی ہے..." : "Loading Dr. Crop voice...");
+      const res = await fetch("/api/audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          language: selectedLanguage,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.audioBase64) {
+        const audio = new Audio(data.audioBase64);
+        audioPlayerRef.current = audio;
+        audio.onplay = () => {
+          setIsSpeaking(true);
+          setSpeechStatusText(selectedLanguage === "Urdu" ? "ڈاکٹر کراپ بول رہے ہیں..." : "Dr. Crop speaking...");
+        };
+        audio.onended = () => {
+          setIsSpeaking(false);
+          setSpeechStatusText("");
+        };
+        audio.onerror = () => fallbackBrowserSpeech(text);
+        await audio.play();
+      } else {
+        fallbackBrowserSpeech(text);
+      }
+    } catch {
+      fallbackBrowserSpeech(text);
+    }
+  };
+
   const stopSpeech = () => {
+    if (audioAbortControllerRef.current) {
+      audioAbortControllerRef.current.abort();
+      audioAbortControllerRef.current = null;
+    }
     if (audioPlayerRef.current) {
       audioPlayerRef.current.pause();
       audioPlayerRef.current = null;
@@ -749,9 +960,13 @@ export default function AgriShieldDashboard() {
       setAudioLoading(true);
       setSpeechStatusText("Preparing clear voice advice...");
 
+      const controller = new AbortController();
+      audioAbortControllerRef.current = controller;
+
       const res = await fetch("/api/audio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           text: scriptText,
           language: selectedLanguage,
@@ -1609,9 +1824,21 @@ export default function AgriShieldDashboard() {
                 aria-label="Choose Language"
                 value={selectedLanguage}
                 onChange={(e) => {
+                  const newLang = e.target.value;
                   stopSpeech();
-                  setSelectedLanguage(e.target.value);
-                  showToast(`Language set to ${e.target.value} 🌐`);
+                  setSelectedLanguage(newLang);
+                  // 1. If this specimen was already diagnosed in this language, switch instantly with 0 tokens and 0 API calls!
+                  if (languageDiagnosisCacheRef.current[newLang]) {
+                    setDiagnosis(languageDiagnosisCacheRef.current[newLang]);
+                    showToast(`Language set to ${newLang} 🌐`);
+                    return;
+                  }
+                  // 2. If a diagnosis is currently displayed, translate only the text into newLang (0 image tokens, 0 duplicates, <1.5s)
+                  if (diagnosis) {
+                    translateCurrentDiagnosis(newLang, diagnosis);
+                  } else {
+                    showToast(`Language set to ${newLang} 🌐`);
+                  }
                 }}
                 className="pl-7 sm:pl-8 pr-7 sm:pr-8 py-1.5 sm:py-2 bg-slate-100/90 hover:bg-slate-200/80 text-slate-900 font-bold text-xs sm:text-sm rounded-xl border border-slate-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none shadow-sm transition-all"
               >
@@ -1764,6 +1991,25 @@ export default function AgriShieldDashboard() {
                             <div className="absolute inset-0 bg-[linear-gradient(to_right,#10b9810a_1px,transparent_1px),linear-gradient(to_bottom,#10b9810a_1px,transparent_1px)] bg-[size:24px_24px]" />
                           </div>
                         )}
+
+                        {/* Visual Pathology Target Boxes (Supports Multiple Spots) */}
+                        {!isAnalyzing &&
+                          (diagnosis?.lesion_boxes || (diagnosis?.lesion_box ? [diagnosis.lesion_box] : []))?.map((box, idx, arr) => (
+                            <div
+                              key={idx}
+                              className="absolute pointer-events-none z-20 border-2 border-amber-400/90 bg-amber-400/15 rounded-lg shadow-[0_0_12px_rgba(251,191,36,0.5)] transition-all animate-pulse"
+                              style={{
+                                top: `${box[0] / 10}%`,
+                                left: `${box[1] / 10}%`,
+                                height: `${Math.max(6, (box[2] - box[0]) / 10)}%`,
+                                width: `${Math.max(6, (box[3] - box[1]) / 10)}%`,
+                              }}
+                            >
+                              <span className="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500 text-slate-950 uppercase tracking-wider shadow-sm flex items-center space-x-1">
+                                <span>{arr.length > 1 ? `Spot #${idx + 1}` : "Pathology Target"}</span>
+                              </span>
+                            </div>
+                          ))}
 
                         <div className="absolute bottom-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-xl flex items-center space-x-2 border border-white/10 shadow-lg">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -2149,6 +2395,21 @@ export default function AgriShieldDashboard() {
                               <span>Model: {diagnoseModelUsed}</span>
                             </span>
                           )}
+                          {isTranslating ? (
+                            <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-300 animate-pulse">
+                              <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                              <span>{selectedLanguage === "Urdu" ? "اردو میں ترجمہ ہو رہا ہے..." : "Translating..."}</span>
+                            </span>
+                          ) : !languageDiagnosisCacheRef.current[selectedLanguage] ? (
+                            <button
+                              type="button"
+                              onClick={() => translateCurrentDiagnosis(selectedLanguage, diagnosis)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5" />
+                              <span>{selectedLanguage === "Urdu" ? "مکمل رپورٹ اردو میں دیکھیں" : "View in English"}</span>
+                            </button>
+                          ) : null}
                         </div>
                         <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 leading-tight break-words">
                           {diagnosis.crop_name}
@@ -2227,216 +2488,557 @@ export default function AgriShieldDashboard() {
                       </div>
                     </div>
 
-                    {/* Leaf Symptoms */}
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
-                        <Activity className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                        <span>Visible Leaf Symptoms:</span>
-                      </h4>
-                      <ul className="space-y-1.5">
-                        {diagnosis.symptoms.map((symptom, idx) => (
-                          <li
-                            key={idx}
-                            className="text-xs text-slate-700 flex items-start space-x-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100"
-                          >
-                            <span className="text-emerald-600 font-black">•</span>
-                            <span className="leading-relaxed font-medium">{symptom}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    {/* Segmented Sub-Tabs Navigation */}
+                    <div className="flex rounded-2xl bg-slate-100/90 p-1 text-xs font-bold text-slate-600 gap-1 border border-slate-200/80 shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => setReportSubTab("treatment")}
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 ${
+                          reportSubTab === "treatment"
+                            ? "bg-white text-emerald-800 shadow-sm font-black border border-emerald-100"
+                            : "hover:text-slate-900"
+                        }`}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                        <span className="truncate">{selectedLanguage === "Urdu" ? "علاج و تدابیر" : "Treatment & Action"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setReportSubTab("origin")}
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 ${
+                          reportSubTab === "origin"
+                            ? "bg-white text-blue-800 shadow-sm font-black border border-blue-100"
+                            : "hover:text-slate-900"
+                        }`}
+                      >
+                        <Activity className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                        <span className="truncate">{selectedLanguage === "Urdu" ? "وجوہات و علامات" : "Cause & Symptoms"}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setReportSubTab("chat")}
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 relative ${
+                          reportSubTab === "chat"
+                            ? "bg-emerald-600 text-white shadow-sm font-black"
+                            : "hover:text-slate-900 text-emerald-700 bg-emerald-50/70"
+                        }`}
+                      >
+                        <Bot className={`w-3.5 h-3.5 flex-shrink-0 ${reportSubTab === "chat" ? "text-white" : "text-emerald-600"}`} />
+                        <span className="truncate">{selectedLanguage === "Urdu" ? "ڈاکٹر چیٹ و آواز" : "Ask Dr. Crop"}</span>
+                        <span className="flex h-1.5 w-1.5 relative">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                        </span>
+                      </button>
                     </div>
 
-                    {/* Microclimate Observation & Past-Week Incubation Snapshot */}
-                    {diagnosis.agronomic_context?.weather_snapshot && (
-                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/80 via-emerald-50/70 to-teal-50/80 border border-blue-200/70 space-y-2 text-xs">
-                        <div className="flex items-center justify-between flex-wrap gap-1">
-                          <span className="font-black text-slate-800 flex items-center space-x-1.5">
-                            <CloudRain className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                            <span>Microclimate at Specimen Observation:</span>
-                          </span>
-                          <span className="text-[11px] font-extrabold text-blue-900 bg-white/90 px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs">
-                            ⛅ {diagnosis.agronomic_context.weather_snapshot.temp}°C • 💧 {diagnosis.agronomic_context.weather_snapshot.humidity}% Humidity
-                            {diagnosis.agronomic_context.weather_snapshot.precipitation_mm !== undefined && diagnosis.agronomic_context.weather_snapshot.precipitation_mm > 0 ? ` • 🌧️ ${diagnosis.agronomic_context.weather_snapshot.precipitation_mm}mm rain` : ""}
-                          </span>
+                    {/* Sub-Tab 1: Treatment & Action */}
+                    {reportSubTab === "treatment" && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        {/* Treatment Segmented Pill Tabs */}
+                        <div className="space-y-3">
+                          <div className="flex rounded-2xl bg-slate-100 p-1 text-[11px] sm:text-xs font-bold text-slate-600 gap-1">
+                            <button
+                              onClick={() => setActiveTreatmentTab("immediate")}
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${
+                                activeTreatmentTab === "immediate"
+                                  ? "bg-white text-slate-900 shadow-sm font-black"
+                                  : "hover:text-slate-900"
+                              }`}
+                            >
+                              <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                              <span className="truncate">{selectedLanguage === "Urdu" ? "فوری اقدام" : "Do Today"}</span>
+                            </button>
+                            <button
+                              onClick={() => setActiveTreatmentTab("organic")}
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${
+                                activeTreatmentTab === "organic"
+                                  ? "bg-white text-emerald-800 shadow-sm font-black"
+                                  : "hover:text-slate-900"
+                              }`}
+                            >
+                              <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                              <span className="truncate">{selectedLanguage === "Urdu" ? "دیسی علاج" : "Home Remedy"}</span>
+                            </button>
+                            <button
+                              onClick={() => setActiveTreatmentTab("chemical")}
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${
+                                activeTreatmentTab === "chemical"
+                                  ? "bg-white text-blue-800 shadow-sm font-black"
+                                  : "hover:text-slate-900"
+                              }`}
+                            >
+                              <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                              <span className="truncate">{selectedLanguage === "Urdu" ? "زرعی سپرے" : "Shop Spray"}</span>
+                            </button>
+                          </div>
+
+                          <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200 bg-slate-50/90 text-xs text-slate-800 leading-relaxed min-h-[96px] flex flex-col justify-between space-y-2">
+                            <div>
+                              {activeTreatmentTab === "immediate" && (
+                                <div className="space-y-1.5">
+                                  <span className="font-black text-slate-900 flex items-center space-x-1.5">
+                                    <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                                    <span>{selectedLanguage === "Urdu" ? "فوری تدابیر:" : "Immediate First-Aid:"}</span>
+                                  </span>
+                                  <p className="font-medium text-slate-700 leading-relaxed">
+                                    {diagnosis.treatment.immediate_action}
+                                  </p>
+                                </div>
+                              )}
+                              {activeTreatmentTab === "organic" && (
+                                <div className="space-y-1.5">
+                                  <span className="font-black text-emerald-900 flex items-center space-x-1.5">
+                                    <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                    <span>{selectedLanguage === "Urdu" ? "دیسی و قدرتی علاج:" : "Natural Safe Remedy:"}</span>
+                                  </span>
+                                  <p className="font-medium text-slate-700 leading-relaxed">
+                                    {diagnosis.treatment.organic_remedy}
+                                  </p>
+                                </div>
+                              )}
+                              {activeTreatmentTab === "chemical" && (
+                                <div className="space-y-1.5">
+                                  <span className="font-black text-blue-900 flex items-center space-x-1.5">
+                                    <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                                    <span>{selectedLanguage === "Urdu" ? "کیمیکل و زرعی دوا سپرے:" : "Chemical / Ag-Shop Spray:"}</span>
+                                  </span>
+                                  <p className="font-medium text-slate-700 leading-relaxed">
+                                    {diagnosis.treatment.chemical_alternative}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Prescribed Action Footer Badge */}
+                            <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 gap-2">
+                              <span className="truncate">{selectedLanguage === "Urdu" ? "زبان: اردو" : `Language: ${selectedLanguage}`}</span>
+                              <span className="text-emerald-700 font-bold flex-shrink-0">{selectedLanguage === "Urdu" ? "فصل کے لیے محفوظ ✓" : "Safe for Farms ✓"}</span>
+                            </div>
+                          </div>
                         </div>
-                        {diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm !== undefined && (
-                          <div className="text-[11px] text-slate-600 bg-white/70 p-2 rounded-xl border border-blue-100 flex items-center justify-between flex-wrap gap-1.5">
-                            <span className="font-bold text-slate-700">
-                              🌧️ 7-Day Pre-Observation Rainfall: <span className="text-blue-700">{diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm}mm</span>
-                            </span>
-                            <span className="font-bold text-slate-700">
-                              💧 7-Day Avg Humidity: <span className="text-emerald-700">{diagnosis.agronomic_context.weather_snapshot.past_week_avg_humidity}%</span>
-                            </span>
-                            {diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days !== undefined && (
-                              <span className="font-bold text-slate-700">
-                                🌿 Damp Days: <span className="text-amber-700">{diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days}/7 days</span>
+
+                        {/* Weather Warning Card */}
+                        <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-1 text-xs text-amber-900">
+                          <div className="font-black flex items-center space-x-1.5 text-amber-800">
+                            <CloudSun className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                            <span>{selectedLanguage === "Urdu" ? "موسمی اثرات و الرٹ:" : "Climate Shield Weather Alert:"}</span>
+                          </div>
+                          <p className="leading-relaxed text-amber-950 font-medium">
+                            {diagnosis.climate_impact_warning}
+                          </p>
+                        </div>
+
+                        {/* Prevention Tips */}
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                            <span>{selectedLanguage === "Urdu" ? "دیگر پودوں کو کیسے محفوظ رکھیں؟" : "How to Protect Other Crops:"}</span>
+                          </h4>
+                          <ul className="text-xs text-slate-700 space-y-1.5">
+                            {diagnosis.prevention_tips.map((tip, idx) => (
+                              <li key={idx} className="flex items-start space-x-2 bg-slate-50/60 p-2 rounded-xl border border-slate-100">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                <span className="font-medium">{tip}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sub-Tab 2: Cause & Symptoms */}
+                    {reportSubTab === "origin" && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        {/* Leaf Symptoms */}
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
+                            <Activity className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                            <span>{selectedLanguage === "Urdu" ? "پتوں پر ظاہر علامات:" : "Visible Leaf Symptoms:"}</span>
+                          </h4>
+                          <ul className="space-y-1.5">
+                            {diagnosis.symptoms.map((symptom, idx) => (
+                              <li
+                                key={idx}
+                                className="text-xs text-slate-700 flex items-start space-x-2 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100"
+                              >
+                                <span className="text-emerald-600 font-black">•</span>
+                                <span className="leading-relaxed font-medium">{symptom}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* Microclimate Observation & Past-Week Incubation Snapshot */}
+                        {diagnosis.agronomic_context?.weather_snapshot && (
+                          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/80 via-emerald-50/70 to-teal-50/80 border border-blue-200/70 space-y-2 text-xs">
+                            <div className="flex items-center justify-between flex-wrap gap-1">
+                              <span className="font-black text-slate-800 flex items-center space-x-1.5">
+                                <CloudRain className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                <span>{selectedLanguage === "Urdu" ? "معائنے کے وقت مقامی موسم:" : "Microclimate at Specimen Observation:"}</span>
                               </span>
+                              <span className="text-[11px] font-extrabold text-blue-900 bg-white/90 px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs">
+                                ⛅ {diagnosis.agronomic_context.weather_snapshot.temp}°C • 💧 {diagnosis.agronomic_context.weather_snapshot.humidity}% {selectedLanguage === "Urdu" ? "نمی" : "Humidity"}
+                                {diagnosis.agronomic_context.weather_snapshot.precipitation_mm !== undefined && diagnosis.agronomic_context.weather_snapshot.precipitation_mm > 0 ? ` • 🌧️ ${diagnosis.agronomic_context.weather_snapshot.precipitation_mm}mm rain` : ""}
+                              </span>
+                            </div>
+                            {diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm !== undefined && (
+                              <div className="text-[11px] text-slate-600 bg-white/70 p-2 rounded-xl border border-blue-100 flex items-center justify-between flex-wrap gap-1.5">
+                                <span className="font-bold text-slate-700">
+                                  🌧️ {selectedLanguage === "Urdu" ? "گزشتہ 7 دن کی بارش:" : "7-Day Pre-Observation Rainfall:"} <span className="text-blue-700">{diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm}mm</span>
+                                </span>
+                                <span className="font-bold text-slate-700">
+                                  💧 {selectedLanguage === "Urdu" ? "اوسط نمی:" : "7-Day Avg Humidity:"} <span className="text-emerald-700">{diagnosis.agronomic_context.weather_snapshot.past_week_avg_humidity}%</span>
+                                </span>
+                                {diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days !== undefined && (
+                                  <span className="font-bold text-slate-700">
+                                    🌿 {selectedLanguage === "Urdu" ? "نم دن:" : "Damp Days:"} <span className="text-amber-700">{diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days}/7 {selectedLanguage === "Urdu" ? "دن" : "days"}</span>
+                                  </span>
+                                )}
+                              </div>
                             )}
+                          </div>
+                        )}
+
+                        {/* Disease Origin & Environmental Pathology (Why This Happened) */}
+                        {diagnosis.disease_origin && (
+                          <div className="p-4 rounded-2xl bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200/80 shadow-sm space-y-3">
+                            <div className="flex items-center space-x-2.5">
+                              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs">
+                                🔬
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center space-x-1.5">
+                                  <span>
+                                    {selectedLanguage === "Urdu"
+                                      ? "یہ بیماری کیوں لگی؟ (ماحولیاتی و موسمی اسباب)"
+                                      : "Why This Happened: Microclimate & Disease Origin"}
+                                  </span>
+                                </h4>
+                                <p className="text-[10px] text-slate-500 font-medium">
+                                  {selectedLanguage === "Urdu"
+                                    ? "پودے کی بافتوں پر مرض کا حملہ اور پچھلے ہفتے کے موسمی عناصر کا اثر"
+                                    : "Clinical pathology explanation correlating pathogen incubation with weekly weather"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 text-xs">
+                              {/* Biological Reason */}
+                              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1">
+                                <div className="font-black text-slate-800 flex items-center space-x-1.5">
+                                  <span className="text-emerald-600">🌱</span>
+                                  <span>
+                                    {selectedLanguage === "Urdu" ? "بیماری کی حیاتیاتی وجہ:" : "Biological Cause & Spread:"}
+                                  </span>
+                                </div>
+                                <p className="text-slate-700 leading-relaxed font-medium">
+                                  {diagnosis.disease_origin.why_it_happened}
+                                </p>
+                              </div>
+
+                              {/* Weather Correlation */}
+                              <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200/70 space-y-1">
+                                <div className="font-black text-blue-900 flex items-center space-x-1.5">
+                                  <span className="text-blue-600">⛅</span>
+                                  <span>
+                                    {selectedLanguage === "Urdu" ? "اس کیس میں موسمی عناصر کا عمل دخل:" : "Why In This Case (Weather Elements):"}
+                                  </span>
+                                </div>
+                                <p className="text-blue-950 leading-relaxed font-medium">
+                                  {diagnosis.disease_origin.weather_correlation}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Healthy Benchmark & Recovery Comparison Card */}
+                        {diagnosis.healthy_comparison && (
+                          <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 via-teal-50/50 to-slate-50 border border-emerald-200/90 shadow-2xs space-y-3">
+                            <div className="flex items-center space-x-2.5">
+                              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs">
+                                🌿
+                              </div>
+                              <div>
+                                <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center space-x-1.5">
+                                  <span>
+                                    {selectedLanguage === "Urdu"
+                                      ? "صحت مند پودے کا موازنہ اور صحت یابی کے آثار"
+                                      : "Healthy Benchmark & Recovery Guide"}
+                                  </span>
+                                </h4>
+                                <p className="text-[10px] text-slate-500 font-medium">
+                                  {selectedLanguage === "Urdu"
+                                    ? "معیاری صحت مند پتے کی پہچان اور علاج کے بعد بحالی کا جائزہ"
+                                    : "Visual baseline traits and post-treatment recovery monitoring"}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              {/* Healthy Baseline Traits */}
+                              <div className="p-3 rounded-xl bg-white/90 border border-emerald-200/70 space-y-1.5 shadow-2xs">
+                                <div className="font-black text-emerald-900 flex items-center space-x-1.5 text-[11px] uppercase tracking-wide">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                  <span>{selectedLanguage === "Urdu" ? "صحت مند پودے کی نشانیاں:" : "Healthy Baseline Traits:"}</span>
+                                </div>
+                                <ul className="space-y-1 text-slate-700">
+                                  {diagnosis.healthy_comparison.healthy_traits.map((trait, idx) => (
+                                    <li key={idx} className="flex items-start space-x-1.5 leading-relaxed">
+                                      <span className="text-emerald-500 font-black text-xs leading-none mt-0.5">•</span>
+                                      <span className="font-medium text-[11px] sm:text-xs">{trait}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              {/* Key Pathology Contrast */}
+                              <div className="p-3 rounded-xl bg-white/90 border border-amber-200/70 space-y-1.5 shadow-2xs">
+                                <div className="font-black text-amber-900 flex items-center space-x-1.5 text-[11px] uppercase tracking-wide">
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                                  <span>{selectedLanguage === "Urdu" ? "بیماری کا نمایاں فرق:" : "Key Visual Contrast:"}</span>
+                                </div>
+                                <p className="text-slate-700 font-medium text-[11px] sm:text-xs leading-relaxed">
+                                  {diagnosis.healthy_comparison.key_difference}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Recovery Signs & Monitoring Timeline */}
+                            <div className="p-3 rounded-xl bg-emerald-100/60 border border-emerald-300/80 flex items-start space-x-2.5 text-xs text-emerald-950">
+                              <Sprout className="w-4 h-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="font-black text-emerald-900 text-[11px] uppercase tracking-wide">
+                                  {selectedLanguage === "Urdu" ? "علاج کے 5 سے 7 دن بعد بہتری کے آثار:" : "Recovery Signs in 5–7 Days:"}
+                                </div>
+                                <p className="font-medium text-slate-800 text-[11px] sm:text-xs leading-relaxed">
+                                  {diagnosis.healthy_comparison.recovery_signs}
+                                </p>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* Treatment Segmented Pill Tabs (Inspired by TastyTabs) */}
-                    <div className="space-y-3">
-                      <div className="flex rounded-2xl bg-slate-100 p-1 text-[11px] sm:text-xs font-bold text-slate-600 gap-1">
-                        <button
-                          onClick={() => setActiveTreatmentTab("immediate")}
-                          className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "immediate"
-                            ? "bg-white text-slate-900 shadow-sm font-black"
-                            : "hover:text-slate-900"
-                            }`}
-                        >
-                          <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                          <span className="truncate">Do Today</span>
-                        </button>
-                        <button
-                          onClick={() => setActiveTreatmentTab("organic")}
-                          className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "organic"
-                            ? "bg-white text-emerald-800 shadow-sm font-black"
-                            : "hover:text-slate-900"
-                            }`}
-                        >
-                          <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                          <span className="hidden sm:inline truncate">Home Remedy</span>
-                          <span className="sm:hidden truncate">Remedy</span>
-                        </button>
-                        <button
-                          onClick={() => setActiveTreatmentTab("chemical")}
-                          className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "chemical"
-                            ? "bg-white text-blue-800 shadow-sm font-black"
-                            : "hover:text-slate-900"
-                            }`}
-                        >
-                          <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                          <span className="truncate">Shop Spray</span>
-                        </button>
-                      </div>
-
-                      <div className="p-3.5 sm:p-4 rounded-2xl border border-slate-200 bg-slate-50/90 text-xs text-slate-800 leading-relaxed min-h-[96px] flex flex-col justify-between space-y-2">
-                        <div>
-                          {activeTreatmentTab === "immediate" && (
-                            <div className="space-y-1.5">
-                              <span className="font-black text-slate-900 flex items-center space-x-1.5">
-                                <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                                <span>Immediate First-Aid:</span>
-                              </span>
-                              <p className="font-medium text-slate-700 leading-relaxed">
-                                {diagnosis.treatment.immediate_action}
-                              </p>
+                    {/* Sub-Tab 3: Ask Dr. Crop (Voice & Chat Assistant) */}
+                    {reportSubTab === "chat" && (
+                      <div className="space-y-3.5 animate-in fade-in duration-200">
+                        {/* Dr. Crop Header Status */}
+                        <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-200/80 flex items-center justify-between">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="relative">
+                              <div className="w-9 h-9 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm">
+                                <Bot className="w-5 h-5" />
+                              </div>
+                              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
                             </div>
-                          )}
-                          {activeTreatmentTab === "organic" && (
-                            <div className="space-y-1.5">
-                              <span className="font-black text-emerald-900 flex items-center space-x-1.5">
-                                <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                                <span>Natural Safe Remedy:</span>
-                              </span>
-                              <p className="font-medium text-slate-700 leading-relaxed">
-                                {diagnosis.treatment.organic_remedy}
-                              </p>
-                            </div>
-                          )}
-                          {activeTreatmentTab === "chemical" && (
-                            <div className="space-y-1.5">
-                              <span className="font-black text-blue-900 flex items-center space-x-1.5">
-                                <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                                <span>Chemical / Ag-Shop Spray:</span>
-                              </span>
-                              <p className="font-medium text-slate-700 leading-relaxed">
-                                {diagnosis.treatment.chemical_alternative}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Prescribed Action Footer Badge */}
-                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 gap-2">
-                          <span className="truncate">Language: {selectedLanguage}</span>
-                          <span className="text-emerald-700 font-bold flex-shrink-0">Safe for Farms ✓</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Disease Origin & Environmental Pathology (Why This Happened) */}
-                    {diagnosis.disease_origin && (
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200/80 shadow-sm space-y-3">
-                        <div className="flex items-center space-x-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs">
-                            🔬
-                          </div>
-                          <div>
-                            <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center space-x-1.5">
-                              <span>
+                            <div>
+                              <div className="font-black text-slate-900 text-xs sm:text-sm flex items-center space-x-1.5">
+                                <span>{selectedLanguage === "Urdu" ? "ڈاکٹر کراپ (زرعی معاون)" : "Dr. Crop (Plant Doctor)"}</span>
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-md font-bold">AI Active</span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 font-medium">
                                 {selectedLanguage === "Urdu"
-                                  ? "یہ بیماری کیوں لگی؟ (ماحولیاتی و موسمی اسباب)"
-                                  : "Why This Happened: Microclimate & Disease Origin"}
-                              </span>
-                            </h4>
-                            <p className="text-[10px] text-slate-500 font-medium">
-                              {selectedLanguage === "Urdu"
-                                ? "پودے کی بافتوں پر مرض کا حملہ اور پچھلے ہفتے کے موسمی عناصر کا اثر"
-                                : "Clinical pathology explanation correlating pathogen incubation with weekly weather"}
-                            </p>
+                                  ? `موضوع: ${diagnosis.crop_name} کا علاج اور احتیاط`
+                                  : `Consulting on ${diagnosis.crop_name}`}
+                              </p>
+                            </div>
+                          </div>
+
+                          {chatMessages.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setChatMessages([])}
+                              className="text-[10px] text-slate-400 hover:text-slate-600 font-bold px-2 py-1 rounded-lg border border-slate-200 bg-white"
+                            >
+                              {selectedLanguage === "Urdu" ? "نئی گفتگو" : "Clear"}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Chat Messages Box */}
+                        <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 min-h-[220px] max-h-[380px] overflow-y-auto space-y-3 text-xs">
+                          {/* Welcome Greeting */}
+                          <div className="flex items-start space-x-2">
+                            <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
+                              <Bot className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="bg-white p-3 rounded-2xl rounded-tl-sm border border-slate-200/80 shadow-2xs text-slate-800 leading-relaxed max-w-[85%] font-medium">
+                              {selectedLanguage === "Urdu" ? (
+                                <span>
+                                  السلام علیکم! میں آپ کا زرعی معاون ڈاکٹر ہوں۔ آپ اپنے اس پودے (<strong className="text-emerald-800">{diagnosis.crop_name}</strong>) یا اس کے علاج کے بارے میں کوئی بھی سوال پوچھ سکتے ہیں۔ بولنے کے لیے مائیک دبائیں یا نیچے لکھیں۔
+                                </span>
+                              ) : (
+                                <span>
+                                  Hello! I am Dr. Crop. You can ask any question about this <strong className="text-emerald-800">{diagnosis.crop_name}</strong> or its treatment. Tap the microphone to speak or type below.
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Message List */}
+                          {chatMessages.map((msg, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex items-start space-x-2 ${
+                                msg.role === "user" ? "flex-row-reverse space-x-reverse" : ""
+                              }`}
+                            >
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5 ${
+                                  msg.role === "user"
+                                    ? "bg-slate-800 text-white"
+                                    : "bg-emerald-600 text-white"
+                                }`}
+                              >
+                                {msg.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                              </div>
+
+                              <div
+                                className={`p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] font-medium ${
+                                  msg.role === "user"
+                                    ? "bg-slate-900 text-white rounded-tr-sm shadow-sm"
+                                    : "bg-white text-slate-800 rounded-tl-sm border border-slate-200/80 shadow-2xs"
+                                }`}
+                              >
+                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                                {msg.role === "assistant" && (
+                                  <div className="pt-2 mt-1.5 border-t border-slate-100 flex items-center justify-between">
+                                    <button
+                                      type="button"
+                                      onClick={() => speakChatMessage(msg.content)}
+                                      className="inline-flex items-center space-x-1 text-[10px] text-emerald-700 hover:text-emerald-800 font-bold"
+                                    >
+                                      <Volume2 className="w-3 h-3" />
+                                      <span>{selectedLanguage === "Urdu" ? "آواز سنیں" : "Listen"}</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Typing indicator */}
+                          {isChatLoading && (
+                            <div className="flex items-start space-x-2">
+                              <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
+                                <Bot className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="bg-white p-3 rounded-2xl rounded-tl-sm border border-slate-200/80 shadow-2xs text-slate-500 text-xs flex items-center space-x-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.2s]" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.4s]" />
+                                <span className="text-[11px] font-bold text-slate-600 pl-1">
+                                  {selectedLanguage === "Urdu" ? "ڈاکٹر جواب لکھ رہے ہیں..." : "Dr. Crop is replying..."}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div ref={chatMessagesEndRef} />
+                        </div>
+
+                        {/* Quick Question Chips */}
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                            {selectedLanguage === "Urdu" ? "اکثر پوچھے جانے والے سوالات:" : "Quick Questions (1-Tap):"}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(selectedLanguage === "Urdu"
+                              ? [
+                                  "کیا یہ بیماری دوسرے پودوں میں پھیلے گی؟",
+                                  "سپرے کس وقت کرنا زیادہ فائدہ مند ہے؟",
+                                  "کتنے دنوں میں پودا ٹھیک ہوگا؟",
+                                  "کیا پانی دینا کم کر دینا چاہیے؟",
+                                ]
+                              : [
+                                  "Will this spread to nearby plants?",
+                                  "What is the best time of day to spray?",
+                                  "How many days until recovery?",
+                                  "Should I reduce irrigation?",
+                                ]
+                            ).map((q, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleSendChatMessage(q)}
+                                disabled={isChatLoading}
+                                className="text-[11px] font-medium px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 border border-slate-200/80 transition-colors shadow-2xs disabled:opacity-50 text-left"
+                              >
+                                💬 {q}
+                              </button>
+                            ))}
                           </div>
                         </div>
 
-                        <div className="space-y-2 text-xs">
-                          {/* Biological Reason */}
-                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1">
-                            <div className="font-black text-slate-800 flex items-center space-x-1.5">
-                              <span className="text-emerald-600">🌱</span>
-                              <span>
-                                {selectedLanguage === "Urdu" ? "بیماری کی حیاتیاتی وجہ:" : "Biological Cause & Spread:"}
-                              </span>
-                            </div>
-                            <p className="text-slate-700 leading-relaxed font-medium">
-                              {diagnosis.disease_origin.why_it_happened}
-                            </p>
-                          </div>
+                        {/* Interactive Input Bar (Mic + Text + Send) */}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleSendChatMessage();
+                          }}
+                          className="flex items-center space-x-2 pt-1"
+                        >
+                          {/* Microphone Button */}
+                          <button
+                            type="button"
+                            onClick={toggleVoiceRecording}
+                            className={`p-2.5 rounded-xl border transition-all flex items-center justify-center flex-shrink-0 ${
+                              isRecording
+                                ? "bg-rose-500 text-white border-rose-600 shadow-md animate-pulse"
+                                : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-2xs"
+                            }`}
+                            title={
+                              isRecording
+                                ? "Recording... tap to stop"
+                                : selectedLanguage === "Urdu"
+                                ? "بول کر سوال پوچھیں"
+                                : "Speak your question"
+                            }
+                          >
+                            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-emerald-600" />}
+                          </button>
 
-                          {/* Weather Correlation */}
-                          <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200/70 space-y-1">
-                            <div className="font-black text-blue-900 flex items-center space-x-1.5">
-                              <span className="text-blue-600">⛅</span>
-                              <span>
-                                {selectedLanguage === "Urdu" ? "اس کیس میں موسمی عناصر کا عمل دخل:" : "Why In This Case (Weather Elements):"}
-                              </span>
-                            </div>
-                            <p className="text-blue-950 leading-relaxed font-medium">
-                              {diagnosis.disease_origin.weather_correlation}
-                            </p>
-                          </div>
-                        </div>
+                          {/* Text Input */}
+                          <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            placeholder={
+                              isRecording
+                                ? selectedLanguage === "Urdu"
+                                  ? "سن رہا ہوں، بولیں..."
+                                  : "Listening..."
+                                : selectedLanguage === "Urdu"
+                                ? "پودے یا علاج کے بارے میں کوئی سوال پوچھیں..."
+                                : "Ask Dr. Crop any question..."
+                            }
+                            disabled={isChatLoading}
+                            className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs disabled:opacity-60"
+                          />
+
+                          {/* Send Button */}
+                          <button
+                            type="submit"
+                            disabled={!chatInput.trim() || isChatLoading}
+                            className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                            title="Send"
+                          >
+                            {isChatLoading ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
+                          </button>
+                        </form>
                       </div>
                     )}
 
-                    {/* Weather Warning Card */}
-                    <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-200 space-y-1 text-xs text-amber-900">
-                      <div className="font-black flex items-center space-x-1.5 text-amber-800">
-                        <CloudSun className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                        <span>Climate Shield Weather Alert:</span>
-                      </div>
-                      <p className="leading-relaxed text-amber-950 font-medium">
-                        {diagnosis.climate_impact_warning}
-                      </p>
-                    </div>
 
-                    {/* Prevention Tips */}
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center space-x-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                        <span>How to Protect Other Crops:</span>
-                      </h4>
-                      <ul className="text-xs text-slate-700 space-y-1.5">
-                        {diagnosis.prevention_tips.map((tip, idx) => (
-                          <li key={idx} className="flex items-start space-x-2 bg-slate-50/60 p-2 rounded-xl border border-slate-100">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                            <span className="font-medium">{tip}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
 
                     {/* Conversational Voice Action Bar with Equalizer */}
                     <div className="space-y-2.5 pt-2 border-t border-slate-100">

@@ -103,6 +103,18 @@ When modifying or expanding this codebase, strictly follow these rules:
 * **HUMAN REVIEW FIRST**: Everything must be reviewed and approved by the human developer before any commit action.
 * **ACTIVE IMPLEMENTATION PLAN & TASK LIST**: Maintain an active implementation plan and task list for all non-trivial tasks so the user has full transparency over what is being changed and executed.
 
+### G. Strict Transparency & User Approval Before Making Changes (NO SILENT EDITS)
+* **NO SILENT CHANGES**: The AI must **NEVER** modify, create, or delete any files silently or behind the scenes.
+* **EXPLICIT PROPOSAL & RATIONALE**: Before touching any file, the AI must explicitly show the user:
+  1. Exactly which file is going to be modified.
+  2. Exactly what code lines will change.
+  3. The exact rationale/reason for the change.
+* **WAIT FOR USER APPROVAL**: The AI must ask for and receive explicit approval from the user before executing edits to critical project files.
+
+### H. UI / UX Preservation (DO NOT Change Visual Design Autonomously)
+* **PRESERVE EXISTING UI / UX**: The AI must **NEVER** redesign, reorganize, or restyle the visual interface, colors, layouts, buttons, or typography unless the user explicitly commands a visual change.
+* **FUNCTIONALITY OVER RESTYLING**: Any performance, accuracy, or backend improvements must fit seamlessly into the existing UI without breaking or arbitrarily changing established user flows.
+
 ---
 
 ## 6. Deployment to Google Cloud Run
