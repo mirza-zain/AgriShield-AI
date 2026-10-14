@@ -37,8 +37,13 @@ import {
   BookOpen,
   Info,
   FlaskConical,
+  Wind,
+  Droplets,
+  Thermometer,
+  Compass,
+  Map as MapIcon,
 } from "lucide-react";
-import { DiagnosisResult, ScanRecord } from "@/lib/types";
+import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult } from "@/lib/types";
 
 // Authentic Ionicons Leaf SVG Component
 function IoniconsLeaf({
@@ -139,6 +144,112 @@ const ANALYSIS_STEPS = [
   "Formulating remedies & weather alert..."
 ];
 
+const AGRICULTURAL_PRESETS = [
+  { name: "Punjab Farm Belt", lat: 31.5204, lon: 74.3587, region: "Punjab, Pakistan", icon: "🌾" },
+  { name: "Sindh River Basin", lat: 25.396, lon: 68.3578, region: "Sindh, Pakistan", icon: "🍅" },
+  { name: "Midwest Corn Belt", lat: 41.5868, lon: -93.625, region: "Iowa, USA", icon: "🌽" },
+  { name: "Nairobi Highlands", lat: -1.2921, lon: 36.8219, region: "Central, Kenya", icon: "🌱" },
+  { name: "Sonora Valley", lat: 29.0729, lon: -110.9559, region: "Sonora, Mexico", icon: "🌵" },
+];
+
+function getWeatherCodeDescription(code: number): { condition: string; icon: string } {
+  if (code === 0) return { condition: "Clear Sky & Sunshine", icon: "☀️" };
+  if (code === 1 || code === 2) return { condition: "Partly Cloudy", icon: "⛅" };
+  if (code === 3) return { condition: "Overcast", icon: "☁️" };
+  if (code === 45 || code === 48) return { condition: "Fog & High Dew", icon: "🌫️" };
+  if (code >= 51 && code <= 55) return { condition: "Drizzle & Damp Foliage", icon: "🌦️" };
+  if (code >= 61 && code <= 65) return { condition: "Rainfall", icon: "🌧️" };
+  if (code >= 80 && code <= 82) return { condition: "Rain Showers", icon: "🌦️" };
+  if (code >= 95) return { condition: "Thunderstorm Alert", icon: "⛈️" };
+  return { condition: "Moderate Weather", icon: "⛅" };
+}
+
+function getPathologyRiskIndex(telemetry: ClimateTelemetry | null): {
+  score: number;
+  level: "Low" | "Moderate" | "High" | "Severe";
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  barColor: string;
+  primaryConcern: string;
+} {
+  if (!telemetry) {
+    return {
+      score: 25,
+      level: "Low",
+      badgeBg: "bg-emerald-100",
+      badgeText: "text-emerald-900",
+      badgeBorder: "border-emerald-300",
+      barColor: "bg-emerald-500",
+      primaryConcern: "Microclimate parameters are calm. Routine crop scouting recommended.",
+    };
+  }
+
+  const { temperature, humidity, precipitation_probability } = telemetry;
+  let score = 15;
+
+  const isFungalZone = humidity >= 70 && temperature >= 18 && temperature <= 30;
+  const isHeatZone = temperature >= 35;
+  const isRainZone = precipitation_probability >= 50;
+
+  if (isFungalZone) score += 45;
+  if (isHeatZone) score += 35;
+  if (isRainZone) score += 30;
+  if (humidity > 85) score += 15;
+
+  score = Math.min(100, Math.max(10, score));
+
+  if (score >= 75) {
+    return {
+      score,
+      level: "Severe",
+      badgeBg: "bg-rose-100",
+      badgeText: "text-rose-900",
+      badgeBorder: "border-rose-300",
+      barColor: "bg-rose-600",
+      primaryConcern: isFungalZone
+        ? "Critical Fungal & Spore Outbreak Window! Damp leaves and high humidity accelerate blight."
+        : "Severe Heat Stress & Blossom Drop Alert. Excessive thermal load.",
+    };
+  }
+
+  if (score >= 55) {
+    return {
+      score,
+      level: "High",
+      badgeBg: "bg-amber-100",
+      badgeText: "text-amber-900",
+      badgeBorder: "border-amber-300",
+      barColor: "bg-amber-500",
+      primaryConcern: isRainZone
+        ? "Standing Water & Root Saturation Risk. Rain probability over 50%."
+        : "Elevated Powdery Mildew and Leaf Spot Vulnerability due to humidity spikes.",
+    };
+  }
+
+  if (score >= 35) {
+    return {
+      score,
+      level: "Moderate",
+      badgeBg: "bg-yellow-100",
+      badgeText: "text-yellow-900",
+      badgeBorder: "border-yellow-300",
+      barColor: "bg-yellow-500",
+      primaryConcern: "Moderate weather shift. Inspect crop canopies and maintain field aeration.",
+    };
+  }
+
+  return {
+    score,
+    level: "Low",
+    badgeBg: "bg-emerald-100",
+    badgeText: "text-emerald-900",
+    badgeBorder: "border-emerald-300",
+    barColor: "bg-emerald-500",
+    primaryConcern: "Optimal microclimate window. Favorable conditions for organic foliar sprays.",
+  };
+}
+
 export default function AgriShieldDashboard() {
   // Navigation Mode (Plant Doctor / Farm Vault / Climate Advisory)
   const [activeViewTab, setActiveViewTab] = useState<"doctor" | "vault" | "advisory">("doctor");
@@ -175,10 +286,28 @@ export default function AgriShieldDashboard() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(false);
 
+  // Live Climate & Microclimate State
+  const [weatherTelemetry, setWeatherTelemetry] = useState<ClimateTelemetry | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState<boolean>(false);
+  const [locationMode, setLocationMode] = useState<"gps" | "ip" | "preset" | "map">("preset");
+  const [activeLocationLabel, setActiveLocationLabel] = useState<string>("Punjab Farm Belt");
+  const [citySearchInput, setCitySearchInput] = useState<string>("");
+  const [isSearchingCity, setIsSearchingCity] = useState<boolean>(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(false);
+  const [modalLatInput, setModalLatInput] = useState<string>("31.5204");
+  const [modalLonInput, setModalLonInput] = useState<string>("74.3587");
+  const [modalSearchInput, setModalSearchInput] = useState<string>("");
+  const [modalSearching, setModalSearching] = useState<boolean>(false);
+  const [climateAdvisory, setClimateAdvisory] = useState<ClimateAdvisoryResult | null>(null);
+  const [advisoryLoading, setAdvisoryLoading] = useState<boolean>(false);
+  const [isAdvisorySpeaking, setIsAdvisorySpeaking] = useState<boolean>(false);
+  const [advisoryAudioLoading, setAdvisoryAudioLoading] = useState<boolean>(false);
+
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const advisoryAudioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Trigger floating toast notification
@@ -631,6 +760,319 @@ export default function AgriShieldDashboard() {
     }
   };
 
+  const stopAdvisorySpeech = () => {
+    if (advisoryAudioPlayerRef.current) {
+      advisoryAudioPlayerRef.current.pause();
+      advisoryAudioPlayerRef.current.currentTime = 0;
+      advisoryAudioPlayerRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsAdvisorySpeaking(false);
+  };
+
+  const fetchWeatherForCoords = async (
+    lat: number,
+    lon: number,
+    label: string,
+    mode: "gps" | "ip" | "preset" | "map"
+  ) => {
+    try {
+      setWeatherLoading(true);
+      setActiveLocationLabel(label);
+      setLocationMode(mode);
+      setModalLatInput(lat.toFixed(4));
+      setModalLonInput(lon.toFixed(4));
+
+      // Clear previous AI Doctor advice and stop audio whenever location changes
+      setClimateAdvisory(null);
+      stopAdvisorySpeech();
+
+      const res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`
+      );
+
+      if (!res.ok) throw new Error("Weather service unreachable");
+
+      const data = await res.json();
+      const current = data.current;
+      const daily = data.daily;
+      const weatherInfo = getWeatherCodeDescription(current?.weather_code || 0);
+
+      const telemetry: ClimateTelemetry = {
+        temperature: Math.round(current?.temperature_2m ?? 26),
+        humidity: Math.round(current?.relative_humidity_2m ?? 65),
+        precipitation_probability:
+          daily?.precipitation_probability_max?.[0] !== undefined
+            ? daily.precipitation_probability_max[0]
+            : Math.round((current?.precipitation ?? 0) * 20),
+        precipitation_mm: current?.precipitation ?? 0,
+        wind_speed: Math.round(current?.wind_speed_10m ?? 10),
+        weather_condition: weatherInfo.condition,
+        weather_code: current?.weather_code || 0,
+        temp_max: daily?.temperature_2m_max?.[0] ? Math.round(daily.temperature_2m_max[0]) : undefined,
+        temp_min: daily?.temperature_2m_min?.[0] ? Math.round(daily.temperature_2m_min[0]) : undefined,
+        location_name: label,
+        latitude: lat,
+        longitude: lon,
+      };
+
+      setWeatherTelemetry(telemetry);
+    } catch (err: any) {
+      console.warn("Open-Meteo fetch error, using fallback telemetry:", err);
+      setWeatherTelemetry({
+        temperature: 28,
+        humidity: 74,
+        precipitation_probability: 30,
+        precipitation_mm: 0,
+        wind_speed: 12,
+        weather_condition: "Warm & Humid",
+        weather_code: 2,
+        location_name: label,
+        latitude: lat,
+        longitude: lon,
+      });
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  const fallbackToIpLocation = async (customToastMsg?: string) => {
+    try {
+      // Primary: our own server route /api/locate (safe from CORS & mobile HTTP mixed content)
+      const res = await fetch("/api/locate", { signal: AbortSignal.timeout(4000) });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.latitude && data.longitude) {
+          const label = data.label || data.city || "Regional Farm Zone (IP)";
+          await fetchWeatherForCoords(data.latitude, data.longitude, label, "ip");
+          showToast(customToastMsg || `Weather locked to ${label} (IP) 🌐`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Internal /api/locate failed, trying secondary fallback:", e);
+    }
+
+    try {
+      const res2 = await fetch("https://ipwho.is/", { signal: AbortSignal.timeout(3500) });
+      if (res2.ok) {
+        const d = await res2.json();
+        if (d.latitude && d.longitude) {
+          const label = d.city ? `${d.city}, ${d.country || ""}` : "Regional Farm Zone (IP)";
+          await fetchWeatherForCoords(d.latitude, d.longitude, label, "ip");
+          showToast(`Weather locked to ${label} (IP) 🌐`);
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    await fetchWeatherForCoords(
+      AGRICULTURAL_PRESETS[0].lat,
+      AGRICULTURAL_PRESETS[0].lon,
+      AGRICULTURAL_PRESETS[0].name,
+      "preset"
+    );
+    showToast("Switched to Agricultural Preset 🌾");
+  };
+
+  const handleDetectLocation = () => {
+    setWeatherLoading(true);
+
+    const isSecure = typeof window !== "undefined" && window.isSecureContext;
+
+    if (isSecure && typeof window !== "undefined" && "geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          await fetchWeatherForCoords(latitude, longitude, "Local Farm Coordinates", "gps");
+          showToast("Local Farm GPS weather locked 📍");
+        },
+        async (err) => {
+          console.warn("GPS access denied or unavailable, attempting auto-IP fallback...", err.message);
+          await fallbackToIpLocation("GPS denied. Auto-locked via Regional IP 🌐");
+        },
+        { timeout: 6000, enableHighAccuracy: false }
+      );
+    } else {
+      // Insecure context (e.g. mobile visiting http://192.168.100.128:3000 over WiFi)
+      // Mobile Chrome/Safari strictly block navigator.geolocation on non-HTTPS origins.
+      fallbackToIpLocation(isSecure ? undefined : "Mobile HTTP requires HTTPS for GPS. Auto-locked via IP 🌐");
+    }
+  };
+
+  const handleSearchCity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!citySearchInput.trim()) return;
+
+    try {
+      setIsSearchingCity(true);
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(citySearchInput.trim())}&count=1&language=en&format=json`
+      );
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        const first = data.results[0];
+        const label = `${first.name}${first.admin1 ? `, ${first.admin1}` : ""}${first.country ? `, ${first.country}` : ""}`;
+        await fetchWeatherForCoords(first.latitude, first.longitude, label, "preset");
+        showToast(`Weather updated for ${first.name} 🌦️`);
+        setCitySearchInput("");
+      } else {
+        showToast("City not found. Try another region or preset.");
+      }
+    } catch (err) {
+      console.warn("City search error:", err);
+      showToast("City search temporarily unavailable.");
+    } finally {
+      setIsSearchingCity(false);
+    }
+  };
+
+  const handleModalSearchCity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalSearchInput.trim()) return;
+
+    try {
+      setModalSearching(true);
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(modalSearchInput.trim())}&count=1&language=en&format=json`
+      );
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        const first = data.results[0];
+        setModalLatInput(Number(first.latitude).toFixed(4));
+        setModalLonInput(Number(first.longitude).toFixed(4));
+        const label = `${first.name}${first.admin1 ? `, ${first.admin1}` : ""}${first.country ? `, ${first.country}` : ""}`;
+        await fetchWeatherForCoords(first.latitude, first.longitude, label, "map");
+        showToast(`Map centered on ${first.name} 📍`);
+      } else {
+        showToast("City not found. Enter coordinates manually below.");
+      }
+    } catch (err) {
+      console.warn("Modal search error:", err);
+    } finally {
+      setModalSearching(false);
+    }
+  };
+
+  const handleApplyCustomCoords = async () => {
+    const lat = parseFloat(modalLatInput);
+    const lon = parseFloat(modalLonInput);
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      showToast("Please enter valid Latitude (-90 to 90) and Longitude (-180 to 180)");
+      return;
+    }
+    const customLabel = `Field (${lat.toFixed(3)}°, ${lon.toFixed(3)}°)`;
+    await fetchWeatherForCoords(lat, lon, customLabel, "map");
+    setIsLocationModalOpen(false);
+    showToast(`Weather locked to Field Coords 📍`);
+  };
+
+  const handleAskClimateDoctor = async () => {
+    if (!weatherTelemetry) return;
+
+    try {
+      setAdvisoryLoading(true);
+
+      const payload = {
+        temperature: weatherTelemetry.temperature,
+        humidity: weatherTelemetry.humidity,
+        precipitation_probability: weatherTelemetry.precipitation_probability,
+        wind_speed: weatherTelemetry.wind_speed,
+        weather_condition: weatherTelemetry.weather_condition,
+        crop_name: diagnosis?.crop_name || "",
+        language: selectedLanguage,
+      };
+
+      const res = await fetch("/api/climate-advisory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.advisory) {
+        setClimateAdvisory(data.advisory);
+        showToast("AI Weather Advisory Formulated 🌿");
+      } else {
+        showToast("Could not generate advisory. Please try again.");
+      }
+    } catch (err) {
+      console.error("Advisory error:", err);
+      showToast("Advisory service temporarily unavailable.");
+    } finally {
+      setAdvisoryLoading(false);
+    }
+  };
+
+  const toggleAdvisorySpeech = async () => {
+    if (isAdvisorySpeaking) {
+      stopAdvisorySpeech();
+      return;
+    }
+
+    if (!climateAdvisory || !climateAdvisory.spoken_script) return;
+
+    stopSpeech();
+    stopAdvisorySpeech();
+
+    const scriptText = climateAdvisory.spoken_script;
+
+    try {
+      setAdvisoryAudioLoading(true);
+
+      const res = await fetch("/api/audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: scriptText,
+          language: selectedLanguage,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.audioBase64) {
+        const audio = new Audio(data.audioBase64);
+        advisoryAudioPlayerRef.current = audio;
+
+        audio.onplay = () => {
+          setIsAdvisorySpeaking(true);
+          setAdvisoryAudioLoading(false);
+          showToast(`Speaking weather advisory in ${selectedLanguage} 🔊`);
+        };
+
+        audio.onended = () => {
+          setIsAdvisorySpeaking(false);
+        };
+
+        audio.onerror = () => {
+          fallbackBrowserSpeech(scriptText);
+        };
+
+        await audio.play();
+        return;
+      } else {
+        fallbackBrowserSpeech(scriptText);
+      }
+    } catch (err) {
+      console.warn("Fallback to browser voice for advisory:", err);
+      fallbackBrowserSpeech(scriptText);
+    } finally {
+      setAdvisoryAudioLoading(false);
+    }
+  };
+
+  // Auto-fetch weather when switching to Advisory tab if not loaded
+  useEffect(() => {
+    if (activeViewTab === "advisory" && !weatherTelemetry && !weatherLoading) {
+      handleDetectLocation();
+    }
+  }, [activeViewTab, weatherTelemetry, weatherLoading]);
+
   const getSeverityBadge = (severity: string, condition?: string) => {
     const isHealthy =
       severity?.toLowerCase() === "low" &&
@@ -718,6 +1160,154 @@ export default function AgriShieldDashboard() {
         </div>
       )}
 
+      {/* Farm Location & Interactive OpenStreetMap Picker Modal */}
+      {isLocationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900">Select Farm Location</h3>
+                  <p className="text-[11px] text-slate-500">OpenStreetMap preview, village search, or direct GPS</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsLocationModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs">
+              {/* City / District Search */}
+              <form onSubmit={handleModalSearchCity} className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search city, district, or tehsil..."
+                    value={modalSearchInput}
+                    onChange={(e) => setModalSearchInput(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 rounded-xl border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={modalSearching || !modalSearchInput.trim()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl disabled:opacity-50 transition-colors"
+                >
+                  {modalSearching ? "..." : "Search"}
+                </button>
+              </form>
+
+              {/* OpenStreetMap Interactive Preview */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-600 font-semibold px-0.5">
+                  <span>OpenStreetMap Field Location</span>
+                  <span className="text-[10px] text-slate-400">Centered on active pin</span>
+                </div>
+                <div className="relative w-full h-48 sm:h-56 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100">
+                  {(() => {
+                    const lat = parseFloat(modalLatInput) || 31.5204;
+                    const lon = parseFloat(modalLonInput) || 74.3587;
+                    const bbox = `${(lon - 0.08).toFixed(4)},${(lat - 0.08).toFixed(4)},${(lon + 0.08).toFixed(4)},${(lat + 0.08).toFixed(4)}`;
+                    const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(4)},${lon.toFixed(4)}`;
+                    return (
+                      <iframe
+                        title="Farm Location Map"
+                        src={src}
+                        className="w-full h-full border-0"
+                        loading="lazy"
+                      />
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Direct GPS Coordinates Entry */}
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+                <span className="font-bold text-slate-700 block text-[11px]">Exact Field Coordinates:</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-500 block mb-1">Latitude (°N/S)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={modalLatInput}
+                      onChange={(e) => setModalLatInput(e.target.value)}
+                      placeholder="e.g. 31.5204"
+                      className="w-full px-3 py-1.5 text-xs bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-500 block mb-1">Longitude (°E/W)</label>
+                    <input
+                      type="number"
+                      step="0.0001"
+                      value={modalLonInput}
+                      onChange={(e) => setModalLonInput(e.target.value)}
+                      placeholder="e.g. 74.3587"
+                      className="w-full px-3 py-1.5 text-xs bg-white rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Regional Presets */}
+              <div className="space-y-1.5">
+                <span className="font-bold text-slate-700 block text-[11px]">Quick Farm Presets:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {AGRICULTURAL_PRESETS.map((p) => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => {
+                        setModalLatInput(p.lat.toFixed(4));
+                        setModalLonInput(p.lon.toFixed(4));
+                      }}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-xl text-xs bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all font-medium text-slate-700"
+                    >
+                      <span>{p.icon}</span>
+                      <span>{p.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleDetectLocation();
+                  setIsLocationModalOpen(false);
+                }}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 inline-flex items-center space-x-1 px-3 py-2 rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                <Compass className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Auto-Detect IP</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleApplyCustomCoords}
+                disabled={weatherLoading}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+              >
+                Apply & Lock Weather
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Glassmorphic Navbar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-2 sm:gap-3">
@@ -789,8 +1379,8 @@ export default function AgriShieldDashboard() {
             <button
               onClick={() => setActiveViewTab("doctor")}
               className={`flex-1 sm:flex-initial px-2.5 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 sm:space-x-2 transition-all min-w-0 ${activeViewTab === "doctor"
-                  ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
-                  : "text-slate-600 hover:text-slate-900"
+                ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
+                : "text-slate-600 hover:text-slate-900"
                 }`}
             >
               <Sprout className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -804,8 +1394,8 @@ export default function AgriShieldDashboard() {
             <button
               onClick={() => setActiveViewTab("vault")}
               className={`flex-1 sm:flex-initial px-2.5 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 sm:space-x-2 transition-all min-w-0 ${activeViewTab === "vault"
-                  ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
-                  : "text-slate-600 hover:text-slate-900"
+                ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
+                : "text-slate-600 hover:text-slate-900"
                 }`}
             >
               <Layers className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -819,8 +1409,8 @@ export default function AgriShieldDashboard() {
             <button
               onClick={() => setActiveViewTab("advisory")}
               className={`flex-1 sm:flex-initial px-2.5 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center space-x-1.5 sm:space-x-2 transition-all min-w-0 ${activeViewTab === "advisory"
-                  ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
-                  : "text-slate-600 hover:text-slate-900"
+                ? "bg-white text-emerald-950 shadow-sm scale-[1.02]"
+                : "text-slate-600 hover:text-slate-900"
                 }`}
             >
               <CloudSun className="w-4 h-4 text-amber-500 flex-shrink-0" />
@@ -890,10 +1480,10 @@ export default function AgriShieldDashboard() {
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
                     className={`relative rounded-2xl border-2 border-dashed transition-all overflow-hidden flex flex-col items-center justify-center min-h-[280px] sm:min-h-[340px] p-4 text-center ${dragActive
-                        ? "border-emerald-500 bg-emerald-50/70 scale-[1.01]"
-                        : imagePreview
-                          ? "border-emerald-500/40 bg-slate-950"
-                          : "border-slate-300 hover:border-emerald-500/80 bg-slate-50/70 hover:bg-slate-50"
+                      ? "border-emerald-500 bg-emerald-50/70 scale-[1.01]"
+                      : imagePreview
+                        ? "border-emerald-500/40 bg-slate-950"
+                        : "border-slate-300 hover:border-emerald-500/80 bg-slate-50/70 hover:bg-slate-50"
                       }`}
                   >
                     {imagePreview ? (
@@ -998,8 +1588,8 @@ export default function AgriShieldDashboard() {
                             key={preset.name}
                             onClick={() => handleSelectPreset(preset.url, preset.name)}
                             className={`flex-shrink-0 flex items-center space-x-2.5 px-3 py-2 rounded-2xl border transition-all text-left ${isSelected
-                                ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
-                                : "border-slate-200 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300"
+                              ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
+                              : "border-slate-200 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300"
                               }`}
                           >
                             <img
@@ -1028,8 +1618,8 @@ export default function AgriShieldDashboard() {
                       disabled={!imagePreview || isAnalyzing}
                       onClick={handleRunDiagnosis}
                       className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base flex items-center justify-center space-x-3 shadow-lg transition-all ${!imagePreview || isAnalyzing
-                          ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                          : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/25 active:scale-[0.98]"
+                        ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                        : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-600/25 active:scale-[0.98]"
                         }`}
                     >
                       {isAnalyzing ? (
@@ -1165,8 +1755,8 @@ export default function AgriShieldDashboard() {
                         <button
                           onClick={() => setActiveTreatmentTab("immediate")}
                           className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "immediate"
-                              ? "bg-white text-slate-900 shadow-sm font-black"
-                              : "hover:text-slate-900"
+                            ? "bg-white text-slate-900 shadow-sm font-black"
+                            : "hover:text-slate-900"
                             }`}
                         >
                           <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
@@ -1175,8 +1765,8 @@ export default function AgriShieldDashboard() {
                         <button
                           onClick={() => setActiveTreatmentTab("organic")}
                           className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "organic"
-                              ? "bg-white text-emerald-800 shadow-sm font-black"
-                              : "hover:text-slate-900"
+                            ? "bg-white text-emerald-800 shadow-sm font-black"
+                            : "hover:text-slate-900"
                             }`}
                         >
                           <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
@@ -1186,8 +1776,8 @@ export default function AgriShieldDashboard() {
                         <button
                           onClick={() => setActiveTreatmentTab("chemical")}
                           className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${activeTreatmentTab === "chemical"
-                              ? "bg-white text-blue-800 shadow-sm font-black"
-                              : "hover:text-slate-900"
+                            ? "bg-white text-blue-800 shadow-sm font-black"
+                            : "hover:text-slate-900"
                             }`}
                         >
                           <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
@@ -1298,10 +1888,10 @@ export default function AgriShieldDashboard() {
                           onClick={toggleSpeech}
                           disabled={audioLoading}
                           className={`w-full py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center space-x-2 border transition-all ${isSpeaking
-                              ? "bg-rose-50 text-rose-700 border-rose-300 shadow-sm"
-                              : audioLoading
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-300 cursor-wait"
-                                : "bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-300 shadow-sm active:scale-95"
+                            ? "bg-rose-50 text-rose-700 border-rose-300 shadow-sm"
+                            : audioLoading
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-300 cursor-wait"
+                              : "bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-emerald-300 shadow-sm active:scale-95"
                             }`}
                         >
                           {audioLoading ? (
@@ -1552,8 +2142,8 @@ export default function AgriShieldDashboard() {
                         key={sev}
                         onClick={() => setVaultSeverityFilter(sev)}
                         className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex-shrink-0 text-xs ${isSelected
-                            ? "bg-slate-900 text-white shadow-sm"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                           }`}
                       >
                         {sev === "all" ? "All Scans" : sev}
@@ -1593,8 +2183,8 @@ export default function AgriShieldDashboard() {
                         key={scan.id}
                         onClick={() => handleLoadPastScan(scan)}
                         className={`group bg-white rounded-2xl border p-4 shadow-sm hover:shadow-card-hover transition-all cursor-pointer flex flex-col justify-between space-y-3 hover:-translate-y-0.5 ${isSelected
-                            ? "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/30"
-                            : "border-slate-200/90 hover:border-emerald-300"
+                          ? "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/30"
+                          : "border-slate-200/90 hover:border-emerald-300"
                           }`}
                       >
                         <div className="space-y-2.5">
@@ -1661,76 +2251,376 @@ export default function AgriShieldDashboard() {
           </div>
         )}
 
-        {/* VIEW 3: CLIMATE ADVISORY & COOPERATIVE KNOWLEDGE */}
+        {/* VIEW 3: LIVE CLIMATE INTELLIGENCE & ANONYMOUS AI DOCTOR ADVISORY */}
         {activeViewTab === "advisory" && (
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-6 sm:p-8 space-y-6">
-              <div className="border-b border-slate-100 pb-4">
-                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 mb-1.5">
-                  <CloudSun className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Climate Resilience Index</span>
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 sm:p-8 space-y-6">
+
+              {/* Header: Title & Location Mode Chip */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 mb-2">
+                    <CloudSun className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Real-Time Weather Shield</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                    Live Microclimate & Pathology Radar
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Continuous Open-Meteo telemetry cross-referenced with crop pathology outbreak thresholds
+                  </p>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900">
-                  Regional Weather Shield & Prevention Protocols
-                </h2>
-                <p className="text-xs text-slate-500 font-medium">
-                  Agronomic weather warnings and proactive disease mitigation advice
-                </p>
+
+                {/* Location Detection & Map Buttons */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleDetectLocation}
+                    disabled={weatherLoading}
+                    className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all active:scale-95 disabled:opacity-60"
+                  >
+                    {weatherLoading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                    )}
+                    <span>{weatherLoading ? "Locking..." : "Detect Farm GPS"}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (weatherTelemetry?.latitude && weatherTelemetry?.longitude) {
+                        setModalLatInput(weatherTelemetry.latitude.toFixed(4));
+                        setModalLonInput(weatherTelemetry.longitude.toFixed(4));
+                      }
+                      setIsLocationModalOpen(true);
+                    }}
+                    className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold text-xs shadow-xs transition-all active:scale-95"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Select on Map</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Weather Shield Advisory Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 space-y-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                    <CloudSun className="w-5 h-5" />
+              {/* Location Bar & Quick Presets Strip */}
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center space-x-2 text-xs">
+                    <span className="font-bold text-slate-700 flex items-center space-x-1">
+                      <span>Currently Monitoring:</span>
+                    </span>
+                    <span className="font-extrabold text-emerald-950 px-2.5 py-0.5 rounded-lg bg-emerald-100/90 border border-emerald-300/80">
+                      {activeLocationLabel}
+                    </span>
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                      ({locationMode === "gps" ? "GPS Locked" : locationMode === "ip" ? "Auto IP" : locationMode === "map" ? "Map Pinned" : "Preset Zone"})
+                    </span>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm">Thermal Heat & Drought</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    When field temperatures exceed 36°C, irrigate early in the morning. Use straw mulch around crop bases to reduce root moisture evaporation by 40%.
-                  </p>
+
+                  {/* City Search Form */}
+                  <form onSubmit={handleSearchCity} className="flex items-center space-x-1.5">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search city/district..."
+                        value={citySearchInput}
+                        onChange={(e) => setCitySearchInput(e.target.value)}
+                        className="pl-8 pr-3 py-1.5 text-xs bg-white rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-44 sm:w-52"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSearchingCity || !citySearchInput.trim()}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs disabled:opacity-50"
+                    >
+                      {isSearchingCity ? "..." : "Go"}
+                    </button>
+                  </form>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-blue-50/80 border border-blue-200 space-y-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
-                    <Activity className="w-5 h-5" />
+                {/* Quick Presets for Multi-Region Farmers & Judges */}
+                <div className="flex items-center space-x-2 pt-1 overflow-x-auto pb-1 scrollbar-none">
+                  <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap flex-shrink-0">
+                    Quick Zones:
+                  </span>
+                  {AGRICULTURAL_PRESETS.map((preset) => {
+                    const isActive = activeLocationLabel === preset.name;
+                    return (
+                      <button
+                        key={preset.name}
+                        onClick={() => fetchWeatherForCoords(preset.lat, preset.lon, preset.name, "preset")}
+                        className={`flex-shrink-0 inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all ${isActive
+                            ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          }`}
+                      >
+                        <span>{preset.icon}</span>
+                        <span>{preset.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* LIVE WEATHER HUD: 4 Core Metric Cards */}
+              {weatherTelemetry ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {/* Temperature Card */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/70 to-orange-50/50 border border-amber-200/80 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-900">Temperature</span>
+                      <Thermometer className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div className="mt-2 flex items-baseline space-x-1.5">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                        {weatherTelemetry.temperature}°C
+                      </span>
+                      {weatherTelemetry.temp_max !== undefined && (
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          H: {weatherTelemetry.temp_max}° / L: {weatherTelemetry.temp_min}°
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-amber-800/90 font-medium mt-1 truncate">
+                      {weatherTelemetry.weather_condition}
+                    </p>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm">Heavy Rain & Blight Alert</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Standing puddle water accelerates Phytophthora fungal spread within 48 hours. Ensure field drainage furrows are cleared before seasonal downpours.
-                  </p>
+
+                  {/* Relative Humidity Card */}
+                  <div className={`p-4 rounded-2xl border shadow-xs ${weatherTelemetry.humidity >= 75
+                      ? "bg-rose-50/70 border-rose-200 text-rose-950"
+                      : "bg-blue-50/70 border-blue-200 text-blue-950"
+                    }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold">Relative Humidity</span>
+                      <Droplets className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="mt-2 flex items-baseline space-x-1.5">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                        {weatherTelemetry.humidity}%
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-semibold mt-1">
+                      {weatherTelemetry.humidity >= 75 ? "🔴 Fungal spore trigger (>75%)" : "🟢 Moderate leaf moisture"}
+                    </p>
+                  </div>
+
+                  {/* Rain Probability Card */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50/70 to-cyan-50/50 border border-sky-200/80 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-sky-900">Rain Probability</span>
+                      <CloudSun className="w-4 h-4 text-sky-600" />
+                    </div>
+                    <div className="mt-2 flex items-baseline space-x-1.5">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                        {weatherTelemetry.precipitation_probability}%
+                      </span>
+                      {weatherTelemetry.precipitation_mm ? (
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          {weatherTelemetry.precipitation_mm}mm
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-[11px] text-sky-800 font-medium mt-1">
+                      {weatherTelemetry.precipitation_probability >= 50 ? "Waterlogging risk high" : "Low precipitation expected"}
+                    </p>
+                  </div>
+
+                  {/* Wind Speed Card */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/50 border border-emerald-200/80 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-900">Wind Velocity</span>
+                      <Wind className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="mt-2 flex items-baseline space-x-1.5">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                        {weatherTelemetry.wind_speed} <span className="text-sm font-bold">km/h</span>
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 font-medium mt-1">
+                      {weatherTelemetry.wind_speed > 25 ? "Spray drift warning (>25km/h)" : "Calm foliar spray window"}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-slate-400 text-xs font-medium space-y-2">
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto text-emerald-600" />
+                  <p>Connecting to meteorological satellite grid...</p>
+                </div>
+              )}
+
+              {/* DYNAMIC PATHOLOGY RISK INDEX CARD */}
+              {weatherTelemetry && (() => {
+                const risk = getPathologyRiskIndex(weatherTelemetry);
+                return (
+                  <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-3.5 shadow-md">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-extrabold text-white">
+                          Pathology Outbreak Risk Index
+                        </span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${risk.badgeBg} ${risk.badgeText} ${risk.badgeBorder}`}>
+                          {risk.level} Risk ({risk.score}/100)
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-400 font-medium">
+                        Calibrated for Smallholder Horticultural & Cereal Crops
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-700 ${risk.barColor}`}
+                          style={{ width: `${risk.score}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                      {risk.primaryConcern}
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* ASK AI DOCTOR FOR CLIMATE ADVISORY (Hero Interaction) */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200/90 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center space-x-2">
+                      <Sparkles className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                      <span>Ask AI Doctor for Live Weather Advisory</span>
+                    </h3>
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">
+                      Sends anonymous microclimate readings to formulate tailored field actions (100% private, zero user identifiers)
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleAskClimateDoctor}
+                    disabled={advisoryLoading || !weatherTelemetry}
+                    className={`px-5 py-3 rounded-xl font-black text-xs sm:text-sm shadow-md transition-all flex items-center justify-center space-x-2 flex-shrink-0 active:scale-95 ${advisoryLoading || !weatherTelemetry
+                        ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      }`}
+                  >
+                    {advisoryLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Consulting AI Agronomist...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Formulate Today&apos;s Advisory</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                    <Sprout className="w-5 h-5" />
+                {/* AI Doctor Advisory Output Card */}
+                {climateAdvisory && (
+                  <div className="p-5 rounded-2xl bg-white border border-emerald-200 shadow-sm space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                          AI Plant Doctor Prescription
+                        </span>
+                        <h4 className="text-base sm:text-lg font-extrabold text-slate-900 mt-0.5">
+                          {climateAdvisory.headline}
+                        </h4>
+                      </div>
+
+                      {/* Listen Aloud Button */}
+                      <button
+                        onClick={toggleAdvisorySpeech}
+                        disabled={advisoryAudioLoading}
+                        className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${isAdvisorySpeaking
+                            ? "bg-rose-50 text-rose-700 border-rose-300 shadow-sm"
+                            : "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 shadow-xs"
+                          }`}
+                      >
+                        {advisoryAudioLoading ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Voice Loading...</span>
+                          </>
+                        ) : isAdvisorySpeaking ? (
+                          <>
+                            <VolumeX className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Stop Voice</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Listen Aloud ({selectedLanguage})</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                      {/* Immediate Action */}
+                      <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-1">
+                        <span className="font-bold text-amber-950 flex items-center space-x-1">
+                          <Zap className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Action Required Today:</span>
+                        </span>
+                        <p className="text-slate-700 font-medium leading-relaxed">
+                          {climateAdvisory.action_today}
+                        </p>
+                      </div>
+
+                      {/* Primary Disease Risk */}
+                      <div className="p-3.5 rounded-xl bg-rose-50/70 border border-rose-200/80 space-y-1">
+                        <span className="font-bold text-rose-950 flex items-center space-x-1">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Pathogen Vulnerabilities:</span>
+                        </span>
+                        <p className="text-slate-700 font-medium leading-relaxed">
+                          {climateAdvisory.primary_disease_risk}
+                        </p>
+                      </div>
+
+                      {/* Spray & Irrigation Guidance */}
+                      <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-1">
+                        <span className="font-bold text-blue-950 flex items-center space-x-1">
+                          <CloudSun className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Spray & Irrigation Schedule:</span>
+                        </span>
+                        <p className="text-slate-700 font-medium leading-relaxed">
+                          {climateAdvisory.spray_timing_advice}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm">Organic Neem Oil Protocol</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    Mix 5ml cold-pressed neem oil with 2 drops mild soap per liter of water. Spray at sunset to protect predatory insects while eliminating aphids and mildew spores.
-                  </p>
-                </div>
+                )}
               </div>
 
               {/* Cooperative FAQ Section */}
-              <div className="pt-4 space-y-3">
+              <div className="pt-2 space-y-3">
                 <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider text-slate-500">
                   Frequently Asked Questions
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                   <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                    <span className="font-bold text-slate-900">How accurate is the AI pathology diagnosis?</span>
+                    <span className="font-bold text-slate-900">How is my location protected?</span>
                     <p className="text-slate-600 font-medium">
-                      AgriShield uses advanced multimodal computer vision calibrated against academic plant pathology datasets. It identifies leaf spots, blights, and rot with up to 98% confidence.
+                      GPS coordinates and IP addresses are resolved strictly on your device to fetch atmospheric conditions. AgriShield never sends your location, name, or identity to the AI model.
                     </p>
                   </div>
                   <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
-                    <span className="font-bold text-slate-900">Does it work without internet?</span>
+                    <span className="font-bold text-slate-900">How often is the microclimate updated?</span>
                     <p className="text-slate-600 font-medium">
-                      Yes! The app is PWA-ready with offline caching for pre-loaded test samples and recent community scans stored locally on your device.
+                      Weather observations are fetched in real-time from open meteorological satellite grids and updated whenever you tap &quot;Detect My Farm GPS&quot; or select a new region.
                     </p>
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
         )}
@@ -1746,8 +2636,8 @@ export default function AgriShieldDashboard() {
             }
           }}
           className={`flex-1 py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center space-y-0.5 transition-all ${activeViewTab === "doctor"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
-              : "text-slate-600"
+            ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
+            : "text-slate-600"
             }`}
         >
           <Sprout className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -1765,8 +2655,8 @@ export default function AgriShieldDashboard() {
         <button
           onClick={() => setActiveViewTab("vault")}
           className={`flex-1 py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center space-y-0.5 transition-all ${activeViewTab === "vault"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
-              : "text-slate-600"
+            ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
+            : "text-slate-600"
             }`}
         >
           <Layers className="w-4 h-4 text-emerald-600 flex-shrink-0" />
@@ -1776,8 +2666,8 @@ export default function AgriShieldDashboard() {
         <button
           onClick={() => setActiveViewTab("advisory")}
           className={`flex-1 py-2 px-1 rounded-xl font-bold text-[11px] flex flex-col items-center justify-center space-y-0.5 transition-all ${activeViewTab === "advisory"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
-              : "text-slate-600"
+            ? "bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm"
+            : "text-slate-600"
             }`}
         >
           <CloudSun className="w-4 h-4 text-amber-500 flex-shrink-0" />

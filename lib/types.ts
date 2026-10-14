@@ -31,3 +31,39 @@ export interface ScanRecord extends DiagnosisResult {
   userId?: string;
 }
 
+export interface ClimateTelemetry {
+  temperature: number;
+  humidity: number;
+  precipitation_probability: number;
+  precipitation_mm?: number;
+  wind_speed: number;
+  weather_condition: string;
+  weather_code: number;
+  temp_max?: number;
+  temp_min?: number;
+  location_name?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface ClimateAdvisoryPayload {
+  temperature: number;
+  humidity: number;
+  precipitation_probability: number;
+  wind_speed: number;
+  weather_condition: string;
+  crop_name?: string;
+  language: string;
+}
+
+export interface ClimateAdvisoryResult {
+  risk_level: "Low" | "Moderate" | "High" | "Severe";
+  risk_score: number;
+  headline: string;
+  primary_disease_risk: string;
+  action_today: string;
+  spray_timing_advice: string;
+  irrigation_advice: string;
+  spoken_script: string;
+}
+
