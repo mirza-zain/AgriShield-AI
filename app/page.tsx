@@ -545,6 +545,13 @@ export default function AgriShieldDashboard() {
     };
   }, []);
 
+  // Automatically refresh feed when farmer opens the Farm Vault tab
+  useEffect(() => {
+    if (activeViewTab === "vault") {
+      fetchHistory(false);
+    }
+  }, [activeViewTab]);
+
   // Live Network Connectivity Monitor (Online Cloud vs Offline Local Vault)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -634,7 +641,10 @@ export default function AgriShieldDashboard() {
       if (showSkeleton) {
         setHistoryLoading(true);
       }
-      const res = await fetch("/api/history");
+      const res = await fetch(`/api/history?t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      });
       const data = await res.json();
       if (data?.scans) {
         setHistoryFeed(data.scans);
@@ -1245,23 +1255,10 @@ export default function AgriShieldDashboard() {
         body: JSON.stringify({
           text: scriptText,
           language: selectedLanguage,
-          isOwner: isCurrentReportOwner,
         }),
       });
 
       const data = await res.json();
-
-      if (data?.notCached) {
-        setAudioLoading(false);
-        setSpeechStatusText("");
-        showToast(
-          selectedLanguage === "Urdu"
-            ? "اس کمیونٹی رپورٹ کی لائیو آڈیو صرف مالک تیار کر سکتا ہے۔ اپنا پودا اسکین کریں۔"
-            : "Audio not pre-generated for this community scan. Scan your own leaf for voice consultation.",
-          <Lock className="w-4 h-4 text-amber-400" />
-        );
-        return;
-      }
 
       if (res.ok && data.audioBase64) {
         if (data.modelUsed) {
@@ -1458,7 +1455,12 @@ export default function AgriShieldDashboard() {
 
       if (selectedScanId === scan.id) {
         setSelectedScanId(null);
+        setDiagnosis(null);
+        setImagePreview(null);
       }
+
+      // Re-fetch live history to ensure complete sync
+      fetchHistory(false);
 
       showToast(
         selectedLanguage === "Urdu" ? "ریکارڈ والٹ سے حذف کر دیا گیا" : "Scan deleted from your vault",
@@ -4158,24 +4160,41 @@ export default function AgriShieldDashboard() {
                   </p>
                 </div>
 
-                {/* Instant Filter Search Bar */}
-                <div className="relative w-full sm:w-72 lg:w-80 flex-shrink-0">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={vaultSearch}
-                    onChange={(e) => setVaultSearch(e.target.value)}
-                    placeholder="Search crop or condition..."
-                    className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all shadow-inner"
-                  />
-                  {vaultSearch && (
-                    <button
-                      onClick={() => setVaultSearch("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                {/* Instant Filter Search Bar & Refresh Button */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative w-full sm:w-72 lg:w-80 flex-shrink-0">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={vaultSearch}
+                      onChange={(e) => setVaultSearch(e.target.value)}
+                      placeholder="Search crop or condition..."
+                      className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all shadow-inner"
+                    />
+                    {vaultSearch && (
+                      <button
+                        onClick={() => setVaultSearch("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchHistory(true);
+                      showToast(
+                        selectedLanguage === "Urdu" ? "والٹ کی فہرست تازہ کر دی گئی" : "Vault refreshed",
+                        <RefreshCw className="w-4 h-4 text-emerald-400" />
+                      );
+                    }}
+                    disabled={historyLoading}
+                    title={selectedLanguage === "Urdu" ? "تازہ کریں" : "Refresh Vault"}
+                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer flex-shrink-0"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${historyLoading ? "animate-spin text-emerald-600" : ""}`} />
+                  </button>
                 </div>
               </div>
 

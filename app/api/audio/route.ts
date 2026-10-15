@@ -121,15 +121,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Non-owner protection: If viewing someone else's report and audio is not pre-cached, DO NOT burn Gemini tokens!
-    if (!isOwner) {
-      console.log(`[Audio Engine] Non-owner requested un-cached audio. Blocking token burn.`);
-      return NextResponse.json({
-        success: false,
-        notCached: true,
-        message: "Audio is not pre-generated for this community scan.",
-      });
-    }
 
     const ai = new GoogleGenAI({
       apiKey,

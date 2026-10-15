@@ -3,6 +3,9 @@ import { getAdminDb } from "@/lib/firebase";
 import { ScanRecord } from "@/lib/types";
 import { getSharedScans, sharedSeedScans, deleteSharedScan } from "@/lib/scanStore";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const adminDb = getAdminDb();
