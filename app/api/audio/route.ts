@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { getAdminDb } from "@/lib/firebase";
+import crypto from "crypto";
 
 // Maximum duration for Next.js route handler to allow audio synthesis
 export const maxDuration = 60;
@@ -37,7 +39,7 @@ const serverAudioCache = new Map<string, { audioBase64: string; modelUsed: strin
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, language = "English" } = await req.json();
+    const { text, language = "English", isOwner = true } = await req.json();
 
     if (!text || typeof text !== "string") {
       return NextResponse.json({ error: "Text is required" }, { status: 400 });
@@ -80,15 +82,52 @@ export async function POST(req: NextRequest) {
       spokenText = text.trim();
     }
 
-    // Cache hit check: returns instantaneous audio with 0 Gemini tokens!
-    const cacheKey = `${language}:${spokenText.slice(0, 250)}`;
-    if (serverAudioCache.has(cacheKey)) {
-      const cached = serverAudioCache.get(cacheKey)!;
-      console.log(`[Audio Engine] Cache HIT! Returning instant neural audio (0 tokens used)`);
+    // Generate deterministic hash document ID for permanent cloud persistence
+    const docId = "audio_" + crypto.createHash("sha256").update(`${language}:${spokenText}`).digest("hex").slice(0, 32);
+
+    // 1. In-memory cache check (instantaneous 0ms, 0 tokens)
+    if (serverAudioCache.has(docId)) {
+      const cached = serverAudioCache.get(docId)!;
+      console.log(`[Audio Engine] Memory cache HIT! Returning instant audio (0 tokens)`);
       return NextResponse.json({
         success: true,
         audioBase64: cached.audioBase64,
         modelUsed: `${cached.modelUsed} (cached)`,
+      });
+    }
+
+    // 2. Persistent Firestore cloud cache check (persists across all devices and serverless cold starts)
+    const adminDb = getAdminDb();
+    if (adminDb) {
+      try {
+        const cachedDoc = await adminDb.collection("audio_cache").doc(docId).get();
+        if (cachedDoc.exists) {
+          const docData = cachedDoc.data();
+          if (docData?.audioBase64) {
+            console.log(`[Audio Engine] Firestore cloud cache HIT! Stored speech returned (0 tokens)`);
+            serverAudioCache.set(docId, {
+              audioBase64: docData.audioBase64,
+              modelUsed: docData.modelUsed || "gemini-tts",
+            });
+            return NextResponse.json({
+              success: true,
+              audioBase64: docData.audioBase64,
+              modelUsed: `${docData.modelUsed || "gemini-tts"} (cloud-cached)`,
+            });
+          }
+        }
+      } catch (cacheErr) {
+        console.warn("[Audio Engine] Firestore cache lookup warning:", cacheErr);
+      }
+    }
+
+    // 3. Non-owner protection: If viewing someone else's report and audio is not pre-cached, DO NOT burn Gemini tokens!
+    if (!isOwner) {
+      console.log(`[Audio Engine] Non-owner requested un-cached audio. Blocking token burn.`);
+      return NextResponse.json({
+        success: false,
+        notCached: true,
+        message: "Audio is not pre-generated for this community scan.",
       });
     }
 
@@ -145,11 +184,28 @@ export async function POST(req: NextRequest) {
       : pcmToWav(initialBuffer, 24000, 1, 16);
 
     const fullAudioBase64 = `data:audio/wav;base64,${Buffer.from(finalBuffer).toString("base64")}`;
-    // Store in server cache so repeated requests never burn quota again
-    serverAudioCache.set(cacheKey, {
+
+    // Store in in-memory cache for fast local responses
+    serverAudioCache.set(docId, {
       audioBase64: fullAudioBase64,
       modelUsed: usedModel,
     });
+
+    // Store in Firestore cloud cache so all future visitors worldwide get it for 0 tokens!
+    if (adminDb) {
+      try {
+        await adminDb.collection("audio_cache").doc(docId).set({
+          language,
+          textSnippet: spokenText.slice(0, 120),
+          audioBase64: fullAudioBase64,
+          modelUsed: usedModel,
+          createdAt: new Date().toISOString(),
+        });
+        console.log(`[Audio Engine] Persisted audio to Firestore audio_cache (${docId})`);
+      } catch (saveDbErr) {
+        console.warn("[Audio Engine] Firestore save warning:", saveDbErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -62,6 +62,7 @@ import {
   Heart,
   Trash2,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 import { extractExifMetadata } from "@/lib/utils";
@@ -322,6 +323,15 @@ export default function AgriShieldDashboard() {
   const [farmerId, setFarmerId] = useState<string>("");
   const [deletingScanId, setDeletingScanId] = useState<string | null>(null);
   const [myScanIds, setMyScanIds] = useState<string[]>([]);
+
+  // Ownership of the currently active diagnosis report (allows chat and voice generation only for crop owners)
+  const isCurrentReportOwner = Boolean(
+    !selectedScanId ||
+    (!selectedScanId.startsWith("seed-") && (
+      (farmerId && (diagnosis as any)?.userId && (diagnosis as any)?.userId === farmerId) ||
+      (selectedScanId && myScanIds.includes(selectedScanId))
+    ))
+  );
 
   // Notifications & Notices
   const [dragActive, setDragActive] = useState<boolean>(false);
@@ -1235,10 +1245,23 @@ export default function AgriShieldDashboard() {
         body: JSON.stringify({
           text: scriptText,
           language: selectedLanguage,
+          isOwner: isCurrentReportOwner,
         }),
       });
 
       const data = await res.json();
+
+      if (data?.notCached) {
+        setAudioLoading(false);
+        setSpeechStatusText("");
+        showToast(
+          selectedLanguage === "Urdu"
+            ? "اس کمیونٹی رپورٹ کی لائیو آڈیو صرف مالک تیار کر سکتا ہے۔ اپنا پودا اسکین کریں۔"
+            : "Audio not pre-generated for this community scan. Scan your own leaf for voice consultation.",
+          <Lock className="w-4 h-4 text-amber-400" />
+        );
+        return;
+      }
 
       if (res.ok && data.audioBase64) {
         if (data.modelUsed) {
@@ -3183,17 +3206,31 @@ export default function AgriShieldDashboard() {
                         onClick={() => setReportSubTab("chat")}
                         className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 relative active:scale-[0.98] transform-gpu cursor-pointer ${
                           reportSubTab === "chat"
-                            ? "bg-emerald-600 text-white shadow-sm font-black scale-[1.02]"
-                            : "hover:text-slate-900 text-emerald-800 bg-emerald-50/70"
+                            ? isCurrentReportOwner
+                              ? "bg-emerald-600 text-white shadow-sm font-black scale-[1.02]"
+                              : "bg-slate-800 text-white shadow-sm font-black scale-[1.02]"
+                            : isCurrentReportOwner
+                            ? "hover:text-slate-900 text-emerald-800 bg-emerald-50/70"
+                            : "hover:text-slate-900 text-slate-600 bg-slate-100/70"
                         }`}
                       >
-                        <Bot className={`w-3.5 h-3.5 flex-shrink-0 ${reportSubTab === "chat" ? "text-white" : "text-emerald-600"}`} />
+                        {isCurrentReportOwner ? (
+                          <Bot className={`w-3.5 h-3.5 flex-shrink-0 ${reportSubTab === "chat" ? "text-white" : "text-emerald-600"}`} />
+                        ) : (
+                          <Lock className={`w-3.5 h-3.5 flex-shrink-0 ${reportSubTab === "chat" ? "text-white" : "text-slate-500"}`} />
+                        )}
                         <span className="hidden sm:inline truncate">{selectedLanguage === "Urdu" ? "ڈاکٹر چیٹ و آواز" : "Ask Dr. Crop"}</span>
                         <span className="sm:hidden truncate">{selectedLanguage === "Urdu" ? "چیٹ" : "Dr. Chat"}</span>
-                        <span className="flex h-1.5 w-1.5 relative flex-shrink-0">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-                        </span>
+                        {isCurrentReportOwner ? (
+                          <span className="flex h-1.5 w-1.5 relative flex-shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 text-[9px] font-bold">
+                            {selectedLanguage === "Urdu" ? "مقفل" : "Locked"}
+                          </span>
+                        )}
                       </button>
                     </div>
 
@@ -3555,8 +3592,49 @@ export default function AgriShieldDashboard() {
 
                     {/* Sub-Tab 3: Ask Dr. Crop (Voice & Chat Assistant) */}
                     {reportSubTab === "chat" && (
-                      <div className="space-y-3.5 animate-in fade-in duration-200">
-                        {/* Dr. Crop Header Status */}
+                      !isCurrentReportOwner ? (
+                        <div className="p-6 rounded-2xl bg-gradient-to-b from-slate-50 via-white to-amber-50/30 border border-slate-200/90 text-center space-y-4 shadow-sm animate-in fade-in duration-200">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 mx-auto flex items-center justify-center shadow-xs">
+                            <Lock className="w-6 h-6" />
+                          </div>
+                          <div className="space-y-1.5 max-w-md mx-auto">
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black uppercase tracking-wider">
+                              <span>{selectedLanguage === "Urdu" ? "کمیونٹی زرعی آرکائیو" : "Community Crop Archive"}</span>
+                            </div>
+                            <h4 className="text-sm sm:text-base font-black text-slate-900">
+                              {selectedLanguage === "Urdu"
+                                ? "ڈاکٹر کراپ سے لائیو مشاورت صرف اس فصل کے مالک کے لیے ہے"
+                                : "Dr. Crop Chat is Reserved for the Crop Owner"}
+                            </h4>
+                            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                              {selectedLanguage === "Urdu"
+                                ? "یہ رپورٹ فارم والٹ سے بطور معلوماتی کیس اسٹڈی کھولی گئی ہے۔ آپ اوپر دیا گیا دیسی علاج، کیمیکل اور موسمی الرٹ مکمل دیکھ سکتے ہیں۔ اپنے پودے کا معائنہ کروانے اور ڈاکٹر کراپ سے سوال پوچھنے کے لیے نیا پتا اسکین کریں۔"
+                                : "This diagnosis is an archived community record. You can study all recommended treatments, remedies, and pathogen causes above. To ask Dr. Crop customized questions about your own field, scan a new leaf."}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveViewTab("doctor");
+                                setImagePreview(null);
+                                setActivePresetUrl(null);
+                                setSelectedScanId(null);
+                                setDiagnosis(null);
+                                setChatMessages([]);
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                              }}
+                              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer"
+                            >
+                              <Camera className="w-4 h-4" />
+                              <span>{selectedLanguage === "Urdu" ? "اپنا پودا اسکین کریں" : "Scan Your Own Crop"}</span>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3.5 animate-in fade-in duration-200">
+                          {/* Dr. Crop Header Status */}
                         <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-200/80 flex items-center justify-between">
                           <div className="flex items-center space-x-2.5">
                             <div className="relative">
@@ -3768,7 +3846,8 @@ export default function AgriShieldDashboard() {
                           </button>
                         </form>
                       </div>
-                    )}
+                    )
+                  )}
 
 
 
