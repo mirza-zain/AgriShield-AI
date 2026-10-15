@@ -57,6 +57,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
+import { extractExifMetadata } from "@/lib/utils";
 
 // Authentic Ionicons Leaf SVG Component
 function IoniconsLeaf({
@@ -298,6 +299,7 @@ export default function AgriShieldDashboard() {
   const [isDateFromExif, setIsDateFromExif] = useState<boolean>(false);
   const [isTimeUserEdited, setIsTimeUserEdited] = useState<boolean>(false);
   const [isTimeFromExif, setIsTimeFromExif] = useState<boolean>(false);
+  const [isLocationFromExif, setIsLocationFromExif] = useState<boolean>(false);
   const [isDetectingRegion, setIsDetectingRegion] = useState<boolean>(false);
 
   // Audio / Speech State
@@ -417,15 +419,6 @@ export default function AgriShieldDashboard() {
 
   useEffect(() => {
     fetchHistory(true);
-
-    // Auto-populate default field context on initial load
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-    const hh = String(now.getHours()).padStart(2, "0");
-    const mm = String(now.getMinutes()).padStart(2, "0");
-    setObservationDate((curr) => curr || todayStr);
-    setObservationTime((curr) => curr || `${hh}:${mm}`);
-    setObservationLocation((curr) => curr || "Punjab Farm Belt");
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -589,60 +582,6 @@ export default function AgriShieldDashboard() {
     });
   };
 
-  const extractExifDateFromImageFile = async (file: File): Promise<{ date: string; time?: string } | null> => {
-    try {
-      if (!file.type.startsWith("image/")) return null;
-      // Read first 128KB of image where EXIF header resides
-      const slice = file.slice(0, 131072);
-      const arrayBuffer = await slice.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-
-      // 1. If JPEG (SOI: 0xFF, 0xD8), scan APP1 markers for Exif header
-      if (bytes[0] === 0xff && bytes[1] === 0xd8) {
-        let offset = 2;
-        while (offset < bytes.length - 4) {
-          if (bytes[offset] === 0xff && bytes[offset + 1] === 0xe1) {
-            const length = (bytes[offset + 2] << 8) | bytes[offset + 3];
-            const app1Bytes = bytes.subarray(offset + 4, Math.min(bytes.length, offset + 2 + length));
-            if (
-              app1Bytes[0] === 0x45 &&
-              app1Bytes[1] === 0x78 &&
-              app1Bytes[2] === 0x69 &&
-              app1Bytes[3] === 0x66
-            ) {
-              const text = new TextDecoder("latin1").decode(app1Bytes);
-              const match = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])(?:\s([01]\d|2[0-3]):([0-5]\d):([0-5]\d))?\b/);
-              if (match) {
-                const date = `${match[1]}-${match[2]}-${match[3]}`;
-                const time = match[4] && match[5] ? `${match[4]}:${match[5]}` : undefined;
-                return { date, time };
-              }
-            }
-            break;
-          } else if (bytes[offset] === 0xff && (bytes[offset + 1] & 0xf0) === 0xe0) {
-            const length = (bytes[offset + 2] << 8) | bytes[offset + 3];
-            offset += 2 + length;
-          } else {
-            offset++;
-          }
-        }
-      }
-
-      // 2. Scan first 64KB for standard EXIF timestamp format "YYYY:MM:DD HH:MM:SS" (covers HEIC/TIFF/WebP metadata)
-      const text = new TextDecoder("latin1").decode(bytes.subarray(0, 65536));
-      const fullMatch = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])\s([01]\d|2[0-3]):([0-5]\d):([0-5]\d)\b/);
-      if (fullMatch) {
-        return {
-          date: `${fullMatch[1]}-${fullMatch[2]}-${fullMatch[3]}`,
-          time: `${fullMatch[4]}:${fullMatch[5]}`,
-        };
-      }
-    } catch {
-      // Ignore EXIF parsing failures
-    }
-    return null;
-  };
-
   const handleFile = async (file: File) => {
     setErrorMessage(null);
     setNotCropNotice(null);
@@ -657,36 +596,38 @@ export default function AgriShieldDashboard() {
       return;
     }
 
-    // Automatic EXIF detection with smart current fallback
-    const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
-    const hh = String(now.getHours()).padStart(2, "0");
-    const mm = String(now.getMinutes()).padStart(2, "0");
-    const timeNow = `${hh}:${mm}`;
-
-    if (!isDateUserEdited) {
-      const exifData = await extractExifDateFromImageFile(file);
-      if (exifData?.date) {
+    // Inspect EXIF metadata from uploaded image
+    const exifData = await extractExifMetadata(file);
+    if (exifData && (exifData.date || exifData.time || exifData.latitude !== undefined)) {
+      if (exifData.date && !isDateUserEdited) {
         setObservationDate(exifData.date);
         setIsDateFromExif(true);
-        if (exifData.time && !isTimeUserEdited) {
-          setObservationTime(exifData.time);
-          setIsTimeFromExif(true);
-        }
-      } else {
-        // Automatic default to today's date & time
-        setObservationDate(todayStr);
-        setIsDateFromExif(false);
-        if (!isTimeUserEdited) {
-          setObservationTime(timeNow);
-          setIsTimeFromExif(false);
+      }
+      if (exifData.time && !isTimeUserEdited) {
+        setObservationTime(exifData.time);
+        setIsTimeFromExif(true);
+      }
+      if (exifData.latitude !== undefined && exifData.longitude !== undefined) {
+        setObservationCoords({ lat: exifData.latitude, lon: exifData.longitude });
+        if (exifData.locationLabel) {
+          setObservationLocation(exifData.locationLabel);
+          setIsLocationFromExif(true);
         }
       }
-    }
-
-    // Automatically inherit active farm region if not set
-    if (!observationLocation) {
-      setObservationLocation(activeLocationLabel || "Punjab Farm Belt");
+      setShowObservationContext(true);
+      showToast("Found photo date & GPS in image 📷📍");
+    } else {
+      // Leave completely empty and optional for the user
+      setObservationDate("");
+      setObservationTime("");
+      setObservationLocation("");
+      setObservationCoords(null);
+      setIsDateFromExif(false);
+      setIsTimeFromExif(false);
+      setIsLocationFromExif(false);
+      setIsDateUserEdited(false);
+      setIsTimeUserEdited(false);
+      setShowObservationContext(false);
     }
 
     try {
@@ -724,16 +665,17 @@ export default function AgriShieldDashboard() {
     setReportSubTab("treatment");
     setImagePreview(url);
     setThumbnailPreview(url);
-    if (!isDateUserEdited) {
-      const now = new Date();
-      setObservationDate(now.toISOString().split("T")[0]);
-      setIsDateFromExif(false);
-      setObservationTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
-      setIsTimeFromExif(false);
-    }
-    if (!observationLocation) {
-      setObservationLocation(activeLocationLabel || "Punjab Farm Belt");
-    }
+    // Presets have no camera EXIF: keep observation context optional and empty
+    setObservationDate("");
+    setObservationTime("");
+    setObservationLocation("");
+    setObservationCoords(null);
+    setIsDateFromExif(false);
+    setIsTimeFromExif(false);
+    setIsLocationFromExif(false);
+    setIsDateUserEdited(false);
+    setIsTimeUserEdited(false);
+    setShowObservationContext(false);
     if (presetName) {
       showToast(`Loaded sample: ${presetName} 🌿`);
     }
@@ -2341,6 +2283,16 @@ export default function AgriShieldDashboard() {
                           setDiagnosis(null);
                           setNotCropNotice(null);
                           setErrorMessage(null);
+                          setObservationDate("");
+                          setObservationTime("");
+                          setObservationLocation("");
+                          setObservationCoords(null);
+                          setIsDateFromExif(false);
+                          setIsTimeFromExif(false);
+                          setIsLocationFromExif(false);
+                          setIsDateUserEdited(false);
+                          setIsTimeUserEdited(false);
+                          setShowObservationContext(false);
                           stopSpeech();
                           showToast("Inspection bay cleared");
                         }}
@@ -2566,160 +2518,204 @@ export default function AgriShieldDashboard() {
                     </div>
                   </div>
 
-                  {/* Automated Field Telemetry HUD (Always Visible & Crystal Clear) */}
-                  <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 via-white to-slate-50/70 p-3.5 space-y-3 transition-all shadow-xs">
-                    {/* HUD Header */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center space-x-2 min-w-0">
-                        <div className="w-6 h-6 rounded-lg bg-emerald-600/10 border border-emerald-500/30 flex items-center justify-center text-emerald-600 flex-shrink-0">
-                          <Compass className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="text-xs font-black text-slate-900 block truncate">
-                            {selectedLanguage === "Urdu" ? "میدانی معلومات و زرعی علاقہ" : "Field Telemetry & Agro-Location"}
+                  {/* Optional Field Observation Timing & Region Accordion */}
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-3 transition-all">
+                    <button
+                      type="button"
+                      onClick={() => setShowObservationContext((prev) => !prev)}
+                      className="w-full flex items-center justify-between text-left group cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2 min-w-0 pr-2">
+                        <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition-colors truncate">
+                          {selectedLanguage === "Urdu"
+                            ? "اختیاری: تصویر کی تاریخ، وقت اور زرعی علاقہ"
+                            : "Optional: Photo Date, Time & Agro-Region"}
+                        </span>
+                        {(observationDate || observationTime || observationLocation) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 flex-shrink-0">
+                            {selectedLanguage === "Urdu" ? "فعال" : "Active"}
                           </span>
-                        </div>
+                        )}
                       </div>
                       <div className="flex items-center space-x-1.5 flex-shrink-0">
-                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>{selectedLanguage === "Urdu" ? "خودکار لاک" : "Auto-Locked"}</span>
+                        <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
+                          {selectedLanguage === "Urdu" ? "7 روزہ موسم دستیاب 🌦️" : "Unlocks 7-Day Microclimate 🌦️"}
                         </span>
-                        <span className="text-[10px] text-emerald-700 font-bold hidden sm:inline">
-                          {selectedLanguage === "Urdu" ? "7 روزہ موسم منسلک 🌦️" : "7-Day Microclimate 🌦️"}
-                        </span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                            showObservationContext ? "rotate-180 text-emerald-600" : ""
+                          }`}
+                        />
                       </div>
-                    </div>
+                    </button>
 
-                    {/* HUD Body Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
-                      {/* 1. Agro-Region / Location Pill & Map Selector */}
-                      <div className="sm:col-span-6 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
-                            <MapPin className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                            <span>{selectedLanguage === "Urdu" ? "فارم / علاقہ" : "Agro-Region"}</span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={handleDetectCurrentObservationRegion}
-                            disabled={isDetectingRegion}
-                            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center space-x-1 disabled:opacity-50 cursor-pointer"
-                            title="Auto-detect via GPS or IP"
-                          >
-                            {isDetectingRegion ? (
-                              <>
-                                <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                                <span>Detecting...</span>
-                              </>
-                            ) : (
-                              <span>{selectedLanguage === "Urdu" ? "GPS تلاش" : "Auto GPS"}</span>
-                            )}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <div className="relative flex-1">
+                    {showObservationContext && (
+                      <div className="pt-2 border-t border-slate-200/70 space-y-3 animate-in fade-in duration-200">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                          {/* 1. Agro-Region */}
+                          <div className="sm:col-span-6 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                <MapPin className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                                <span>{selectedLanguage === "Urdu" ? "فارم / علاقہ" : "Agro-Region"}</span>
+                                {isLocationFromExif && observationLocation && (
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 flex-shrink-0">
+                                    📷 EXIF
+                                  </span>
+                                )}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={handleDetectCurrentObservationRegion}
+                                disabled={isDetectingRegion}
+                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center space-x-1 disabled:opacity-50 cursor-pointer"
+                                title="Auto-detect via GPS or IP"
+                              >
+                                {isDetectingRegion ? (
+                                  <>
+                                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                    <span>Detecting...</span>
+                                  </>
+                                ) : (
+                                  <span>{selectedLanguage === "Urdu" ? "GPS تلاش" : "Auto GPS"}</span>
+                                )}
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="relative flex-1">
+                                <input
+                                  type="text"
+                                  value={observationLocation}
+                                  onChange={(e) => {
+                                    setObservationLocation(e.target.value);
+                                    setIsLocationFromExif(false);
+                                  }}
+                                  placeholder={activeLocationLabel ? `e.g. ${activeLocationLabel}` : "e.g. Multan, Punjab"}
+                                  className="w-full text-xs pl-2.5 pr-2 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs placeholder:text-slate-400 placeholder:font-normal"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setIsLocationModalOpen(true)}
+                                className="flex-shrink-0 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer font-bold"
+                                title="Pick location or village on OpenStreetMap"
+                              >
+                                <MapIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span className="text-[11px] whitespace-nowrap">{selectedLanguage === "Urdu" ? "نقشہ" : "Map"}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 2. Observation Date */}
+                          <div className="sm:col-span-3 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                <span>{selectedLanguage === "Urdu" ? "تاریخ" : "Date"}</span>
+                                {isDateFromExif && observationDate && (
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 flex-shrink-0">
+                                    📷 EXIF
+                                  </span>
+                                )}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const today = new Date().toISOString().split("T")[0];
+                                  setObservationDate(today);
+                                  setIsDateUserEdited(true);
+                                  setIsDateFromExif(false);
+                                }}
+                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                              >
+                                {selectedLanguage === "Urdu" ? "آج" : "Today"}
+                              </button>
+                            </div>
                             <input
-                              type="text"
-                              value={observationLocation || activeLocationLabel || "Punjab Farm Belt"}
-                              onChange={(e) => setObservationLocation(e.target.value)}
-                              placeholder="e.g. Multan, Punjab"
-                              className="w-full text-xs pl-2.5 pr-2 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
+                              type="date"
+                              value={observationDate}
+                              onChange={(e) => {
+                                setObservationDate(e.target.value);
+                                setIsDateUserEdited(true);
+                                setIsDateFromExif(false);
+                              }}
+                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
                             />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setIsLocationModalOpen(true)}
-                            className="flex-shrink-0 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer font-bold"
-                            title="Pick location or village on OpenStreetMap"
-                          >
-                            <MapIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span className="text-[11px]">{selectedLanguage === "Urdu" ? "تبدیل / نقشہ" : "Change Map"}</span>
-                          </button>
+
+                          {/* 3. Observation Time */}
+                          <div className="sm:col-span-3 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                <span>{selectedLanguage === "Urdu" ? "وقت" : "Time"}</span>
+                                {isTimeFromExif && observationTime && (
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 flex-shrink-0">
+                                    📷 EXIF
+                                  </span>
+                                )}
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const now = new Date();
+                                  const hh = String(now.getHours()).padStart(2, "0");
+                                  const mm = String(now.getMinutes()).padStart(2, "0");
+                                  setObservationTime(`${hh}:${mm}`);
+                                  setIsTimeUserEdited(true);
+                                  setIsTimeFromExif(false);
+                                }}
+                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                              >
+                                {selectedLanguage === "Urdu" ? "ابھی" : "Now"}
+                              </button>
+                            </div>
+                            <input
+                              type="time"
+                              value={observationTime}
+                              onChange={(e) => {
+                                setObservationTime(e.target.value);
+                                setIsTimeUserEdited(true);
+                                setIsTimeFromExif(false);
+                              }}
+                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Footer: Privacy notice & Clear Button */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[10px] text-slate-500">
+                          <span className="flex items-center space-x-1 min-w-0 pr-2">
+                            <ShieldCheck className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                            <span className="truncate">
+                              {selectedLanguage === "Urdu"
+                                ? "مقام کا موسم AI ڈاکٹر کی تشخیص میں شامل ہوگا"
+                                : "Microclimate weather will be factored into diagnosis"}
+                            </span>
+                          </span>
+                          {(observationDate || observationTime || observationLocation || observationCoords) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setObservationDate("");
+                                setObservationTime("");
+                                setObservationLocation("");
+                                setObservationCoords(null);
+                                setIsDateUserEdited(false);
+                                setIsDateFromExif(false);
+                                setIsTimeUserEdited(false);
+                                setIsTimeFromExif(false);
+                                setIsLocationFromExif(false);
+                              }}
+                              className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer flex items-center space-x-1 flex-shrink-0"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>{selectedLanguage === "Urdu" ? "صاف کریں" : "Clear"}</span>
+                            </button>
+                          )}
                         </div>
                       </div>
-
-                      {/* 2. Observation Date */}
-                      <div className="sm:col-span-3 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
-                            <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                            <span>{selectedLanguage === "Urdu" ? "تاریخ" : "Date"}</span>
-                            {isDateFromExif && observationDate && (
-                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
-                                📷 EXIF
-                              </span>
-                            )}
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const today = new Date().toISOString().split("T")[0];
-                              setObservationDate(today);
-                              setIsDateUserEdited(true);
-                              setIsDateFromExif(false);
-                            }}
-                            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
-                          >
-                            {selectedLanguage === "Urdu" ? "آج" : "Today"}
-                          </button>
-                        </div>
-                        <input
-                          type="date"
-                          value={observationDate}
-                          onChange={(e) => {
-                            setObservationDate(e.target.value);
-                            setIsDateUserEdited(true);
-                            setIsDateFromExif(false);
-                          }}
-                          className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
-                        />
-                      </div>
-
-                      {/* 3. Observation Time */}
-                      <div className="sm:col-span-3 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-700">
-                            <span>{selectedLanguage === "Urdu" ? "وقت" : "Time"}</span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const now = new Date();
-                              const hh = String(now.getHours()).padStart(2, "0");
-                              const mm = String(now.getMinutes()).padStart(2, "0");
-                              setObservationTime(`${hh}:${mm}`);
-                              setIsTimeUserEdited(true);
-                              setIsTimeFromExif(false);
-                            }}
-                            className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
-                          >
-                            {selectedLanguage === "Urdu" ? "ابھی" : "Now"}
-                          </button>
-                        </div>
-                        <input
-                          type="time"
-                          value={observationTime}
-                          onChange={(e) => {
-                            setObservationTime(e.target.value);
-                            setIsTimeUserEdited(true);
-                            setIsTimeFromExif(false);
-                          }}
-                          className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
-                        />
-                      </div>
-                    </div>
-
-                    {/* HUD Footer status notice */}
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[10px] text-slate-500">
-                      <span className="flex items-center space-x-1">
-                        <ShieldCheck className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                        <span>{selectedLanguage === "Urdu" ? "مقام کا موسم AI ڈاکٹر کی تشخیص میں شامل ہوگا" : "Microclimate weather will be factored into diagnosis"}</span>
-                      </span>
-                      <span className="text-emerald-700 font-bold">
-                        {selectedLanguage === "Urdu" ? "مقام و تاریخ فعال ✓" : "Telemetry Active ✓"}
-                      </span>
-                    </div>
+                    )}
                   </div>
 
                   {/* Primary Diagnosis Execution CTA */}

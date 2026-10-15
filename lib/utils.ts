@@ -207,15 +207,30 @@ export function compressImageFile(file: File, maxDim = 1200, quality = 0.85): Pr
   });
 }
 
+export interface ExifMetadataResult {
+  date?: string;
+  time?: string;
+  latitude?: number;
+  longitude?: number;
+  locationLabel?: string;
+}
+
 /**
- * Reads first 128KB of image where EXIF header resides to extract capture date/time
+ * Robust binary parser reading JPEG APP1 / TIFF markers & Exif/GPS IFDs to extract:
+ * 1. Date & Time (DateTimeOriginal, DateTimeDigitized, DateTime)
+ * 2. Field GPS coordinates (GPSLatitude, GPSLongitude, GPSLatitudeRef, GPSLongitudeRef)
  */
-export async function extractExifDateFromImageFile(file: File): Promise<{ date: string; time?: string } | null> {
+export async function extractExifMetadata(file: File): Promise<ExifMetadataResult | null> {
   try {
     if (!file.type.startsWith("image/")) return null;
-    const slice = file.slice(0, 131072);
+    const slice = file.slice(0, 262144); // 256KB is plenty for EXIF APP1
     const arrayBuffer = await slice.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
+
+    let foundDate: string | undefined;
+    let foundTime: string | undefined;
+    let foundLat: number | undefined;
+    let foundLon: number | undefined;
 
     // 1. If JPEG (SOI: 0xFF, 0xD8), scan APP1 markers for Exif header
     if (bytes[0] === 0xff && bytes[1] === 0xd8) {
@@ -223,19 +238,122 @@ export async function extractExifDateFromImageFile(file: File): Promise<{ date: 
       while (offset < bytes.length - 4) {
         if (bytes[offset] === 0xff && bytes[offset + 1] === 0xe1) {
           const length = (bytes[offset + 2] << 8) | bytes[offset + 3];
-          const app1Bytes = bytes.subarray(offset + 4, Math.min(bytes.length, offset + 2 + length));
+          const app1Start = offset + 4;
           if (
-            app1Bytes[0] === 0x45 &&
-            app1Bytes[1] === 0x78 &&
-            app1Bytes[2] === 0x69 &&
-            app1Bytes[3] === 0x66
+            bytes[app1Start] === 0x45 &&
+            bytes[app1Start + 1] === 0x78 &&
+            bytes[app1Start + 2] === 0x69 &&
+            bytes[app1Start + 3] === 0x66 &&
+            bytes[app1Start + 4] === 0x00 &&
+            bytes[app1Start + 5] === 0x00
           ) {
-            const text = new TextDecoder("latin1").decode(app1Bytes);
-            const match = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])(?:\s([01]\d|2[0-3]):([0-5]\d):([0-5]\d))?\b/);
-            if (match) {
-              const date = `${match[1]}-${match[2]}-${match[3]}`;
-              const time = match[4] && match[5] ? `${match[4]}:${match[5]}` : undefined;
-              return { date, time };
+            const tiffStart = app1Start + 6;
+            const isLittleEndian = bytes[tiffStart] === 0x49 && bytes[tiffStart + 1] === 0x49; // 'II'
+
+            const read16 = (pos: number) => {
+              if (pos + 1 >= bytes.length) return 0;
+              return isLittleEndian
+                ? bytes[pos] | (bytes[pos + 1] << 8)
+                : (bytes[pos] << 8) | bytes[pos + 1];
+            };
+
+            const read32 = (pos: number) => {
+              if (pos + 3 >= bytes.length) return 0;
+              return isLittleEndian
+                ? (bytes[pos] | (bytes[pos + 1] << 8) | (bytes[pos + 2] << 16) | (bytes[pos + 3] << 24)) >>> 0
+                : ((bytes[pos] << 24) | (bytes[pos + 1] << 16) | (bytes[pos + 2] << 8) | bytes[pos + 3]) >>> 0;
+            };
+
+            const readString = (pos: number, maxLen: number) => {
+              let end = pos;
+              while (end < bytes.length && end < pos + maxLen && bytes[end] !== 0) {
+                end++;
+              }
+              return new TextDecoder("ascii").decode(bytes.subarray(pos, end)).trim();
+            };
+
+            const readRational = (pos: number): number => {
+              const num = read32(pos);
+              const den = read32(pos + 4);
+              if (den === 0) return 0;
+              return num / den;
+            };
+
+            if (read16(tiffStart + 2) === 42) {
+              const firstIFDOffset = read32(tiffStart + 4);
+              let exifIFDOffset = 0;
+              let gpsIFDOffset = 0;
+
+              const parseIFD = (ifdOffset: number, isGps = false) => {
+                if (ifdOffset <= 0 || tiffStart + ifdOffset + 2 >= bytes.length) return;
+                const numEntries = read16(tiffStart + ifdOffset);
+                let latRef = "N";
+                let lonRef = "E";
+                let latValues: number[] = [];
+                let lonValues: number[] = [];
+
+                for (let i = 0; i < numEntries; i++) {
+                  const entryPos = tiffStart + ifdOffset + 2 + i * 12;
+                  if (entryPos + 12 > bytes.length) break;
+
+                  const tag = read16(entryPos);
+                  const count = read32(entryPos + 4);
+                  const valOrOffset = entryPos + 8;
+
+                  if (isGps) {
+                    if (tag === 0x0001) {
+                      const ref = String.fromCharCode(bytes[valOrOffset]);
+                      if (ref === "N" || ref === "S") latRef = ref;
+                    } else if (tag === 0x0002) {
+                      const offsetR = read32(valOrOffset);
+                      const base = tiffStart + offsetR;
+                      if (base + 24 <= bytes.length) {
+                        latValues = [readRational(base), readRational(base + 8), readRational(base + 16)];
+                      }
+                    } else if (tag === 0x0003) {
+                      const ref = String.fromCharCode(bytes[valOrOffset]);
+                      if (ref === "E" || ref === "W") lonRef = ref;
+                    } else if (tag === 0x0004) {
+                      const offsetR = read32(valOrOffset);
+                      const base = tiffStart + offsetR;
+                      if (base + 24 <= bytes.length) {
+                        lonValues = [readRational(base), readRational(base + 8), readRational(base + 16)];
+                      }
+                    }
+                  } else {
+                    if (tag === 0x0132 || tag === 0x9003 || tag === 0x9004) {
+                      const strOffset = count > 4 ? read32(valOrOffset) : valOrOffset - tiffStart;
+                      const dateStr = readString(tiffStart + strOffset, Math.min(count, 30));
+                      const m = dateStr.match(/\b([12]\d{3})[:\/\-.](0[1-9]|1[0-2])[:\/\-.](0[1-9]|[12]\d|3[01])(?:\s([01]\d|2[0-3])[:.]([0-5]\d)(?:[:.]([0-5]\d))?)?\b/);
+                      if (m && !foundDate) {
+                        foundDate = `${m[1]}-${m[2]}-${m[3]}`;
+                        if (m[4] && m[5] && !foundTime) {
+                          foundTime = `${m[4]}:${m[5]}`;
+                        }
+                      }
+                    } else if (tag === 0x8769) {
+                      exifIFDOffset = read32(valOrOffset);
+                    } else if (tag === 0x8825) {
+                      gpsIFDOffset = read32(valOrOffset);
+                    }
+                  }
+                }
+
+                if (isGps && latValues.length === 3 && lonValues.length === 3) {
+                  let lat = latValues[0] + latValues[1] / 60 + latValues[2] / 3600;
+                  let lon = lonValues[0] + lonValues[1] / 60 + lonValues[2] / 3600;
+                  if (latRef === "S") lat = -lat;
+                  if (lonRef === "W") lon = -lon;
+                  if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                    foundLat = Math.round(lat * 10000) / 10000;
+                    foundLon = Math.round(lon * 10000) / 10000;
+                  }
+                }
+              };
+
+              parseIFD(firstIFDOffset);
+              if (exifIFDOffset > 0) parseIFD(exifIFDOffset);
+              if (gpsIFDOffset > 0) parseIFD(gpsIFDOffset, true);
             }
           }
           break;
@@ -248,18 +366,47 @@ export async function extractExifDateFromImageFile(file: File): Promise<{ date: 
       }
     }
 
-    // 2. Scan first 64KB for standard EXIF timestamp format "YYYY:MM:DD HH:MM:SS" (covers HEIC/TIFF/WebP metadata)
-    const text = new TextDecoder("latin1").decode(bytes.subarray(0, 65536));
-    const fullMatch = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])\s([01]\d|2[0-3]):([0-5]\d):([0-5]\d)\b/);
-    if (fullMatch) {
-      return {
-        date: `${fullMatch[1]}-${fullMatch[2]}-${fullMatch[3]}`,
-        time: `${fullMatch[4]}:${fullMatch[5]}`,
-      };
+    // 2. Fallback text scan for standard EXIF timestamp format "YYYY:MM:DD HH:MM:SS"
+    if (!foundDate) {
+      const text = new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, 65536)));
+      const match = text.match(/\b([12]\d{3}):(0[1-9]|1[0-2]):(0[1-9]|[12]\d|3[01])(?:\s([01]\d|2[0-3]):([0-5]\d):([0-5]\d))?\b/);
+      if (match) {
+        foundDate = `${match[1]}-${match[2]}-${match[3]}`;
+        if (match[4] && match[5] && !foundTime) {
+          foundTime = `${match[4]}:${match[5]}`;
+        }
+      }
     }
-  } catch {
-    // Ignore EXIF parsing failures
+
+    if (!foundDate && !foundTime && foundLat === undefined) {
+      return null;
+    }
+
+    let locationLabel: string | undefined;
+    if (foundLat !== undefined && foundLon !== undefined) {
+      locationLabel = `Field GPS (${foundLat >= 0 ? `${foundLat}°N` : `${Math.abs(foundLat)}°S`}, ${foundLon >= 0 ? `${foundLon}°E` : `${Math.abs(foundLon)}°W`})`;
+    }
+
+    return {
+      date: foundDate,
+      time: foundTime,
+      latitude: foundLat,
+      longitude: foundLon,
+      locationLabel,
+    };
+  } catch (err) {
+    console.warn("EXIF extraction error:", err);
+    return null;
   }
-  return null;
 }
+
+/**
+ * Backward compatibility wrapper for extracting date/time
+ */
+export async function extractExifDateFromImageFile(file: File): Promise<{ date: string; time?: string } | null> {
+  const result = await extractExifMetadata(file);
+  if (!result || !result.date) return null;
+  return { date: result.date, time: result.time };
+}
+
 
