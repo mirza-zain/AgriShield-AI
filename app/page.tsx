@@ -270,6 +270,12 @@ function getPathologyRiskIndex(telemetry: ClimateTelemetry | null): {
   };
 }
 
+function formatConfidencePercent(score?: number): number {
+  if (score === undefined || score === null || isNaN(score)) return 95;
+  const num = score > 1 ? score : score * 100;
+  return Math.min(99, Math.max(10, Math.round(num)));
+}
+
 export default function AgriShieldDashboard() {
   // Navigation Mode (Plant Doctor / Farm Vault / Climate Advisory)
   const [activeViewTab, setActiveViewTab] = useState<"doctor" | "vault" | "advisory">("doctor");
@@ -2050,7 +2056,7 @@ export default function AgriShieldDashboard() {
                 </h3>
                 <p className="text-[11px] text-slate-400 truncate">
                   {diagnosis?.condition_detected
-                    ? `${diagnosis.condition_detected} • ${Math.round(diagnosis.confidence_score * 100)}% Certain`
+                    ? `${diagnosis.condition_detected} • ${formatConfidencePercent(diagnosis.confidence_score)}% Certain`
                     : "Pinch or drag to inspect high-resolution leaf texture"}
                 </p>
               </div>
@@ -3160,14 +3166,14 @@ export default function AgriShieldDashboard() {
                         <div className="flex justify-between text-[11px] text-slate-500 font-medium">
                           <span>Doctor Confidence Score</span>
                           <span className="font-black text-slate-800">
-                            {Math.round(diagnosis.confidence_score * 100)}% Certain
+                            {formatConfidencePercent(diagnosis.confidence_score)}% Certain
                           </span>
                         </div>
                         <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                           <div
                             className={`h-full transition-all duration-700 ${getSeverityBadge(diagnosis.severity, diagnosis.condition_detected).meterColor
                               }`}
-                            style={{ width: `${Math.round(diagnosis.confidence_score * 100)}%` }}
+                            style={{ width: `${formatConfidencePercent(diagnosis.confidence_score)}%` }}
                           />
                         </div>
                       </div>
@@ -4161,8 +4167,8 @@ export default function AgriShieldDashboard() {
                 </div>
 
                 {/* Instant Filter Search Bar & Refresh Button */}
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="relative w-full sm:w-72 lg:w-80 flex-shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                  <div className="relative flex-1 sm:w-72 lg:w-80 sm:flex-initial min-w-0">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"

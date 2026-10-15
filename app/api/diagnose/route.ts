@@ -1096,6 +1096,16 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
       };
     }
 
+    // Normalize confidence_score to 0.1 - 0.99 range so it never displays as 8850%
+    if (typeof diagnosis.confidence_score === "number") {
+      if (diagnosis.confidence_score > 1) {
+        diagnosis.confidence_score = Math.min(0.99, diagnosis.confidence_score / 100);
+      }
+      diagnosis.confidence_score = Math.max(0.1, Math.min(0.99, diagnosis.confidence_score));
+    } else {
+      diagnosis.confidence_score = 0.95;
+    }
+
     // Prepare complete scan record with valid full image and thumbnail data URLs
     const scanId = `scan-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const scanThumbnail = thumbnail || image;
@@ -1119,7 +1129,7 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
     if (!skipHistory) {
       addSharedScan(newScanRecord);
 
-      // Fire-and-forget non-blocking background write to Firestore if available
+      // Await Firestore write so Vercel does not terminate container before database write finishes
       const adminDb = getAdminDb();
       if (adminDb) {
         try {
@@ -1128,15 +1138,10 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
           if (firestorePayload.imageUrl && firestorePayload.imageUrl.length > 700000) {
             firestorePayload.imageUrl = firestorePayload.imageThumbnail;
           }
-          adminDb
-            .collection("scans")
-            .doc(scanId)
-            .set(firestorePayload)
-            .catch((firestoreErr) => {
-              console.warn("Background Firestore write skipped:", firestoreErr);
-            });
+          await adminDb.collection("scans").doc(scanId).set(firestorePayload);
+          console.log(`[AgriShield] Successfully saved scan to Firestore: ${scanId}`);
         } catch (prepErr) {
-          console.warn("Background Firestore write prep skipped:", prepErr);
+          console.warn("Firestore write skipped:", prepErr);
         }
       }
     }
