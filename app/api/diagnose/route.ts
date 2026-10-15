@@ -698,6 +698,7 @@ ${JSON.stringify({
     const isPresetUrl = image.startsWith("http://") || image.startsWith("https://");
     let diagnosis: DiagnosisResult | null = null;
     let activeModel = isPresetUrl ? "Preset Knowledge Base" : "";
+    let hasNetworkOfflineError = false;
 
     if (isPresetUrl) {
       // INSTANT SUB-MILLISECOND PATH for Quick Test Samples:
@@ -927,10 +928,36 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
                 break;
               }
             } catch (modelErr: any) {
+              const errStr = String(modelErr?.message || modelErr || "");
+              if (
+                errStr.includes("ENOTFOUND") ||
+                errStr.includes("EAI_AGAIN") ||
+                errStr.includes("fetch failed") ||
+                errStr.includes("ECONNREFUSED") ||
+                errStr.includes("ETIMEDOUT") ||
+                errStr.includes("getaddrinfo") ||
+                errStr.includes("NetworkError") ||
+                errStr.includes("network timeout")
+              ) {
+                hasNetworkOfflineError = true;
+              }
               console.warn(`Model ${modelName} error:`, modelErr?.message || modelErr);
             }
           }
-        } catch (genAiErr) {
+        } catch (genAiErr: any) {
+          const errStr = String(genAiErr?.message || genAiErr || "");
+          if (
+            errStr.includes("ENOTFOUND") ||
+            errStr.includes("EAI_AGAIN") ||
+            errStr.includes("fetch failed") ||
+            errStr.includes("ECONNREFUSED") ||
+            errStr.includes("ETIMEDOUT") ||
+            errStr.includes("getaddrinfo") ||
+            errStr.includes("NetworkError") ||
+            errStr.includes("network timeout")
+          ) {
+            hasNetworkOfflineError = true;
+          }
           console.warn("AI generation error:", genAiErr);
         }
       }
@@ -959,9 +986,29 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
         );
       }
 
-      // If all AI models were 503 overloaded, rate-limited, or timed out on an uploaded image:
-      // DO NOT return fake tomato preset data! Tell the user honestly that the models are experiencing high demand.
+      // If all AI models failed: check if due to offline network connection vs overload
       if (!diagnosis) {
+        if (hasNetworkOfflineError) {
+          console.warn("AI service cannot reach Google Gemini due to offline network connection.");
+          const offlineMsg =
+            language === "Urdu"
+              ? "انٹرنیٹ کا کنکشن موجود نہیں ہے۔ کلاؤڈ AI سے رابطہ نہیں ہو سکا۔ محفوظ رپورٹس اور نسخے دیکھنے کے لیے والٹ (Vault) کھولیں۔"
+              : language === "Hindi"
+                ? "इंटरनेट कनेक्शन उपलब्ध नहीं है। क्लाउड एआई से संपर्क नहीं हो सका। सहेजी गई रिपोर्ट देखने के लिए वॉल्ट (Vault) देखें।"
+                : language === "Spanish"
+                  ? "Sin conexión a internet. No se pudo conectar a la IA en la nube. Por favor consulte el Vault fuera de línea."
+                  : "No internet connection detected. Cloud AI could not be reached. You can view previously saved records in the Offline Vault.";
+
+          return NextResponse.json(
+            {
+              success: false,
+              error: offlineMsg,
+              isOffline: true,
+            },
+            { status: 503 }
+          );
+        }
+
         console.warn("AI service currently experiencing 503 high demand or network timeout across models.");
         const highDemandMsg =
           language === "Urdu"

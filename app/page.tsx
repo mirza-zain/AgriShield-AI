@@ -321,6 +321,7 @@ export default function AgriShieldDashboard() {
   // Notifications & Notices
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isOfflineDiagnosisError, setIsOfflineDiagnosisError] = useState<boolean>(false);
   const [notCropNotice, setNotCropNotice] = useState<{ isInvalid: boolean; message: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; icon?: React.ReactNode } | null>(null);
 
@@ -797,9 +798,21 @@ export default function AgriShieldDashboard() {
       return;
     }
 
+    // If offline, inform user on button press and guide them to the Vault
+    if (!isOnline) {
+      showToast(
+        selectedLanguage === "Urdu"
+          ? "آپ آف لائن ہیں۔ لائیو AI معائنے کے لیے انٹرنیٹ درکار ہے۔ اس دوران محفوظ شدہ رپورٹس دیکھنے کے لیے والٹ (Vault) چیک کریں۔"
+          : "You're offline. Live AI diagnosis requires an internet connection. Meanwhile, check the Vault for saved reports.",
+        <WifiOff className="w-4 h-4 text-amber-400" />
+      );
+      return;
+    }
+
     try {
       setIsAnalyzing(true);
       setErrorMessage(null);
+      setIsOfflineDiagnosisError(false);
       setNotCropNotice(null);
       stopSpeech();
 
@@ -827,6 +840,7 @@ export default function AgriShieldDashboard() {
         if (data.isPlantOrCrop === false) {
           setDiagnosis(null);
           setErrorMessage(null);
+          setIsOfflineDiagnosisError(false);
           const rejectionMsg =
             data.rejectionReason ||
             data.error ||
@@ -846,6 +860,9 @@ export default function AgriShieldDashboard() {
 
         setDiagnosis(null);
         setNotCropNotice(null);
+        if (data.isOffline) {
+          setIsOfflineDiagnosisError(true);
+        }
         const errMsg = data.error || (selectedLanguage === "Urdu" ? "اس وقت اے آئی سروس پر زیادہ لوڈ ہے۔ براہِ کرم دوبارہ کوشش کریں۔" : "AI model is currently experiencing high demand. Please try again.");
         setErrorMessage(errMsg);
         if (window.innerWidth < 1024 && reportRef.current) {
@@ -906,7 +923,18 @@ export default function AgriShieldDashboard() {
       }
     } catch (err: any) {
       console.error("Diagnosis error:", err);
-      setErrorMessage(err.message || "Could not analyze the photo. Please check your network connection.");
+      const errStr = String(err?.message || err || "").toLowerCase();
+      const isNetErr = !navigator.onLine || errStr.includes("fetch") || errStr.includes("network") || errStr.includes("offline");
+      if (isNetErr) {
+        setIsOfflineDiagnosisError(true);
+      }
+      setErrorMessage(
+        isNetErr
+          ? (selectedLanguage === "Urdu"
+              ? "انٹرنیٹ کا کنکشن موجود نہیں ہے۔ کلاؤڈ AI سے رابطہ نہیں ہو سکا۔ محفوظ رپورٹس اور نسخے دیکھنے کے لیے والٹ (Vault) کھولیں۔"
+              : "No internet connection detected. Cloud AI could not be reached. You can view previously saved records in the Offline Vault.")
+          : (err.message || "Could not analyze the photo. Please check your network connection.")
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -1439,6 +1467,7 @@ export default function AgriShieldDashboard() {
         past_week_rainfall_mm: 14.2,
         past_week_avg_humidity: 76,
         consecutive_damp_days: 3,
+        isOfflineFallback: true,
       });
     } finally {
       setWeatherLoading(false);
@@ -1487,6 +1516,16 @@ export default function AgriShieldDashboard() {
   };
 
   const handleDetectLocation = () => {
+    if (!isOnline) {
+      showToast(
+        selectedLanguage === "Urdu"
+          ? "انٹرنیٹ منقطع ہے۔ لائیو موسم کے لیے انٹرنیٹ سے جڑیں"
+          : "Offline: Connect to internet for live climate radar",
+        <WifiOff className="w-4 h-4 text-amber-400" />
+      );
+      return;
+    }
+
     setWeatherLoading(true);
 
     const isSecure = typeof window !== "undefined" && window.isSecureContext;
@@ -1590,6 +1629,15 @@ export default function AgriShieldDashboard() {
 
   const handleSearchCity = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isOnline) {
+      showToast(
+        selectedLanguage === "Urdu"
+          ? "انٹرنیٹ منقطع ہے۔ شہر تلاش کرنے کے لیے انٹرنیٹ درکار ہے"
+          : "Offline: Connect to internet to search regions",
+        <WifiOff className="w-4 h-4 text-amber-400" />
+      );
+      return;
+    }
     if (!citySearchInput.trim()) return;
 
     try {
@@ -1778,9 +1826,18 @@ export default function AgriShieldDashboard() {
   // Auto-fetch weather when switching to Advisory tab if not loaded
   useEffect(() => {
     if (activeViewTab === "advisory" && !weatherTelemetry && !weatherLoading) {
-      handleDetectLocation();
+      if (isOnline) {
+        handleDetectLocation();
+      } else {
+        showToast(
+          selectedLanguage === "Urdu"
+            ? "انٹرنیٹ منقطع ہے۔ لائیو موسم کے لیے انٹرنیٹ سے جڑیں"
+            : "Offline: Connect to internet for live climate radar",
+          <WifiOff className="w-4 h-4 text-amber-400" />
+        );
+      }
     }
-  }, [activeViewTab, weatherTelemetry, weatherLoading]);
+  }, [activeViewTab, weatherTelemetry, weatherLoading, isOnline, selectedLanguage]);
 
   const getSeverityBadge = (severity: string, condition?: string) => {
     const isHealthy =
@@ -3792,46 +3849,89 @@ export default function AgriShieldDashboard() {
                     </div>
                   </div>
                 ) : errorMessage ? (
-                  // Dedicated AI High Demand Notice Card
-                  <div className="bg-white rounded-3xl border-2 border-rose-300 shadow-card p-6 sm:p-8 space-y-6 text-center animate-in fade-in slide-in-from-bottom-2">
-                    <div className="w-16 h-16 rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200 shadow-sm">
-                      <AlertTriangle className="w-8 h-8" />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-900 border border-rose-300">
-                        <Activity className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-                        <span>High Demand Spike</span>
+                  isOfflineDiagnosisError ? (
+                    // Dedicated Offline Network Error Card
+                    <div className="bg-white rounded-3xl border-2 border-amber-300 shadow-card p-6 sm:p-8 space-y-6 text-center animate-in fade-in slide-in-from-bottom-2">
+                      <div className="w-16 h-16 rounded-3xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200 shadow-sm">
+                        <WifiOff className="w-8 h-8" />
                       </div>
 
-                      <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                        {selectedLanguage === "Urdu"
-                          ? "اے آئی سروس اس وقت مصروف ہے"
-                          : "AI Service Currently Busy"}
-                      </h3>
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
+                          <WifiOff className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Offline Mode</span>
+                        </div>
 
-                      <p className="text-sm text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
-                        {errorMessage}
-                      </p>
-                    </div>
+                        <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                          {selectedLanguage === "Urdu"
+                            ? "انٹرنیٹ کنکشن موجود نہیں ہے"
+                            : "No Internet Connection"}
+                        </h3>
 
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                      <button
-                        onClick={handleRunDiagnosis}
-                        className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-600/20 active:scale-95"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        <span>Try Again Now</span>
-                      </button>
-                      <button
-                        onClick={() => handleSelectPreset(SAMPLE_PRESETS[3].url, SAMPLE_PRESETS[3].name)}
-                        className="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95"
-                      >
-                        <Sparkles className="w-4 h-4 text-emerald-600" />
-                        <span>Test Sample Crop</span>
-                      </button>
+                        <p className="text-sm text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
+                          {errorMessage}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                        <button
+                          onClick={() => setActiveViewTab("vault")}
+                          className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
+                        >
+                          <Bookmark className="w-4 h-4" />
+                          <span>{selectedLanguage === "Urdu" ? "محفوظ شدہ والٹ کھولیں" : "Open Offline Vault"}</span>
+                        </button>
+                        <button
+                          onClick={handleRunDiagnosis}
+                          className="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95 cursor-pointer"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          <span>{selectedLanguage === "Urdu" ? "دوبارہ کوشش کریں" : "Retry Connection"}</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // Dedicated AI High Demand Notice Card
+                    <div className="bg-white rounded-3xl border-2 border-rose-300 shadow-card p-6 sm:p-8 space-y-6 text-center animate-in fade-in slide-in-from-bottom-2">
+                      <div className="w-16 h-16 rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-200 shadow-sm">
+                        <AlertTriangle className="w-8 h-8" />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-900 border border-rose-300">
+                          <Activity className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                          <span>High Demand Spike</span>
+                        </div>
+
+                        <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                          {selectedLanguage === "Urdu"
+                            ? "اے آئی سروس اس وقت مصروف ہے"
+                            : "AI Service Currently Busy"}
+                        </h3>
+
+                        <p className="text-sm text-slate-600 font-medium max-w-md mx-auto leading-relaxed">
+                          {errorMessage}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                        <button
+                          onClick={handleRunDiagnosis}
+                          className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center space-x-2 transition-all shadow-md shadow-emerald-600/20 active:scale-95 cursor-pointer"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          <span>Try Again Now</span>
+                        </button>
+                        <button
+                          onClick={() => handleSelectPreset(SAMPLE_PRESETS[3].url, SAMPLE_PRESETS[3].name)}
+                          className="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95 cursor-pointer"
+                        >
+                          <Sparkles className="w-4 h-4 text-emerald-600" />
+                          <span>Test Sample Crop</span>
+                        </button>
+                      </div>
+                    </div>
+                  )
                 ) : (
                   // Empty State: Waiting for Specimen
                   <div className="bg-white rounded-3xl border border-slate-200/90 p-8 sm:p-10 text-center space-y-4 shadow-card">
@@ -4060,6 +4160,18 @@ export default function AgriShieldDashboard() {
           <div className="space-y-6">
             <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 sm:p-8 space-y-6">
 
+              {/* Offline Warning Banner */}
+              {!isOnline && (
+                <div className="flex items-center space-x-2.5 p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium">
+                  <WifiOff className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span className="flex-1">
+                    {selectedLanguage === "Urdu"
+                      ? "انٹرنیٹ منقطع ہے۔ لائیو سیٹلائٹ ریڈار اور موسمی پیشن گوئی کے لیے انٹرنیٹ کنکشن درکار ہے۔"
+                      : "You are currently offline. Live microclimate telemetry and satellite weather updates require an active internet connection."}
+                  </span>
+                </div>
+              )}
+
               {/* Header: Title & Location Mode Chip */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                 <div>
@@ -4117,7 +4229,7 @@ export default function AgriShieldDashboard() {
                       {activeLocationLabel}
                     </span>
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold whitespace-nowrap flex-shrink-0">
-                      ({locationMode === "gps" ? "GPS Locked" : locationMode === "ip" ? "Auto IP" : locationMode === "map" ? "Map Pinned" : "Preset Zone"})
+                      ({weatherTelemetry?.isOfflineFallback ? "Offline Demo Simulation" : locationMode === "gps" ? "GPS Locked" : locationMode === "ip" ? "Auto IP" : locationMode === "map" ? "Map Pinned" : "Preset Zone"})
                     </span>
                   </div>
 

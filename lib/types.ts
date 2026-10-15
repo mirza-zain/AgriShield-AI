@@ -94,6 +94,7 @@ export interface ClimateTelemetry {
   past_week_rainfall_mm?: number;
   past_week_avg_humidity?: number;
   consecutive_damp_days?: number;
+  isOfflineFallback?: boolean;
 }
 
 export interface ClimateAdvisoryPayload {
