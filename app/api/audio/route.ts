@@ -4,6 +4,9 @@ import { GoogleGenAI } from "@google/genai";
 // Maximum duration for Next.js route handler to allow audio synthesis
 export const maxDuration = 60;
 
+// In-memory server-side audio cache to eliminate 100% of tokens on repeated requests
+const serverAudioCache = new Map<string, { audioBase64: string; modelUsed: string }>();
+
 export async function POST(req: NextRequest) {
   try {
     const { text, language = "English" } = await req.json();
@@ -17,16 +20,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "API key not configured" }, { status: 500 });
     }
 
-    const ai = new GoogleGenAI({
-      apiKey,
-      httpOptions: { timeout: 35000 },
-    });
-
-    // Active Gemini Neural TTS models: primary Gemini 3.8 TTS with 2.5 flash preview fallback
+    // Active Gemini Neural TTS models in priority order:
+    // 1. gemini-3.8-flash-lite-tts (Fastest & low token usage)
+    // 2. gemini-2.5-flash-preview-tts (Studio-grade natural human voice, high free-tier rate limits)
+    // 3. gemini-3.8-flash-tts (High fidelity)
+    // 4. gemini-3.1-flash-tts-preview (Legacy fallback)
     const ttsModels = [
       "gemini-3.8-flash-lite-tts",
-      "gemini-3.8-flash-tts",
       "gemini-2.5-flash-preview-tts",
+      "gemini-3.8-flash-tts",
+      "gemini-3.1-flash-tts-preview",
     ];
 
     // Clean text for speech: when speaking Urdu or Hindi, strip English/Latin parentheticals
@@ -50,6 +53,23 @@ export async function POST(req: NextRequest) {
     if (!spokenText) {
       spokenText = text.trim();
     }
+
+    // Cache hit check: returns instantaneous audio with 0 Gemini tokens!
+    const cacheKey = `${language}:${spokenText.slice(0, 250)}`;
+    if (serverAudioCache.has(cacheKey)) {
+      const cached = serverAudioCache.get(cacheKey)!;
+      console.log(`[Audio Engine] Cache HIT! Returning instant neural audio (0 tokens used)`);
+      return NextResponse.json({
+        success: true,
+        audioBase64: cached.audioBase64,
+        modelUsed: `${cached.modelUsed} (cached)`,
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { timeout: 35000 },
+    });
 
     let audioData: string | null = null;
     let mimeType = "audio/wav";
@@ -93,9 +113,16 @@ export async function POST(req: NextRequest) {
       throw lastError || new Error("Failed to synthesize speech");
     }
 
+    const fullAudioBase64 = `data:${mimeType};base64,${audioData}`;
+    // Store in server cache so repeated requests never burn quota again
+    serverAudioCache.set(cacheKey, {
+      audioBase64: fullAudioBase64,
+      modelUsed: usedModel,
+    });
+
     return NextResponse.json({
       success: true,
-      audioBase64: `data:${mimeType};base64,${audioData}`,
+      audioBase64: fullAudioBase64,
       modelUsed: usedModel,
     });
   } catch (error: any) {
