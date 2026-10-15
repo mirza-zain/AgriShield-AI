@@ -103,16 +103,34 @@ export async function POST(req: NextRequest) {
         const cachedDoc = await adminDb.collection("audio_cache").doc(docId).get();
         if (cachedDoc.exists) {
           const docData = cachedDoc.data();
-          if (docData?.audioBase64) {
+          let base64Audio = docData?.audioBase64;
+
+          // If audio was stored in chunks to bypass Firestore 1MB document limit, reassemble it
+          if (!base64Audio && docData?.isChunked && docData?.chunkCount) {
+            const partsSnap = await adminDb
+              .collection("audio_cache")
+              .doc(docId)
+              .collection("parts")
+              .orderBy("index", "asc")
+              .get();
+            const chunks: string[] = [];
+            partsSnap.forEach((partDoc) => {
+              const partData = partDoc.data();
+              if (partData?.data) chunks.push(partData.data);
+            });
+            base64Audio = chunks.join("");
+          }
+
+          if (base64Audio) {
             console.log(`[Audio Engine] Firestore cloud cache HIT! Stored speech returned (0 tokens)`);
             serverAudioCache.set(docId, {
-              audioBase64: docData.audioBase64,
-              modelUsed: docData.modelUsed || "gemini-tts",
+              audioBase64: base64Audio,
+              modelUsed: docData?.modelUsed || "gemini-tts",
             });
             return NextResponse.json({
               success: true,
-              audioBase64: docData.audioBase64,
-              modelUsed: `${docData.modelUsed || "gemini-tts"} (cloud-cached)`,
+              audioBase64: base64Audio,
+              modelUsed: `${docData?.modelUsed || "gemini-tts"} (cloud-cached)`,
             });
           }
         }
@@ -134,12 +152,19 @@ export async function POST(req: NextRequest) {
 
     for (const model of ttsModels) {
       try {
-        // Send only the clean text to read aloud - no instructions or prompts that could be spoken
+        // Send clean text and enforce fixed voice Puck to prevent voice-flipping
         const generatePromise = ai.models.generateContent({
           model,
           contents: spokenText,
           config: {
             responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: "Puck",
+                },
+              },
+            },
           },
         });
 
@@ -182,19 +207,42 @@ export async function POST(req: NextRequest) {
       modelUsed: usedModel,
     });
 
-    // Store in Firestore cloud cache so all future visitors worldwide get it for 0 tokens!
+    // Store in Firestore cloud cache with automatic chunking to bypass Firestore 1MB document limit
     if (adminDb) {
       try {
-        await adminDb.collection("audio_cache").doc(docId).set({
-          language,
-          textSnippet: spokenText.slice(0, 120),
-          audioBase64: fullAudioBase64,
-          modelUsed: usedModel,
-          createdAt: new Date().toISOString(),
-        });
-        console.log(`[Audio Engine] Persisted audio to Firestore audio_cache (${docId})`);
+        const CHUNK_SIZE = 700000; // 700KB chunks (safe under Firestore 1MB limit)
+        if (fullAudioBase64.length <= CHUNK_SIZE) {
+          await adminDb.collection("audio_cache").doc(docId).set({
+            language,
+            textSnippet: spokenText.slice(0, 120),
+            audioBase64: fullAudioBase64,
+            modelUsed: usedModel,
+            isChunked: false,
+            createdAt: new Date().toISOString(),
+          });
+        } else {
+          // Chunked write to safely bypass Firestore 1MB limit
+          const totalChunks = Math.ceil(fullAudioBase64.length / CHUNK_SIZE);
+          await adminDb.collection("audio_cache").doc(docId).set({
+            language,
+            textSnippet: spokenText.slice(0, 120),
+            modelUsed: usedModel,
+            isChunked: true,
+            chunkCount: totalChunks,
+            createdAt: new Date().toISOString(),
+          });
+
+          const batch = adminDb.batch();
+          for (let i = 0; i < totalChunks; i++) {
+            const chunkSlice = fullAudioBase64.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+            const partRef = adminDb.collection("audio_cache").doc(docId).collection("parts").doc(String(i));
+            batch.set(partRef, { index: i, data: chunkSlice });
+          }
+          await batch.commit();
+        }
+        console.log(`[Audio Engine] Successfully persisted audio to Firestore (${docId})`);
       } catch (saveDbErr) {
-        console.warn("[Audio Engine] Firestore save warning:", saveDbErr);
+        console.error("[Audio Engine] Firestore save error:", saveDbErr);
       }
     }
 

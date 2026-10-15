@@ -30,6 +30,8 @@ function getAdminDb(): admin.firestore.Firestore | null {
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   if (privateKey) {
+    // Strip accidental wrapping quotes from Vercel env input
+    privateKey = privateKey.trim().replace(/^['"]|['"]$/g, "");
     // Handle escaped newlines from environment variable strings
     privateKey = privateKey.replace(/\\n/g, "\n");
   }
