@@ -4179,21 +4179,6 @@ export default function AgriShieldDashboard() {
                                 }}
                               />
                               <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
-                                {isMyScan && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleDeleteScan(e, scan)}
-                                    disabled={deletingScanId === scan.id}
-                                    title={selectedLanguage === "Urdu" ? "یہ رپورٹ والٹ سے حذف کریں" : "Delete scan from vault"}
-                                    className="p-1.5 rounded-full bg-white/95 hover:bg-rose-50 text-rose-600 border border-rose-200 shadow-sm transition-all active:scale-90 cursor-pointer flex items-center justify-center backdrop-blur-md"
-                                  >
-                                    {deletingScanId === scan.id ? (
-                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
-                                    ) : (
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    )}
-                                  </button>
-                                )}
                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${badge.bg} shadow-sm backdrop-blur-md`}>
                                   {badge.badge}
                                 </span>
