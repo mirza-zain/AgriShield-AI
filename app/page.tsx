@@ -60,6 +60,8 @@ import {
   Leaf,
   Microscope,
   Heart,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 import { extractExifMetadata } from "@/lib/utils";
@@ -317,6 +319,9 @@ export default function AgriShieldDashboard() {
   const [historyLoading, setHistoryLoading] = useState<boolean>(true);
   const [vaultSearch, setVaultSearch] = useState<string>("");
   const [vaultSeverityFilter, setVaultSeverityFilter] = useState<"all" | "Low" | "Moderate" | "Critical">("all");
+  const [farmerId, setFarmerId] = useState<string>("");
+  const [deletingScanId, setDeletingScanId] = useState<string | null>(null);
+  const [myScanIds, setMyScanIds] = useState<string[]>([]);
 
   // Notifications & Notices
   const [dragActive, setDragActive] = useState<boolean>(false);
@@ -471,6 +476,18 @@ export default function AgriShieldDashboard() {
     try {
       if (localStorage.getItem("agrishield_pwa_installed") === "true") {
         setIsInstalled(true);
+      }
+      let storedFarmerId = localStorage.getItem("agrishield_farmer_id");
+      if (!storedFarmerId) {
+        storedFarmerId = "farmer_" + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+        localStorage.setItem("agrishield_farmer_id", storedFarmerId);
+      }
+      setFarmerId(storedFarmerId);
+      let storedScans = localStorage.getItem("agrishield_my_scans");
+      if (storedScans) {
+        try {
+          setMyScanIds(JSON.parse(storedScans));
+        } catch (e) {}
       }
     } catch (e) {}
 
@@ -825,6 +842,7 @@ export default function AgriShieldDashboard() {
         observationLocation: observationLocation.trim() || undefined,
         coordinates: observationCoords || undefined,
         skipHistory: skipHistoryFlag,
+        userId: farmerId || undefined,
       };
 
       const res = await fetch("/api/diagnose", {
@@ -906,10 +924,20 @@ export default function AgriShieldDashboard() {
             city: data.diagnosis.agronomic_context?.climate_zone || "Agricultural District",
             country: "Regional Station",
           },
+          userId: farmerId,
         };
 
         setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
         setSelectedScanId(newScanItem.id || null);
+        if (newScanItem.id) {
+          setMyScanIds((prev) => {
+            const updated = [newScanItem.id!, ...prev.filter((id) => id !== newScanItem.id)];
+            try {
+              localStorage.setItem("agrishield_my_scans", JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+          });
+        }
         fetchHistory(false);
       }
 
@@ -1368,6 +1396,55 @@ export default function AgriShieldDashboard() {
       setTimeout(() => {
         reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
+    }
+  };
+
+  const handleDeleteScan = async (e: React.MouseEvent, scan: ScanRecord) => {
+    e.stopPropagation();
+    if (!scan.id) return;
+
+    const confirmMsg =
+      selectedLanguage === "Urdu"
+        ? `کیا آپ واقعی اس رپورٹ (${scan.crop_name}) کو اپنے والٹ سے مستقل حذف کرنا چاہتے ہیں؟`
+        : `Delete "${scan.crop_name}" from your Farm Vault?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setDeletingScanId(scan.id);
+      const res = await fetch("/api/history", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scanId: scan.id, userId: farmerId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to delete scan");
+      }
+
+      setHistoryFeed((prev) => prev.filter((s) => s.id !== scan.id));
+
+      setMyScanIds((prev) => {
+        const updated = prev.filter((id) => id !== scan.id);
+        try {
+          localStorage.setItem("agrishield_my_scans", JSON.stringify(updated));
+        } catch (e) {}
+        return updated;
+      });
+
+      if (selectedScanId === scan.id) {
+        setSelectedScanId(null);
+      }
+
+      showToast(
+        selectedLanguage === "Urdu" ? "ریکارڈ والٹ سے حذف کر دیا گیا" : "Scan deleted from your vault",
+        <Trash2 className="w-4 h-4 text-emerald-400" />
+      );
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete scan", <AlertTriangle className="w-4 h-4 text-rose-400" />);
+    } finally {
+      setDeletingScanId(null);
     }
   };
 
@@ -2906,9 +2983,23 @@ export default function AgriShieldDashboard() {
                     </button>
 
                     {selectedScanId && (
-                      <p className="text-center text-[11px] text-slate-400 font-medium">
-                        To run a fresh diagnosis, snap/upload a new plant photo or select a test sample above.
-                      </p>
+                      <div className="flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 font-medium px-1 gap-1 pt-1">
+                        <span>To run fresh scan, upload a new photo or select a sample.</span>
+                        {Boolean(farmerId && (diagnosis as any)?.userId === farmerId) && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              if (diagnosis) {
+                                handleDeleteScan(e, diagnosis as ScanRecord);
+                              }
+                            }}
+                            className="text-rose-600 hover:text-rose-700 font-bold flex items-center space-x-1 cursor-pointer flex-shrink-0"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>{selectedLanguage === "Urdu" ? "یہ رپورٹ حذف کریں" : "Delete from Vault"}</span>
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* Stepped Progress Indicator */}
@@ -4059,18 +4150,24 @@ export default function AgriShieldDashboard() {
                       minute: "2-digit"
                     });
                     const isSelected = selectedScanId === scan.id;
+                    const isSeedScan = Boolean(scan.id && scan.id.startsWith("seed-"));
+                    const isMyScan = !isSeedScan && Boolean(
+                      (farmerId && scan.userId && scan.userId === farmerId) ||
+                      (scan.id && myScanIds.includes(scan.id)) ||
+                      (!scan.userId || scan.userId === "guest_farmer")
+                    );
 
                     return (
                       <div
                         key={scan.id}
                         onClick={() => handleLoadPastScan(scan)}
-                        className={`group bg-white rounded-2xl border p-4 shadow-sm hover:shadow-card-hover transition-all cursor-pointer flex flex-col justify-between space-y-3 hover:-translate-y-0.5 ${isSelected
+                        className={`group bg-white rounded-2xl border p-4 shadow-sm hover:shadow-card-hover transition-all cursor-pointer flex flex-col justify-between space-y-3 hover:-translate-y-0.5 relative ${isSelected
                           ? "border-emerald-600 bg-emerald-50/50 ring-2 ring-emerald-500/30"
                           : "border-slate-200/90 hover:border-emerald-300"
                           }`}
                       >
                         <div className="space-y-2.5">
-                          {/* Image preview with severity chip */}
+                          {/* Image preview with severity chip and quick delete button */}
                           {scan.imageThumbnail || scan.imageUrl ? (
                             <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-100 relative">
                               <img
@@ -4081,14 +4178,45 @@ export default function AgriShieldDashboard() {
                                   e.currentTarget.style.display = "none";
                                 }}
                               />
-                              <div className="absolute top-2.5 right-2.5">
+                              <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                                {isMyScan && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteScan(e, scan)}
+                                    disabled={deletingScanId === scan.id}
+                                    title={selectedLanguage === "Urdu" ? "یہ رپورٹ والٹ سے حذف کریں" : "Delete scan from vault"}
+                                    className="p-1.5 rounded-full bg-white/95 hover:bg-rose-50 text-rose-600 border border-rose-200 shadow-sm transition-all active:scale-90 cursor-pointer flex items-center justify-center backdrop-blur-md"
+                                  >
+                                    {deletingScanId === scan.id ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+                                    ) : (
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                )}
                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${badge.bg} shadow-sm backdrop-blur-md`}>
                                   {badge.badge}
                                 </span>
                               </div>
+                              {isMyScan && (
+                                <div className="absolute top-2.5 left-2.5">
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/95 text-emerald-800 border border-emerald-300 shadow-sm backdrop-blur-md flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    {selectedLanguage === "Urdu" ? "میری رپورٹ" : "My Scan"}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="flex items-center justify-between text-xs">
+                              {isMyScan ? (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                  {selectedLanguage === "Urdu" ? "میری رپورٹ" : "My Scan"}
+                                </span>
+                              ) : (
+                                <span />
+                              )}
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${badge.bg}`}>
                                 {badge.badge}
                               </span>
@@ -4131,15 +4259,35 @@ export default function AgriShieldDashboard() {
                           </p>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium">
-                          <span className="truncate max-w-[120px] flex items-center space-x-1">
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                          <span className="truncate max-w-[110px] flex items-center space-x-1 text-[10px]">
                             <Clock className="w-3 h-3 text-slate-400" />
                             <span>{formattedDate}</span>
                           </span>
-                          <span className="font-bold text-emerald-700 flex items-center space-x-0.5 group-hover:translate-x-1 transition-transform">
-                            <span>Open Report</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </span>
+
+                          <div className="flex items-center space-x-2">
+                            {isMyScan && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteScan(e, scan)}
+                                disabled={deletingScanId === scan.id}
+                                title={selectedLanguage === "Urdu" ? "یہ رپورٹ والٹ سے حذف کریں" : "Delete this scan from vault"}
+                                className="px-2.5 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 font-bold text-[11px] flex items-center gap-1 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                              >
+                                {deletingScanId === scan.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin text-rose-600" />
+                                ) : (
+                                  <Trash2 className="w-3 h-3 text-rose-600" />
+                                )}
+                                <span>{selectedLanguage === "Urdu" ? "حذف" : "Delete"}</span>
+                              </button>
+                            )}
+
+                            <span className="font-bold text-emerald-700 flex items-center space-x-0.5 group-hover:translate-x-1 transition-transform text-xs">
+                              <span>Open Report</span>
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );

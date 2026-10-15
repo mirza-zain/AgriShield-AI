@@ -184,3 +184,20 @@ export function addSharedScan(scan: ScanRecord): void {
     inMemoryScans.pop();
   }
 }
+
+export function deleteSharedScan(scanId: string, userId?: string): boolean {
+  if (scanId.startsWith("seed-")) {
+    return false; // Protect demo seed scans from deletion
+  }
+  const index = inMemoryScans.findIndex((s) => s.id === scanId);
+  if (index !== -1) {
+    const target = inMemoryScans[index];
+    // If target has a userId, verify ownership (allow guest_farmer test scans)
+    if (target.userId && target.userId !== "guest_farmer" && userId && target.userId !== userId) {
+      return false;
+    }
+    inMemoryScans.splice(index, 1);
+    return true;
+  }
+  return false;
+}
