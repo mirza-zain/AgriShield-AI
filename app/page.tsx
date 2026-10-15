@@ -55,6 +55,11 @@ import {
   ZoomOut,
   RotateCcw,
   TrendingUp,
+  Target,
+  WifiOff,
+  Leaf,
+  Microscope,
+  Heart,
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 import { extractExifMetadata } from "@/lib/utils";
@@ -157,23 +162,23 @@ const ANALYSIS_STEPS = [
 ];
 
 const AGRICULTURAL_PRESETS = [
-  { name: "Punjab Farm Belt", lat: 31.5204, lon: 74.3587, region: "Punjab, Pakistan", icon: "🌾" },
-  { name: "Sindh River Basin", lat: 25.396, lon: 68.3578, region: "Sindh, Pakistan", icon: "🍅" },
-  { name: "Midwest Corn Belt", lat: 41.5868, lon: -93.625, region: "Iowa, USA", icon: "🌽" },
-  { name: "Nairobi Highlands", lat: -1.2921, lon: 36.8219, region: "Central, Kenya", icon: "🌱" },
-  { name: "Sonora Valley", lat: 29.0729, lon: -110.9559, region: "Sonora, Mexico", icon: "🌵" },
+  { name: "Punjab Farm Belt", lat: 31.5204, lon: 74.3587, region: "Punjab, Pakistan" },
+  { name: "Sindh River Basin", lat: 25.396, lon: 68.3578, region: "Sindh, Pakistan" },
+  { name: "Midwest Corn Belt", lat: 41.5868, lon: -93.625, region: "Iowa, USA" },
+  { name: "Nairobi Highlands", lat: -1.2921, lon: 36.8219, region: "Central, Kenya" },
+  { name: "Sonora Valley", lat: 29.0729, lon: -110.9559, region: "Sonora, Mexico" },
 ];
 
-function getWeatherCodeDescription(code: number): { condition: string; icon: string } {
-  if (code === 0) return { condition: "Clear Sky & Sunshine", icon: "☀️" };
-  if (code === 1 || code === 2) return { condition: "Partly Cloudy", icon: "⛅" };
-  if (code === 3) return { condition: "Overcast", icon: "☁️" };
-  if (code === 45 || code === 48) return { condition: "Fog & High Dew", icon: "🌫️" };
-  if (code >= 51 && code <= 55) return { condition: "Drizzle & Damp Foliage", icon: "🌦️" };
-  if (code >= 61 && code <= 65) return { condition: "Rainfall", icon: "🌧️" };
-  if (code >= 80 && code <= 82) return { condition: "Rain Showers", icon: "🌦️" };
-  if (code >= 95) return { condition: "Thunderstorm Alert", icon: "⛈️" };
-  return { condition: "Moderate Weather", icon: "⛅" };
+function getWeatherCodeDescription(code: number): { condition: string } {
+  if (code === 0) return { condition: "Clear Sky & Sunshine" };
+  if (code === 1 || code === 2) return { condition: "Partly Cloudy" };
+  if (code === 3) return { condition: "Overcast" };
+  if (code === 45 || code === 48) return { condition: "Fog & High Dew" };
+  if (code >= 51 && code <= 55) return { condition: "Drizzle & Damp Foliage" };
+  if (code >= 61 && code <= 65) return { condition: "Rainfall" };
+  if (code >= 80 && code <= 82) return { condition: "Rain Showers" };
+  if (code >= 95) return { condition: "Thunderstorm Alert" };
+  return { condition: "Moderate Weather" };
 }
 
 function getPathologyRiskIndex(telemetry: ClimateTelemetry | null): {
@@ -452,8 +457,8 @@ export default function AgriShieldDashboard() {
       setIsOnline(true);
       showToast(
         selectedLanguage === "Urdu"
-          ? "انٹرنیٹ بحال ہو گیا 🟢 کلاؤڈ AI فعال ہے"
-          : "Internet restored 🟢 Cloud AI active",
+          ? "انٹرنیٹ بحال ہو گیا، کلاؤڈ AI فعال ہے"
+          : "Internet restored, Cloud AI active",
         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
       );
     };
@@ -462,9 +467,9 @@ export default function AgriShieldDashboard() {
       setIsOnline(false);
       showToast(
         selectedLanguage === "Urdu"
-          ? "انٹرنیٹ منقطع 🟡 آف لائن محفوظ ذخیرہ فعال ہے"
-          : "Offline mode 🟡 Local Farm Vault active",
-        <Sparkles className="w-4 h-4 text-amber-400" />
+          ? "انٹرنیٹ منقطع، آف لائن محفوظ ذخیرہ فعال ہے"
+          : "Offline mode, Local Farm Vault active",
+        <WifiOff className="w-4 h-4 text-amber-400" />
       );
     };
 
@@ -495,11 +500,11 @@ export default function AgriShieldDashboard() {
       const choice = await deferredPrompt.userChoice;
       if (choice.outcome === "accepted") {
         setIsInstalled(true);
-        showToast("AgriShield installed successfully! 📱");
+        showToast("AgriShield installed successfully!", <Smartphone className="w-4 h-4 text-emerald-400" />);
       }
       setDeferredPrompt(null);
     } else {
-      showToast("To install: Tap browser menu -> Add to Home Screen 📱");
+      showToast("To install: Tap browser menu -> Add to Home Screen", <Smartphone className="w-4 h-4 text-emerald-400" />);
     }
   };
 
@@ -615,7 +620,7 @@ export default function AgriShieldDashboard() {
         }
       }
       setShowObservationContext(true);
-      showToast("Found photo date & GPS in image 📷📍");
+      showToast("Found photo date & GPS in image", <Camera className="w-4 h-4 text-emerald-400" />);
     } else {
       // Leave completely empty and optional for the user
       setObservationDate("");
@@ -639,7 +644,7 @@ export default function AgriShieldDashboard() {
       if (compressedUrl) {
         setImagePreview(compressedUrl);
         setThumbnailPreview(thumbUrl || compressedUrl);
-        showToast("Photo ready for inspection 🌿");
+        showToast("Photo ready for inspection", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
         return;
       }
     } catch {
@@ -650,7 +655,7 @@ export default function AgriShieldDashboard() {
       const url = event.target?.result as string;
       setImagePreview(url);
       setThumbnailPreview(url);
-      showToast("Photo loaded 🌿");
+      showToast("Photo loaded", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
     };
     reader.readAsDataURL(file);
   };
@@ -677,7 +682,7 @@ export default function AgriShieldDashboard() {
     setIsTimeUserEdited(false);
     setShowObservationContext(false);
     if (presetName) {
-      showToast(`Loaded sample: ${presetName} 🌿`);
+      showToast(`Loaded sample: ${presetName}`, <Sparkles className="w-4 h-4 text-emerald-400" />);
     }
   };
 
@@ -695,7 +700,7 @@ export default function AgriShieldDashboard() {
     // Check if we already have this language cached in memory
     if (languageDiagnosisCacheRef.current[targetLang]) {
       setDiagnosis(languageDiagnosisCacheRef.current[targetLang]);
-      showToast(`Showing cached ${targetLang} diagnosis ⚡`);
+      showToast(`Showing cached ${targetLang} diagnosis`, <Zap className="w-4 h-4 text-amber-400" />);
       return;
     }
 
@@ -798,7 +803,7 @@ export default function AgriShieldDashboard() {
         fetchHistory(false);
       }
 
-      showToast("Diagnosis completed successfully! 🩺", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+      showToast("Diagnosis completed successfully!", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
 
       // On mobile, automatically scroll to the Doctor's prescription
       if (window.innerWidth < 1024 && reportRef.current) {
@@ -820,7 +825,7 @@ export default function AgriShieldDashboard() {
 
     try {
       setIsTranslating(true);
-      showToast(targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے... 🌐" : "Translating report to English... 🌐");
+      showToast(targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے..." : "Translating report to English...", <Globe className="w-4 h-4 text-blue-400" />);
 
       const res = await fetch("/api/diagnose", {
         method: "POST",
@@ -836,7 +841,7 @@ export default function AgriShieldDashboard() {
       if (data?.diagnosis) {
         setDiagnosis(data.diagnosis);
         languageDiagnosisCacheRef.current[targetLang] = data.diagnosis;
-        showToast(targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے ✓" : "Report translated to English ✓");
+        showToast(targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : "Report translated to English", <Check className="w-4 h-4 text-emerald-400" />);
       }
     } catch (err) {
       console.warn("Translation failed:", err);
@@ -916,7 +921,7 @@ export default function AgriShieldDashboard() {
 
       recognition.onstart = () => {
         setIsRecording(true);
-        showToast(selectedLanguage === "Urdu" ? "بولیں، سن رہا ہوں... 🎙️" : "Listening... Speak your question 🎙️");
+        showToast(selectedLanguage === "Urdu" ? "بولیں، سن رہا ہوں..." : "Listening... Speak your question", <Mic className="w-4 h-4 text-emerald-400" />);
       };
 
       recognition.onresult = (event: any) => {
@@ -1052,7 +1057,7 @@ export default function AgriShieldDashboard() {
           setIsSpeaking(true);
           setAudioLoading(false);
           setSpeechStatusText(`Speaking in ${selectedLanguage}...`);
-          showToast(`Playing advice in ${selectedLanguage} 🔊`);
+          showToast(`Playing advice in ${selectedLanguage}`, <Volume2 className="w-4 h-4 text-emerald-400" />);
         };
 
         audio.onended = () => {
@@ -1102,7 +1107,7 @@ export default function AgriShieldDashboard() {
           setIsSpeaking(true);
           setAudioLoading(false);
           setSpeechStatusText(`Speaking in ${selectedLanguage}...`);
-          showToast(`Speaking advice in ${selectedLanguage} 🔊`);
+          showToast(`Speaking advice in ${selectedLanguage}`, <Volume2 className="w-4 h-4 text-emerald-400" />);
         };
 
         audio.onended = () => {
@@ -1125,7 +1130,7 @@ export default function AgriShieldDashboard() {
         if (selectedLanguage === "Urdu") {
           setIsSpeaking(false);
           setSpeechStatusText("");
-          showToast("اردو آواز کا سروس عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔ 📜");
+          showToast("اردو آواز کا سروس عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔");
         } else {
           fallbackBrowserSpeech(scriptText);
         }
@@ -1135,7 +1140,7 @@ export default function AgriShieldDashboard() {
       if (selectedLanguage === "Urdu") {
         setIsSpeaking(false);
         setSpeechStatusText("");
-        showToast("اردو آواز کا سروس عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔ 📜");
+        showToast("اردو آواز کا سروس عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔");
       } else {
         fallbackBrowserSpeech(scriptText);
       }
@@ -1169,7 +1174,7 @@ export default function AgriShieldDashboard() {
       // Prevent system English voice from pronouncing Urdu letters with garbled phonetics
       setIsSpeaking(false);
       setSpeechStatusText("");
-      showToast("اردو آواز کا ماڈل عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔ 📜");
+      showToast("اردو آواز کا ماڈل عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔");
       return;
     }
     if (voice) utterance.voice = voice;
@@ -1178,7 +1183,7 @@ export default function AgriShieldDashboard() {
     utterance.onstart = () => {
       setIsSpeaking(true);
       setSpeechStatusText(`Speaking in ${selectedLanguage}...`);
-      showToast(`Speaking advice in ${selectedLanguage} 🔊`);
+      showToast(`Speaking advice in ${selectedLanguage}`, <Volume2 className="w-4 h-4 text-emerald-400" />);
     };
     utterance.onend = () => {
       setIsSpeaking(false);
@@ -1200,7 +1205,7 @@ export default function AgriShieldDashboard() {
     if (!diagnosis) return;
     const textToCopy = `AgriShield AI Report:\nCrop: ${diagnosis.crop_name}\nCondition: ${diagnosis.condition_detected}\nImmediate Action: ${diagnosis.treatment.immediate_action}\nHome Remedy: ${diagnosis.treatment.organic_remedy}\nWeather Note: ${diagnosis.climate_impact_warning}`;
     navigator.clipboard.writeText(textToCopy);
-    showToast("Prescription copied to clipboard! 📋", <Check className="w-4 h-4 text-emerald-400" />);
+    showToast("Prescription copied to clipboard!", <Check className="w-4 h-4 text-emerald-400" />);
   };
 
   const handleShareWhatsApp = () => {
@@ -1208,7 +1213,7 @@ export default function AgriShieldDashboard() {
     const text = `🌿 *AgriShield AI Crop Doctor Report*\n\n🌱 *Crop:* ${diagnosis.crop_name}\n🔬 *Disease:* ${diagnosis.condition_detected}\n⚡ *Action Today:* ${diagnosis.treatment.immediate_action}\n🍃 *Home Remedy:* ${diagnosis.treatment.organic_remedy}\n⛅ *Weather Alert:* ${diagnosis.climate_impact_warning}`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
-    showToast("Opening WhatsApp share... 📲", <Share2 className="w-4 h-4 text-emerald-400" />);
+    showToast("Opening WhatsApp share...", <Share2 className="w-4 h-4 text-emerald-400" />);
   };
 
   const handleLoadPastScan = (scan: ScanRecord) => {
@@ -1237,7 +1242,7 @@ export default function AgriShieldDashboard() {
     }
     stopSpeech();
     setActiveViewTab("doctor");
-    showToast(`Loaded report: ${scan.crop_name} 🌿`);
+    showToast(`Loaded report: ${scan.crop_name}`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
     if (window.innerWidth < 1024 && reportRef.current) {
       setTimeout(() => {
         reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1356,7 +1361,7 @@ export default function AgriShieldDashboard() {
         if (data.latitude && data.longitude) {
           const label = data.label || data.city || "Regional Farm Zone (IP)";
           await fetchWeatherForCoords(data.latitude, data.longitude, label, "ip");
-          showToast(customToastMsg || `Weather locked to ${label} (IP) 🌐`);
+          showToast(customToastMsg || `Weather locked to ${label} (IP)`, <Globe className="w-4 h-4 text-blue-400" />);
           return;
         }
       }
@@ -1371,7 +1376,7 @@ export default function AgriShieldDashboard() {
         if (d.latitude && d.longitude) {
           const label = d.city ? `${d.city}, ${d.country || ""}` : "Regional Farm Zone (IP)";
           await fetchWeatherForCoords(d.latitude, d.longitude, label, "ip");
-          showToast(`Weather locked to ${label} (IP) 🌐`);
+          showToast(`Weather locked to ${label} (IP)`, <Globe className="w-4 h-4 text-blue-400" />);
           return;
         }
       }
@@ -1385,7 +1390,7 @@ export default function AgriShieldDashboard() {
       AGRICULTURAL_PRESETS[0].name,
       "preset"
     );
-    showToast("Switched to Agricultural Preset 🌾");
+    showToast("Switched to Agricultural Preset", <MapPin className="w-4 h-4 text-emerald-400" />);
   };
 
   const handleDetectLocation = () => {
@@ -1406,23 +1411,24 @@ export default function AgriShieldDashboard() {
             }
           } catch {}
           await fetchWeatherForCoords(latitude, longitude, label, "gps");
-          showToast(`Local Farm GPS weather locked: ${label} 📍`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+          showToast(`Local Farm GPS weather locked: ${label}`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
         },
         async (err) => {
           console.warn("GPS access denied or unavailable, attempting auto-IP fallback...", err.message);
-          await fallbackToIpLocation("GPS denied. Auto-locked via Regional IP 🌐");
+          await fallbackToIpLocation("GPS denied. Auto-locked via Regional IP");
         },
         { timeout: 10000, enableHighAccuracy: false }
       );
     } else {
       // Insecure context (e.g. mobile visiting http://192.168.100.128:3000 over WiFi)
       // Mobile Chrome/Safari strictly block navigator.geolocation on non-HTTPS origins.
-      fallbackToIpLocation(isSecure ? undefined : "Mobile HTTP requires HTTPS for GPS. Auto-locked via IP 🌐");
+      fallbackToIpLocation(isSecure ? undefined : "Mobile HTTP requires HTTPS for GPS. Auto-locked via IP");
     }
   };
 
   const handleDetectCurrentObservationRegion = async () => {
     setIsDetectingRegion(true);
+
     const isSecure = typeof window !== "undefined" && window.isSecureContext;
 
     if (isSecure && typeof window !== "undefined" && "geolocation" in navigator) {
@@ -1442,18 +1448,18 @@ export default function AgriShieldDashboard() {
             setObservationLocation(regionLabel);
             setObservationCoords({ lat: latitude, lon: longitude });
             await fetchWeatherForCoords(latitude, longitude, regionLabel, "gps");
-            showToast(`Local Farm GPS locked: ${regionLabel} 📍`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+            showToast(`Local Farm GPS locked: ${regionLabel}`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
           } catch (err) {
             console.warn("GPS reverse geocoding error:", err);
             setObservationLocation("Local Farm (GPS)");
-            showToast("Local Farm GPS locked 📍", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+            showToast("Local Farm GPS locked", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
           } finally {
             setIsDetectingRegion(false);
           }
         },
         async (err) => {
           console.warn("GPS access denied or blocked, falling back to IP:", err.message);
-          await fallbackObservationToIp("GPS denied. Auto-locked via Regional IP 🌐");
+          await fallbackObservationToIp("GPS denied. Auto-locked via Regional IP");
           setIsDetectingRegion(false);
         },
         { timeout: 8000, enableHighAccuracy: false }
@@ -1461,7 +1467,7 @@ export default function AgriShieldDashboard() {
     } else {
       // Insecure context (e.g. mobile over HTTP) where GPS is blocked by browser policy
       await fallbackObservationToIp(
-        isSecure ? "GPS unavailable. Auto-locked via Regional IP 🌐" : "Mobile HTTP requires HTTPS for GPS. Auto-locked via IP 🌐"
+        isSecure ? "GPS unavailable. Auto-locked via Regional IP" : "Mobile HTTP requires HTTPS for GPS. Auto-locked via IP"
       );
       setIsDetectingRegion(false);
     }
@@ -1478,7 +1484,7 @@ export default function AgriShieldDashboard() {
           setObservationCoords({ lat: data.latitude, lon: data.longitude });
           await fetchWeatherForCoords(data.latitude, data.longitude, label, "ip");
         }
-        showToast(toastMsg || `Location locked via IP: ${label} 🌐`, <Globe className="w-4 h-4 text-blue-400" />);
+        showToast(toastMsg || `Location locked via IP: ${label}`, <Globe className="w-4 h-4 text-blue-400" />);
         return;
       }
     } catch (e) {
@@ -1486,7 +1492,7 @@ export default function AgriShieldDashboard() {
     }
 
     setObservationLocation(activeLocationLabel || "Punjab Farm Belt");
-    showToast("GPS blocked. Using Regional Farm Preset 🌾");
+    showToast("GPS blocked. Using Regional Farm Preset", <MapPin className="w-4 h-4 text-emerald-400" />);
   };
 
   const handleSearchCity = async (e: React.FormEvent) => {
@@ -1503,7 +1509,7 @@ export default function AgriShieldDashboard() {
         const first = data.results[0];
         const label = `${first.name}${first.admin1 ? `, ${first.admin1}` : ""}${first.country ? `, ${first.country}` : ""}`;
         await fetchWeatherForCoords(first.latitude, first.longitude, label, "preset");
-        showToast(`Weather updated for ${first.name} 🌦️`);
+        showToast(`Weather updated for ${first.name}`, <CloudSun className="w-4 h-4 text-emerald-400" />);
         setCitySearchInput("");
       } else {
         showToast("City not found. Try another region or preset.");
@@ -1534,7 +1540,7 @@ export default function AgriShieldDashboard() {
         await fetchWeatherForCoords(first.latitude, first.longitude, label, "map");
         setObservationLocation(label);
         setObservationCoords({ lat: first.latitude, lon: first.longitude });
-        showToast(`Map centered on ${first.name} 📍`);
+        showToast(`Map centered on ${first.name}`, <MapPin className="w-4 h-4 text-emerald-400" />);
       } else {
         showToast("City not found. Enter coordinates manually below.");
       }
@@ -1565,7 +1571,7 @@ export default function AgriShieldDashboard() {
     await fetchWeatherForCoords(lat, lon, customLabel, "map");
     setObservationLocation(customLabel);
     setIsLocationModalOpen(false);
-    showToast(`Location locked to ${customLabel} 📍`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+    showToast(`Location locked to ${customLabel}`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
   };
 
   const handleAskClimateDoctor = async () => {
@@ -1602,7 +1608,7 @@ export default function AgriShieldDashboard() {
           setAdvisoryModelUsed(m);
           console.log(`[AgriShield Debug] Climate Doctor model used: ${m}`);
         }
-        showToast("AI Weather Advisory Formulated 🌿");
+        showToast("AI Weather Advisory Formulated", <CloudSun className="w-4 h-4 text-emerald-400" />);
       } else {
         showToast("Could not generate advisory. Please try again.");
       }
@@ -1652,7 +1658,7 @@ export default function AgriShieldDashboard() {
         audio.onplay = () => {
           setIsAdvisorySpeaking(true);
           setAdvisoryAudioLoading(false);
-          showToast(`Speaking weather advisory in ${selectedLanguage} 🔊`);
+          showToast(`Speaking weather advisory in ${selectedLanguage}`, <Volume2 className="w-4 h-4 text-emerald-400" />);
         };
 
         audio.onended = () => {
@@ -1810,7 +1816,7 @@ export default function AgriShieldDashboard() {
                       : "bg-slate-800 text-slate-300 border-white/20 hover:bg-slate-700"
                   }`}
                 >
-                  <span>🎯</span>
+                  <Target className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="hidden sm:inline">{showPathologyBoxes ? "Targets ON" : "Targets OFF"}</span>
                 </button>
               )}
@@ -2062,7 +2068,7 @@ export default function AgriShieldDashboard() {
                       }}
                       className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-xl text-xs bg-white border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 transition-all font-medium text-slate-700"
                     >
-                      <span>{p.icon}</span>
+                      <MapPin className="w-3 h-3 text-emerald-600 flex-shrink-0" />
                       <span>{p.name}</span>
                     </button>
                   ))}
@@ -2071,24 +2077,24 @@ export default function AgriShieldDashboard() {
             </div>
 
             {/* Modal Footer Actions */}
-            <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between gap-2">
+            <div className="px-4 sm:px-5 py-3.5 border-t border-slate-100 bg-slate-50/80 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => {
                   handleDetectLocation();
                   setIsLocationModalOpen(false);
                 }}
-                className="text-xs font-bold text-slate-600 hover:text-slate-900 inline-flex items-center space-x-1 px-3 py-2 rounded-xl hover:bg-slate-200 transition-colors"
+                className="w-full sm:w-auto text-xs font-bold text-slate-600 hover:text-slate-900 inline-flex items-center justify-center space-x-1 px-3 py-2 rounded-xl hover:bg-slate-200 transition-colors active:scale-95 transform-gpu cursor-pointer flex-shrink-0"
               >
-                <Compass className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Auto-Detect IP</span>
+                <Compass className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                <span className="whitespace-nowrap">Auto-Detect IP</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleApplyCustomCoords}
                 disabled={weatherLoading}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition-all active:scale-95 transform-gpu disabled:opacity-50 cursor-pointer whitespace-nowrap flex-shrink-0"
               >
                 Apply & Lock Weather
               </button>
@@ -2122,25 +2128,21 @@ export default function AgriShieldDashboard() {
 
           {/* Right Action Bar: Network Status + Install App + Language Dropdown */}
           <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
-            {/* Live Network Connectivity Pill */}
-            <div
-              className={`inline-flex items-center space-x-1 sm:space-x-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold border transition-colors shadow-2xs select-none ${
-                isOnline
-                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                  : "bg-amber-50 text-amber-800 border-amber-200"
-              }`}
-              title={isOnline ? "Connected to Cloud AI" : "Operating in Offline Vault mode"}
-            >
-              <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-              <span className="hidden sm:inline">
-                {isOnline
-                  ? (selectedLanguage === "Urdu" ? "آن لائن کلاؤڈ" : "Online Cloud")
-                  : (selectedLanguage === "Urdu" ? "آف لائن والٹ" : "Offline Vault")}
-              </span>
-              <span className="sm:hidden font-bold">
-                {isOnline ? "Live" : "Vault"}
-              </span>
-            </div>
+            {/* Network Offline Status Indicator: Display only when offline to keep navbar clean */}
+            {!isOnline && (
+              <div
+                className="inline-flex items-center space-x-1 sm:space-x-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold border transition-colors shadow-2xs select-none whitespace-nowrap flex-shrink-0 bg-amber-50 text-amber-800 border-amber-200"
+                title="Operating in Offline Vault mode"
+              >
+                <WifiOff className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                <span className="hidden sm:inline">
+                  {selectedLanguage === "Urdu" ? "آف لائن والٹ" : "Offline Vault"}
+                </span>
+                <span className="sm:hidden font-bold">
+                  {selectedLanguage === "Urdu" ? "آف لائن" : "Offline"}
+                </span>
+              </div>
+            )}
 
             {!isInstalled && (
               <button
@@ -2168,14 +2170,14 @@ export default function AgriShieldDashboard() {
                   // 1. If this specimen was already diagnosed in this language, switch instantly with 0 tokens and 0 API calls!
                   if (languageDiagnosisCacheRef.current[newLang]) {
                     setDiagnosis(languageDiagnosisCacheRef.current[newLang]);
-                    showToast(`Language set to ${newLang} 🌐`);
+                    showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);
                     return;
                   }
                   // 2. If a diagnosis is currently displayed, translate only the text into newLang (0 image tokens, 0 duplicates, <1.5s)
                   if (diagnosis) {
                     translateCurrentDiagnosis(newLang, diagnosis);
                   } else {
-                    showToast(`Language set to ${newLang} 🌐`);
+                    showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);
                   }
                 }}
                 className="pl-7 sm:pl-8 pr-7 sm:pr-8 py-1.5 sm:py-2 bg-slate-100/90 hover:bg-slate-200/80 text-slate-900 font-bold text-xs sm:text-sm rounded-xl border border-slate-300/80 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer appearance-none shadow-sm transition-all"
@@ -2340,7 +2342,7 @@ export default function AgriShieldDashboard() {
                             }`}
                             title="Toggle visual pathology target boxes"
                           >
-                            <span>🎯</span>
+                            <Target className="w-3.5 h-3.5 flex-shrink-0" />
                             <span>{showPathologyBoxes ? "Targets: ON" : "Targets: OFF"}</span>
                           </button>
                         )}
@@ -2486,14 +2488,14 @@ export default function AgriShieldDashboard() {
                       </span>
                     </div>
 
-                    <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-1 px-1">
+                    <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-1 px-1 snap-x snap-mandatory scroll-smooth">
                       {SAMPLE_PRESETS.map((preset) => {
                         const isSelected = activePresetUrl === preset.url;
                         return (
                           <button
                             key={preset.name}
                             onClick={() => handleSelectPreset(preset.url, preset.name)}
-                            className={`flex-shrink-0 flex items-center space-x-2.5 px-3 py-2 rounded-2xl border transition-all text-left ${isSelected
+                            className={`flex-shrink-0 flex items-center space-x-2.5 px-3 py-2 rounded-2xl border transition-all text-left snap-start active:scale-95 transform-gpu select-none cursor-pointer ${isSelected
                               ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
                               : "border-slate-200 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300"
                               }`}
@@ -2539,8 +2541,9 @@ export default function AgriShieldDashboard() {
                         )}
                       </div>
                       <div className="flex items-center space-x-1.5 flex-shrink-0">
-                        <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">
-                          {selectedLanguage === "Urdu" ? "7 روزہ موسم دستیاب 🌦️" : "Unlocks 7-Day Microclimate 🌦️"}
+                        <span className="text-[10px] text-slate-500 font-medium hidden sm:inline-flex items-center gap-1">
+                          <CloudRain className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                          <span>{selectedLanguage === "Urdu" ? "7 روزہ موسم دستیاب" : "Unlocks 7-Day Microclimate"}</span>
                         </span>
                         <ChevronDown
                           className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
@@ -2560,8 +2563,9 @@ export default function AgriShieldDashboard() {
                                 <MapPin className="w-3 h-3 text-emerald-600 flex-shrink-0" />
                                 <span>{selectedLanguage === "Urdu" ? "فارم / علاقہ" : "Agro-Region"}</span>
                                 {isLocationFromExif && observationLocation && (
-                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 flex-shrink-0">
-                                    📷 EXIF
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
+                                    <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                                    <span>EXIF</span>
                                   </span>
                                 )}
                               </label>
@@ -2614,8 +2618,9 @@ export default function AgriShieldDashboard() {
                                 <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
                                 <span>{selectedLanguage === "Urdu" ? "تاریخ" : "Date"}</span>
                                 {isDateFromExif && observationDate && (
-                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 flex-shrink-0">
-                                    📷 EXIF
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
+                                    <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                                    <span>EXIF</span>
                                   </span>
                                 )}
                               </label>
@@ -2650,8 +2655,9 @@ export default function AgriShieldDashboard() {
                               <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
                                 <span>{selectedLanguage === "Urdu" ? "وقت" : "Time"}</span>
                                 {isTimeFromExif && observationTime && (
-                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200 flex-shrink-0">
-                                    📷 EXIF
+                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
+                                    <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                                    <span>EXIF</span>
                                   </span>
                                 )}
                               </label>
@@ -2831,25 +2837,25 @@ export default function AgriShieldDashboard() {
                           <div className="flex items-center space-x-1.5 flex-wrap gap-y-1 pt-1">
                             {diagnosis.agronomic_context.season && (
                               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/80 text-[10px] font-bold">
-                                <span>🍂</span>
+                                <Leaf className="w-3 h-3 text-amber-700 flex-shrink-0" />
                                 <span>{diagnosis.agronomic_context.season}</span>
                               </span>
                             )}
                             {diagnosis.agronomic_context.captured_at && (
                               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-900 border border-blue-200/80 text-[10px] font-bold">
-                                <span>📅</span>
+                                <Calendar className="w-3 h-3 text-blue-700 flex-shrink-0" />
                                 <span>{diagnosis.agronomic_context.captured_at}</span>
                               </span>
                             )}
                             {diagnosis.agronomic_context.observation_time && (
                               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-900 border border-purple-200/80 text-[10px] font-bold">
-                                <span>⏰</span>
+                                <Clock className="w-3 h-3 text-purple-700 flex-shrink-0" />
                                 <span>{diagnosis.agronomic_context.observation_time}</span>
                               </span>
                             )}
                             {diagnosis.agronomic_context.climate_zone && (
                               <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 border border-emerald-200/80 text-[10px] font-bold truncate max-w-[200px]">
-                                <span>🌾</span>
+                                <MapPin className="w-3 h-3 text-emerald-700 flex-shrink-0" />
                                 <span className="truncate">{diagnosis.agronomic_context.climate_zone}</span>
                               </span>
                             )}
@@ -2898,46 +2904,49 @@ export default function AgriShieldDashboard() {
                       </div>
                     </div>
 
-                    {/* Segmented Sub-Tabs Navigation */}
-                    <div className="flex rounded-2xl bg-slate-100/90 p-1 text-xs font-bold text-slate-600 gap-1 border border-slate-200/80 shadow-2xs">
+                    {/* Segmented Sub-Tabs Navigation (TastyTabs Style) */}
+                    <div className="flex rounded-2xl bg-slate-200/80 p-1 text-xs font-bold text-slate-600 gap-1 border border-slate-300/70 shadow-inner">
                       <button
                         type="button"
                         onClick={() => setReportSubTab("treatment")}
-                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 ${
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 active:scale-[0.98] transform-gpu cursor-pointer ${
                           reportSubTab === "treatment"
-                            ? "bg-white text-emerald-800 shadow-sm font-black border border-emerald-100"
-                            : "hover:text-slate-900"
+                            ? "bg-white text-emerald-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
+                            : "hover:text-slate-900 text-slate-600"
                         }`}
                       >
                         <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                        <span className="truncate">{selectedLanguage === "Urdu" ? "علاج و تدابیر" : "Treatment & Action"}</span>
+                        <span className="hidden sm:inline truncate">{selectedLanguage === "Urdu" ? "علاج و تدابیر" : "Treatment & Action"}</span>
+                        <span className="sm:hidden truncate">{selectedLanguage === "Urdu" ? "علاج" : "Treatment"}</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setReportSubTab("origin")}
-                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 ${
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 active:scale-[0.98] transform-gpu cursor-pointer ${
                           reportSubTab === "origin"
-                            ? "bg-white text-blue-800 shadow-sm font-black border border-blue-100"
-                            : "hover:text-slate-900"
+                            ? "bg-white text-emerald-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
+                            : "hover:text-slate-900 text-slate-600"
                         }`}
                       >
                         <Activity className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                        <span className="truncate">{selectedLanguage === "Urdu" ? "وجوہات و علامات" : "Cause & Symptoms"}</span>
+                        <span className="hidden sm:inline truncate">{selectedLanguage === "Urdu" ? "وجوہات و علامات" : "Cause & Symptoms"}</span>
+                        <span className="sm:hidden truncate">{selectedLanguage === "Urdu" ? "وجوہات" : "Causes"}</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setReportSubTab("chat")}
-                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 relative ${
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 relative active:scale-[0.98] transform-gpu cursor-pointer ${
                           reportSubTab === "chat"
-                            ? "bg-emerald-600 text-white shadow-sm font-black"
-                            : "hover:text-slate-900 text-emerald-700 bg-emerald-50/70"
+                            ? "bg-emerald-600 text-white shadow-sm font-black scale-[1.02]"
+                            : "hover:text-slate-900 text-emerald-800 bg-emerald-50/70"
                         }`}
                       >
                         <Bot className={`w-3.5 h-3.5 flex-shrink-0 ${reportSubTab === "chat" ? "text-white" : "text-emerald-600"}`} />
-                        <span className="truncate">{selectedLanguage === "Urdu" ? "ڈاکٹر چیٹ و آواز" : "Ask Dr. Crop"}</span>
-                        <span className="flex h-1.5 w-1.5 relative">
+                        <span className="hidden sm:inline truncate">{selectedLanguage === "Urdu" ? "ڈاکٹر چیٹ و آواز" : "Ask Dr. Crop"}</span>
+                        <span className="sm:hidden truncate">{selectedLanguage === "Urdu" ? "چیٹ" : "Dr. Chat"}</span>
+                        <span className="flex h-1.5 w-1.5 relative flex-shrink-0">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                           <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                         </span>
@@ -2947,15 +2956,15 @@ export default function AgriShieldDashboard() {
                     {/* Sub-Tab 1: Treatment & Action */}
                     {reportSubTab === "treatment" && (
                       <div className="space-y-4 animate-in fade-in duration-200">
-                        {/* Treatment Segmented Pill Tabs */}
+                        {/* Treatment Segmented Pill Tabs (TastyTabs Style) */}
                         <div className="space-y-3">
-                          <div className="flex rounded-2xl bg-slate-100 p-1 text-[11px] sm:text-xs font-bold text-slate-600 gap-1">
+                          <div className="flex rounded-2xl bg-slate-200/80 p-1 text-[11px] sm:text-xs font-bold text-slate-600 gap-1 border border-slate-300/70 shadow-inner">
                             <button
                               onClick={() => setActiveTreatmentTab("immediate")}
-                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${
                                 activeTreatmentTab === "immediate"
-                                  ? "bg-white text-slate-900 shadow-sm font-black"
-                                  : "hover:text-slate-900"
+                                  ? "bg-white text-slate-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
+                                  : "hover:text-slate-900 text-slate-600"
                               }`}
                             >
                               <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
@@ -2963,10 +2972,10 @@ export default function AgriShieldDashboard() {
                             </button>
                             <button
                               onClick={() => setActiveTreatmentTab("organic")}
-                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${
                                 activeTreatmentTab === "organic"
-                                  ? "bg-white text-emerald-800 shadow-sm font-black"
-                                  : "hover:text-slate-900"
+                                  ? "bg-white text-emerald-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
+                                  : "hover:text-slate-900 text-slate-600"
                               }`}
                             >
                               <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
@@ -2974,10 +2983,10 @@ export default function AgriShieldDashboard() {
                             </button>
                             <button
                               onClick={() => setActiveTreatmentTab("chemical")}
-                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap ${
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${
                                 activeTreatmentTab === "chemical"
-                                  ? "bg-white text-blue-800 shadow-sm font-black"
-                                  : "hover:text-slate-900"
+                                  ? "bg-white text-blue-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
+                                  : "hover:text-slate-900 text-slate-600"
                               }`}
                             >
                               <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
@@ -3025,7 +3034,10 @@ export default function AgriShieldDashboard() {
                             {/* Prescribed Action Footer Badge */}
                             <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 gap-2">
                               <span className="truncate">{selectedLanguage === "Urdu" ? "زبان: اردو" : `Language: ${selectedLanguage}`}</span>
-                              <span className="text-emerald-700 font-bold flex-shrink-0">{selectedLanguage === "Urdu" ? "فصل کے لیے محفوظ ✓" : "Safe for Farms ✓"}</span>
+                              <span className="text-emerald-700 font-bold flex-shrink-0 inline-flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                <span>{selectedLanguage === "Urdu" ? "فصل کے لیے محفوظ" : "Safe for Farms"}</span>
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -3130,22 +3142,44 @@ export default function AgriShieldDashboard() {
                                 <CloudRain className="w-4 h-4 text-blue-600 flex-shrink-0" />
                                 <span>{selectedLanguage === "Urdu" ? "معائنے کے وقت مقامی موسم:" : "Microclimate at Specimen Observation:"}</span>
                               </span>
-                              <span className="text-[11px] font-extrabold text-blue-900 bg-white/90 px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs">
-                                ⛅ {diagnosis.agronomic_context.weather_snapshot.temp}°C • 💧 {diagnosis.agronomic_context.weather_snapshot.humidity}% {selectedLanguage === "Urdu" ? "نمی" : "Humidity"}
-                                {diagnosis.agronomic_context.weather_snapshot.precipitation_mm !== undefined && diagnosis.agronomic_context.weather_snapshot.precipitation_mm > 0 ? ` • 🌧️ ${diagnosis.agronomic_context.weather_snapshot.precipitation_mm}mm rain` : ""}
+                              <span className="text-[11px] font-extrabold text-blue-900 bg-white/90 px-2 py-0.5 rounded-md border border-blue-200 shadow-2xs inline-flex items-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1">
+                                  <CloudSun className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                  <span>{diagnosis.agronomic_context.weather_snapshot.temp}°C</span>
+                                </span>
+                                <span>•</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <Droplets className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                  <span>{diagnosis.agronomic_context.weather_snapshot.humidity}% {selectedLanguage === "Urdu" ? "نمی" : "Humidity"}</span>
+                                </span>
+                                {diagnosis.agronomic_context.weather_snapshot.precipitation_mm !== undefined && diagnosis.agronomic_context.weather_snapshot.precipitation_mm > 0 ? (
+                                  <>
+                                    <span>•</span>
+                                    <span className="inline-flex items-center gap-1">
+                                      <CloudRain className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                      <span>{diagnosis.agronomic_context.weather_snapshot.precipitation_mm}mm</span>
+                                    </span>
+                                  </>
+                                ) : null}
                               </span>
                             </div>
                             {diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm !== undefined && (
                               <div className="text-[11px] text-slate-600 bg-white/70 p-2 rounded-xl border border-blue-100 flex items-center justify-between flex-wrap gap-1.5">
-                                <span className="font-bold text-slate-700">
-                                  🌧️ {selectedLanguage === "Urdu" ? "گزشتہ 7 دن کی بارش:" : "7-Day Pre-Observation Rainfall:"} <span className="text-blue-700">{diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm}mm</span>
+                                <span className="font-bold text-slate-700 inline-flex items-center gap-1">
+                                  <CloudRain className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                  <span>{selectedLanguage === "Urdu" ? "گزشتہ 7 دن کی بارش:" : "7-Day Pre-Observation Rainfall:"}</span>{" "}
+                                  <span className="text-blue-700">{diagnosis.agronomic_context.weather_snapshot.past_week_rainfall_mm}mm</span>
                                 </span>
-                                <span className="font-bold text-slate-700">
-                                  💧 {selectedLanguage === "Urdu" ? "اوسط نمی:" : "7-Day Avg Humidity:"} <span className="text-emerald-700">{diagnosis.agronomic_context.weather_snapshot.past_week_avg_humidity}%</span>
+                                <span className="font-bold text-slate-700 inline-flex items-center gap-1">
+                                  <Droplets className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                                  <span>{selectedLanguage === "Urdu" ? "اوسط نمی:" : "7-Day Avg Humidity:"}</span>{" "}
+                                  <span className="text-emerald-700">{diagnosis.agronomic_context.weather_snapshot.past_week_avg_humidity}%</span>
                                 </span>
                                 {diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days !== undefined && (
-                                  <span className="font-bold text-slate-700">
-                                    🌿 {selectedLanguage === "Urdu" ? "نم دن:" : "Damp Days:"} <span className="text-amber-700">{diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days}/7 {selectedLanguage === "Urdu" ? "دن" : "days"}</span>
+                                  <span className="font-bold text-slate-700 inline-flex items-center gap-1">
+                                    <Calendar className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                                    <span>{selectedLanguage === "Urdu" ? "نم دن:" : "Damp Days:"}</span>{" "}
+                                    <span className="text-amber-700">{diagnosis.agronomic_context.weather_snapshot.consecutive_damp_days}/7 {selectedLanguage === "Urdu" ? "دن" : "days"}</span>
                                   </span>
                                 )}
                               </div>
@@ -3157,8 +3191,8 @@ export default function AgriShieldDashboard() {
                         {diagnosis.disease_origin && (
                           <div className="p-4 rounded-2xl bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200/80 shadow-sm space-y-3">
                             <div className="flex items-center space-x-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs">
-                                🔬
+                              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs flex-shrink-0">
+                                <Microscope className="w-4 h-4 text-emerald-800 flex-shrink-0" />
                               </div>
                               <div>
                                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center space-x-1.5">
@@ -3180,7 +3214,7 @@ export default function AgriShieldDashboard() {
                               {/* Biological Reason */}
                               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1">
                                 <div className="font-black text-slate-800 flex items-center space-x-1.5">
-                                  <span className="text-emerald-600">🌱</span>
+                                  <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 inline mr-1" />
                                   <span>
                                     {selectedLanguage === "Urdu" ? "بیماری کی حیاتیاتی وجہ:" : "Biological Cause & Spread:"}
                                   </span>
@@ -3193,7 +3227,7 @@ export default function AgriShieldDashboard() {
                               {/* Weather Correlation */}
                               <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200/70 space-y-1">
                                 <div className="font-black text-blue-900 flex items-center space-x-1.5">
-                                  <span className="text-blue-600">⛅</span>
+                                  <CloudSun className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 inline mr-1" />
                                   <span>
                                     {selectedLanguage === "Urdu" ? "اس کیس میں موسمی عناصر کا عمل دخل:" : "Why In This Case (Weather Elements):"}
                                   </span>
@@ -3210,8 +3244,8 @@ export default function AgriShieldDashboard() {
                         {diagnosis.healthy_comparison && (
                           <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 via-teal-50/50 to-slate-50 border border-emerald-200/90 shadow-2xs space-y-3">
                             <div className="flex items-center space-x-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs">
-                                🌿
+                              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-sm shadow-2xs flex-shrink-0">
+                                <Sprout className="w-4 h-4 text-emerald-800 flex-shrink-0" />
                               </div>
                               <div>
                                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center space-x-1.5">
@@ -3420,7 +3454,10 @@ export default function AgriShieldDashboard() {
                                 disabled={isChatLoading}
                                 className="text-[11px] font-medium px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 border border-slate-200/80 transition-colors shadow-2xs disabled:opacity-50 text-left"
                               >
-                                💬 {q}
+                                <span className="inline-flex items-center gap-1.5">
+                                  <MessageSquare className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                                  <span>{q}</span>
+                                </span>
                               </button>
                             ))}
                           </div>
@@ -3548,7 +3585,10 @@ export default function AgriShieldDashboard() {
 
                         {audioModelUsed && (
                           <div className="flex items-center justify-center space-x-1.5 text-[10px] text-slate-400 font-mono py-0.5">
-                            <span>🎙️ Neural Voice Engine:</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Volume2 className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                              <span>Neural Voice Engine:</span>
+                            </span>
                             <span className="font-bold text-slate-600 px-1.5 py-0.2 rounded bg-slate-100 border border-slate-200">{audioModelUsed}</span>
                           </div>
                         )}
@@ -3557,29 +3597,29 @@ export default function AgriShieldDashboard() {
                         <div className="grid grid-cols-3 gap-2">
                           <button
                             onClick={handleCopyAdvice}
-                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors shadow-sm active:scale-95"
+                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-all shadow-sm active:scale-95 transform-gpu cursor-pointer min-w-0"
                             title="Copy Prescription"
                           >
                             <Copy className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                            <span>Copy</span>
+                            <span className="truncate">Copy</span>
                           </button>
 
                           <button
                             onClick={handleShareWhatsApp}
-                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm active:scale-95"
+                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-sm active:scale-95 transform-gpu cursor-pointer min-w-0"
                             title="Share on WhatsApp"
                           >
                             <Share2 className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span>WhatsApp</span>
+                            <span className="truncate">WhatsApp</span>
                           </button>
 
                           <button
                             onClick={handlePrint}
-                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors shadow-sm active:scale-95"
+                            className="py-2.5 px-2 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-all shadow-sm active:scale-95 transform-gpu cursor-pointer min-w-0"
                             title="Print / Save PDF"
                           >
                             <Printer className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                            <span>PDF</span>
+                            <span className="truncate">PDF</span>
                           </button>
                         </div>
                       </div>
@@ -3628,11 +3668,11 @@ export default function AgriShieldDashboard() {
                       </p>
                       <ul className="space-y-1.5 text-slate-700 pl-1">
                         <li className="flex items-start space-x-2">
-                          <span className="text-emerald-600 font-black">✓</span>
+                          <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                           <span>Clear close-up photo of a plant leaf, crop, vegetable, fruit, or farm harvest.</span>
                         </li>
                         <li className="flex items-start space-x-2">
-                          <span className="text-rose-600 font-black">✗</span>
+                          <X className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
                           <span>Avoid photos of humans, faces, animals, pets, cars, electronics, or furniture.</span>
                         </li>
                       </ul>
@@ -3711,15 +3751,18 @@ export default function AgriShieldDashboard() {
                       </p>
                     </div>
 
-                    <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-500 font-medium">
-                      <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                        ⚡ Instant Action Plans
+                    <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-600 font-medium">
+                      <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 inline-flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                        <span>Instant Action Plans</span>
                       </span>
-                      <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                        🍃 Home Remedies
+                      <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 inline-flex items-center gap-1.5">
+                        <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <span>Home Remedies</span>
                       </span>
-                      <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                        🔊 Spoken Voice
+                      <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 inline-flex items-center gap-1.5">
+                        <Volume2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <span>Spoken Voice</span>
                       </span>
                     </div>
                   </div>
@@ -3772,25 +3815,27 @@ export default function AgriShieldDashboard() {
 
               {/* Severity Filter Chips */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+                <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
                   <span className="font-bold text-slate-500 uppercase tracking-wide text-[11px] whitespace-nowrap flex-shrink-0">
                     Severity:
                   </span>
-                  {(["all", "Critical", "Moderate", "Low"] as const).map((sev) => {
-                    const isSelected = vaultSeverityFilter === sev;
-                    return (
-                      <button
-                        key={sev}
-                        onClick={() => setVaultSeverityFilter(sev)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex-shrink-0 text-xs ${isSelected
-                          ? "bg-slate-900 text-white shadow-sm"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                      >
-                        {sev === "all" ? "All Scans" : sev}
-                      </button>
-                    );
-                  })}
+                  <div className="flex items-center p-1 rounded-2xl bg-slate-200/80 border border-slate-300/70 shadow-inner gap-1 flex-shrink-0">
+                    {(["all", "Critical", "Moderate", "Low"] as const).map((sev) => {
+                      const isSelected = vaultSeverityFilter === sev;
+                      return (
+                        <button
+                          key={sev}
+                          onClick={() => setVaultSeverityFilter(sev)}
+                          className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap flex-shrink-0 text-xs active:scale-95 transform-gpu cursor-pointer ${isSelected
+                            ? "bg-white text-slate-900 shadow-sm scale-[1.02] border border-slate-200/50"
+                            : "text-slate-600 hover:text-slate-900"
+                            }`}
+                        >
+                          {sev === "all" ? "All Scans" : sev}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="text-[11px] text-slate-500 font-medium whitespace-nowrap flex-shrink-0">
@@ -3865,19 +3910,19 @@ export default function AgriShieldDashboard() {
                               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                                 {scan.agronomic_context.season && (
                                   <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200/80 text-[10px] font-bold">
-                                    <span>🍂</span>
+                                    <Leaf className="w-3 h-3 text-amber-700 flex-shrink-0" />
                                     <span>{scan.agronomic_context.season}</span>
                                   </span>
                                 )}
                                 {scan.agronomic_context.climate_zone && (
                                   <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200/80 text-[10px] font-bold truncate max-w-[140px]">
-                                    <span>🌾</span>
+                                    <MapPin className="w-3 h-3 text-emerald-700 flex-shrink-0" />
                                     <span className="truncate">{scan.agronomic_context.climate_zone}</span>
                                   </span>
                                 )}
                                 {scan.agronomic_context.weather_snapshot && (
                                   <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200/80 text-[10px] font-bold">
-                                    <span>⛅</span>
+                                    <CloudSun className="w-3 h-3 text-blue-700 flex-shrink-0" />
                                     <span>{scan.agronomic_context.weather_snapshot.temp}°C</span>
                                   </span>
                                 )}
@@ -3968,14 +4013,14 @@ export default function AgriShieldDashboard() {
               {/* Location Bar & Quick Presets Strip */}
               <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center space-x-2 text-xs">
-                    <span className="font-bold text-slate-700 flex items-center space-x-1">
+                  <div className="flex items-center space-x-2 text-xs flex-wrap min-w-0">
+                    <span className="font-bold text-slate-700 flex items-center space-x-1 flex-shrink-0">
                       <span>Currently Monitoring:</span>
                     </span>
-                    <span className="font-extrabold text-emerald-950 px-2.5 py-0.5 rounded-lg bg-emerald-100/90 border border-emerald-300/80">
+                    <span className="font-extrabold text-emerald-950 px-2.5 py-0.5 rounded-lg bg-emerald-100/90 border border-emerald-300/80 truncate max-w-[180px] sm:max-w-xs">
                       {activeLocationLabel}
                     </span>
-                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold whitespace-nowrap flex-shrink-0">
                       ({locationMode === "gps" ? "GPS Locked" : locationMode === "ip" ? "Auto IP" : locationMode === "map" ? "Map Pinned" : "Preset Zone"})
                     </span>
                   </div>
@@ -4018,7 +4063,7 @@ export default function AgriShieldDashboard() {
                             : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                           }`}
                       >
-                        <span>{preset.icon}</span>
+                        <MapPin className={`w-3 h-3 flex-shrink-0 ${isActive ? "text-white" : "text-emerald-600"}`} />
                         <span>{preset.name}</span>
                       </button>
                     );
@@ -4065,8 +4110,9 @@ export default function AgriShieldDashboard() {
                           {weatherTelemetry.humidity}%
                         </span>
                       </div>
-                      <p className="text-[11px] font-semibold mt-1">
-                        {weatherTelemetry.humidity >= 75 ? "🔴 Fungal spore trigger (>75%)" : "🟢 Moderate leaf moisture"}
+                      <p className="text-[11px] font-semibold mt-1 flex items-center">
+                        <span className={`inline-block w-2 h-2 rounded-full mr-1.5 flex-shrink-0 ${weatherTelemetry.humidity >= 75 ? "bg-rose-500" : "bg-emerald-500"}`} />
+                        <span>{weatherTelemetry.humidity >= 75 ? "Fungal spore trigger (>75%)" : "Moderate leaf moisture"}</span>
                       </p>
                     </div>
 
@@ -4122,22 +4168,25 @@ export default function AgriShieldDashboard() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {weatherTelemetry.past_week_rainfall_mm !== undefined && (
-                          <span className="px-2.5 py-1 rounded-full bg-white/90 border border-blue-200 font-bold text-blue-900 shadow-2xs">
-                            🌧️ 7-Day Rain: {weatherTelemetry.past_week_rainfall_mm}mm
+                          <span className="px-2.5 py-1 rounded-full bg-white/90 border border-blue-200 font-bold text-blue-900 shadow-2xs whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1">
+                            <CloudRain className="w-3 h-3 text-blue-700 flex-shrink-0" />
+                            <span>7-Day Rain: {weatherTelemetry.past_week_rainfall_mm}mm</span>
                           </span>
                         )}
                         {weatherTelemetry.past_week_avg_humidity !== undefined && (
-                          <span className="px-2.5 py-1 rounded-full bg-white/90 border border-indigo-200 font-bold text-indigo-900 shadow-2xs">
-                            💧 7-Day Avg Humidity: {weatherTelemetry.past_week_avg_humidity}%
+                          <span className="px-2.5 py-1 rounded-full bg-white/90 border border-indigo-200 font-bold text-indigo-900 shadow-2xs whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1">
+                            <Droplets className="w-3 h-3 text-indigo-700 flex-shrink-0" />
+                            <span>7-Day Avg Humidity: {weatherTelemetry.past_week_avg_humidity}%</span>
                           </span>
                         )}
                         {weatherTelemetry.consecutive_damp_days !== undefined && (
-                          <span className={`px-2.5 py-1 rounded-full border font-bold shadow-2xs ${
+                          <span className={`px-2.5 py-1 rounded-full border font-bold shadow-2xs whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1 ${
                             weatherTelemetry.consecutive_damp_days >= 3
                               ? "bg-rose-50 border-rose-200 text-rose-800"
                               : "bg-white/90 border-teal-200 text-teal-900"
                           }`}>
-                            🌿 Damp Days: {weatherTelemetry.consecutive_damp_days}/7
+                            <Calendar className="w-3 h-3 text-teal-700 flex-shrink-0" />
+                            <span>Damp Days: {weatherTelemetry.consecutive_damp_days}/7</span>
                           </span>
                         )}
                       </div>
@@ -4310,8 +4359,8 @@ export default function AgriShieldDashboard() {
                     {climateAdvisory.ongoing_climate_impact && (
                       <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-200/80 space-y-1 text-xs">
                         <span className="font-bold text-indigo-950 flex items-center space-x-1.5">
-                          <Droplets className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>🌧️ Preceding Microclimate & Spore Build-up Impact:</span>
+                          <Droplets className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                          <span>Preceding Microclimate & Spore Build-up Impact:</span>
                         </span>
                         <p className="text-slate-700 font-medium leading-relaxed">
                           {climateAdvisory.ongoing_climate_impact}
@@ -4446,8 +4495,11 @@ export default function AgriShieldDashboard() {
             </p>
 
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-              <span className="font-medium text-slate-600">
-                Crafted with 💚 by <strong className="font-bold text-slate-900">Team MemoryLeak101</strong>
+              <span className="font-medium text-slate-600 inline-flex items-center gap-1">
+                <span>Crafted with</span>
+                <Heart className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500 inline flex-shrink-0" />
+                <span>by</span>
+                <strong className="font-bold text-slate-900">Team MemoryLeak101</strong>
               </span>
               <span className="text-slate-300 hidden sm:inline">•</span>
               <span className="inline-flex items-center space-x-1.5 text-[11px] font-semibold text-emerald-800">

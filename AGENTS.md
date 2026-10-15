@@ -129,3 +129,18 @@ gcloud run deploy agrishield-ai \
   --set-env-vars GEMINI_API_KEY="your_api_key"
 ```
 
+---
+
+## 7. YAFTY / TastyTabs Design System & UI Guidelines
+
+All visual, structural, and workflow implementations must strictly adhere to the official design system detailed in [DESIGN_GUIDELINES.md](DESIGN_GUIDELINES.md).
+
+### Non-Negotiable Standards:
+* **Zero-Overflow Rule:** Every text-bearing flex container child must include `min-w-0`. Badges, icons, and status chips must include `flex-shrink-0 whitespace-nowrap`. The UI must never horizontally scroll or cause element clipping on viewports down to 320px.
+* **Segmented Navigation:** Use tactile capsule containers (`rounded-2xl bg-slate-200/80 border border-slate-300/70 p-1 shadow-inner gap-1`) with elevated active pills (`scale-[1.02] bg-white text-emerald-950`).
+* **Mobile-First Adaptive Typography:** Use compact punchy labels on small screens (e.g. `"Doctor"`, `"Vault"`, `"Climate"`, `"Treatment"`, `"Causes"`, `"Dr. Chat"`) and full descriptive titles on desktop.
+* **Extreme Performance & Resource Economy:** Preserve in-memory translation and spoken audio caches (`languageDiagnosisCacheRef`, `clientAudioCacheRef`), utilize HTML5 canvas dual-scale thumbnailing, and use GPU transforms (`transform-gpu`, `active:scale-[0.98]`) to ensure instantaneous interaction without layout reflows.
+* **Crisp Lucide React SVG Icons Over Emojis:** Never use OS-dependent unicode emojis for badges, chips, buttons, headers, or empty states. Always use Lucide React icons with explicit bounding (`flex-shrink-0 w-3.5 h-3.5`) to preserve cross-platform clinical elegance and prevent baseline reflow.
+* **Unobtrusive Connectivity (Silent Online, Offline-Only Indicator):** Never render persistent "Online / Live" badges in the navbar during normal internet connectivity. Only surface an amber `<WifiOff />` indicator when the user is offline (`!isOnline`) to guide them to the local Offline Vault.
+
+
