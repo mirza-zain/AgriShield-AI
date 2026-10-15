@@ -425,8 +425,28 @@ export default function AgriShieldDashboard() {
   useEffect(() => {
     fetchHistory(true);
 
+    // Register Service Worker for offline capability & Chromium/Android PWA installability
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          console.log("AgriShield PWA Service Worker registered:", reg.scope);
+        })
+        .catch((err) => {
+          console.warn("AgriShield Service Worker registration failed:", err);
+        });
+    }
+
+    // Check if an early beforeinstallprompt was captured by head script before React mounted
+    if (typeof window !== "undefined" && (window as any).__agriShieldPrompt) {
+      setDeferredPrompt((window as any).__agriShieldPrompt);
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
+      if (typeof window !== "undefined") {
+        (window as any).__agriShieldPrompt = e;
+      }
       setDeferredPrompt(e);
     };
 
@@ -434,16 +454,65 @@ export default function AgriShieldDashboard() {
       updateImageRenderRect();
     };
 
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("resize", handleResize);
+    // 1. Comprehensive standalone detection across iOS, Android WebAPK, and Desktop
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: fullscreen)").matches ||
+      window.matchMedia("(display-mode: minimal-ui)").matches ||
+      (window.navigator as any)?.standalone === true ||
+      document.referrer?.includes("android-app://");
 
-    if (window.matchMedia("(display-mode: standalone)").matches) {
+    if (isStandalone) {
       setIsInstalled(true);
     }
 
+    // 2. Check persistent installed flag from previous session
+    try {
+      if (localStorage.getItem("agrishield_pwa_installed") === "true") {
+        setIsInstalled(true);
+      }
+    } catch (e) {}
+
+    // 3. Check device OS if companion PWA is already installed on phone/PC
+    if ("getInstalledRelatedApps" in navigator) {
+      (navigator as any)
+        .getInstalledRelatedApps()
+        .then((relatedApps: any[]) => {
+          if (Array.isArray(relatedApps) && relatedApps.length > 0) {
+            setIsInstalled(true);
+          }
+        })
+        .catch(() => {});
+    }
+
+    // 4. Native appinstalled event (fires when user completes install via browser menu or prompt)
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      if (typeof window !== "undefined") {
+        (window as any).__agriShieldPrompt = null;
+      }
+      try {
+        localStorage.setItem("agrishield_pwa_installed", "true");
+      } catch (e) {}
+      showToast("AgriShield installed successfully!", <Smartphone className="w-4 h-4 text-emerald-400" />);
+    };
+
+    const standaloneMedia = window.matchMedia("(display-mode: standalone)");
+    const handleDisplayChange = (e: MediaQueryListEvent) => {
+      if (e.matches) setIsInstalled(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    window.addEventListener("resize", handleResize);
+    standaloneMedia.addEventListener?.("change", handleDisplayChange);
+
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
       window.removeEventListener("resize", handleResize);
+      standaloneMedia.removeEventListener?.("change", handleDisplayChange);
       stopSpeech();
     };
   }, []);
@@ -495,16 +564,40 @@ export default function AgriShieldDashboard() {
   }, [isAnalyzing]);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === "accepted") {
+    const promptEvent =
+      deferredPrompt || (typeof window !== "undefined" ? (window as any).__agriShieldPrompt : null);
+
+    if (promptEvent) {
+      promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      if (choice?.outcome === "accepted") {
         setIsInstalled(true);
+        try {
+          localStorage.setItem("agrishield_pwa_installed", "true");
+        } catch (e) {}
         showToast("AgriShield installed successfully!", <Smartphone className="w-4 h-4 text-emerald-400" />);
       }
       setDeferredPrompt(null);
+      if (typeof window !== "undefined") {
+        (window as any).__agriShieldPrompt = null;
+      }
     } else {
-      showToast("To install: Tap browser menu -> Add to Home Screen", <Smartphone className="w-4 h-4 text-emerald-400" />);
+      const isIos = typeof window !== "undefined" && /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+      if (isIos) {
+        showToast(
+          selectedLanguage === "Urdu"
+            ? "آئی فون پر انسٹال کرنے کے لیے: براؤزر شیئر (Share) پر ٹیپ کریں اور 'Add to Home Screen' منتخب کریں"
+            : "To install on iPhone/iPad: Tap Share ⎋ -> 'Add to Home Screen'",
+          <Smartphone className="w-4 h-4 text-emerald-400" />
+        );
+      } else {
+        showToast(
+          selectedLanguage === "Urdu"
+            ? "انسٹال کرنے کے لیے: براؤزر مینو (⋮) پر ٹیپ کریں اور 'Install App' منتخب کریں"
+            : "To install: Tap browser menu (⋮) -> 'Install App'",
+          <Smartphone className="w-4 h-4 text-emerald-400" />
+        );
+      }
     }
   };
 
@@ -2147,11 +2240,12 @@ export default function AgriShieldDashboard() {
             {!isInstalled && (
               <button
                 onClick={handleInstallClick}
-                className="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 shadow-sm transition-all active:scale-95"
+                className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 shadow-2xs transition-all active:scale-95 flex-shrink-0"
                 title="Install app on your phone"
+                aria-label="Install App"
               >
                 <Smartphone className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                <span>Install PWA</span>
+                <span className="hidden sm:inline sm:ml-1.5">Install PWA</span>
               </button>
             )}
 
