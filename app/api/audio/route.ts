@@ -22,12 +22,34 @@ export async function POST(req: NextRequest) {
       httpOptions: { timeout: 35000 },
     });
 
-    // Active Gemini Neural TTS models per official Google AI Studio catalog
-    // Modern Gemini 3 Neural TTS models only (strictly no legacy 2.5)
+    // Active Gemini Neural TTS models: primary Gemini 3.8 TTS with 2.5 flash preview fallback
     const ttsModels = [
       "gemini-3.8-flash-lite-tts",
       "gemini-3.8-flash-tts",
+      "gemini-2.5-flash-preview-tts",
     ];
+
+    // Clean text for speech: when speaking Urdu or Hindi, strip English/Latin parentheticals
+    let spokenText = text.trim();
+    if (language === "Urdu") {
+      spokenText = spokenText
+        .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
+        .replace(/\[[a-zA-Z0-9\s.,\-\/]+\]/g, "")
+        .replace(/[a-zA-Z]+/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    } else if (language === "Hindi") {
+      spokenText = spokenText
+        .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
+        .replace(/\[[a-zA-Z0-9\s.,\-\/]+\]/g, "")
+        .replace(/[a-zA-Z]+/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    if (!spokenText) {
+      spokenText = text.trim();
+    }
 
     let audioData: string | null = null;
     let mimeType = "audio/wav";
@@ -36,10 +58,10 @@ export async function POST(req: NextRequest) {
 
     for (const model of ttsModels) {
       try {
-        // Send only the exact text to read aloud - no instructions or prompts that could be spoken
+        // Send only the clean text to read aloud - no instructions or prompts that could be spoken
         const generatePromise = ai.models.generateContent({
           model,
-          contents: text.trim(),
+          contents: spokenText,
           config: {
             responseModalities: ["AUDIO"],
           },

@@ -50,6 +50,10 @@ import {
   MessageSquare,
   Bot,
   User,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 
@@ -271,6 +275,18 @@ export default function AgriShieldDashboard() {
   const [activeTreatmentTab, setActiveTreatmentTab] = useState<"immediate" | "organic" | "chemical">("immediate");
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
 
+  // Pathology Target Coordinate Rect & Visibility Toggle
+  const [imageRenderRect, setImageRenderRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [showPathologyBoxes, setShowPathologyBoxes] = useState<boolean>(true);
+  const imageContainerRef = useRef<HTMLDivElement>(null);
+
+  // Interactive Lightbox State
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+  const [lightboxZoom, setLightboxZoom] = useState<number>(1);
+  const [lightboxPan, setLightboxPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState<boolean>(false);
+  const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
   // Optional Observation Context (Photo Date & Region & Weather)
   const [observationDate, setObservationDate] = useState<string>("");
   const [observationTime, setObservationTime] = useState<string>("");
@@ -354,6 +370,36 @@ export default function AgriShieldDashboard() {
     }, 2800);
   };
 
+  // Calculate exact rendered dimensions of image inside object-contain container
+  const updateImageRenderRect = (imgElement?: HTMLImageElement | null) => {
+    const container = imageContainerRef.current;
+    if (!container) return;
+    const img = imgElement || container.querySelector("img");
+    if (!img || !img.naturalWidth || !img.naturalHeight) return;
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    if (!containerWidth || !containerHeight) return;
+
+    const naturalAspect = img.naturalWidth / img.naturalHeight;
+    const containerAspect = containerWidth / containerHeight;
+
+    let renderWidth = containerWidth;
+    let renderHeight = containerHeight;
+    let left = 0;
+    let top = 0;
+
+    if (naturalAspect > containerAspect) {
+      renderHeight = containerWidth / naturalAspect;
+      top = (containerHeight - renderHeight) / 2;
+    } else {
+      renderWidth = containerHeight * naturalAspect;
+      left = (containerWidth - renderWidth) / 2;
+    }
+
+    setImageRenderRect({ top, left, width: renderWidth, height: renderHeight });
+  };
+
   useEffect(() => {
     fetchHistory(true);
 
@@ -362,7 +408,12 @@ export default function AgriShieldDashboard() {
       setDeferredPrompt(e);
     };
 
+    const handleResize = () => {
+      updateImageRenderRect();
+    };
+
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("resize", handleResize);
 
     if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
@@ -370,6 +421,7 @@ export default function AgriShieldDashboard() {
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("resize", handleResize);
       stopSpeech();
     };
   }, []);
@@ -942,18 +994,33 @@ export default function AgriShieldDashboard() {
 
     stopSpeech();
 
-    const cleanCropName = diagnosis.crop_name.replace(/\(.*?\)/g, "").trim();
-    const cleanCondition = diagnosis.condition_detected.replace(/\(.*?\)/g, "").trim();
+    const cleanCropName = diagnosis.crop_name
+      .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
+      .replace(/\(.*?\)/g, "")
+      .trim();
+    const cleanCondition = diagnosis.condition_detected
+      .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
+      .replace(/\(.*?\)/g, "")
+      .trim();
+    const cleanAction = (diagnosis.treatment.immediate_action || "")
+      .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
+      .trim();
+    const cleanRemedy = (diagnosis.treatment.organic_remedy || "")
+      .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
+      .trim();
+    const cleanWarning = (diagnosis.climate_impact_warning || "")
+      .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
+      .trim();
 
     let scriptText = "";
     if (selectedLanguage === "Urdu") {
-      scriptText = `سلام کسان بھائی۔ آپ کا پودا ${cleanCropName} ہے، اور اس پر ${cleanCondition} کی بیماری لگ گئی ہے۔ اب آپ نے فوری طور پر یہ کرنا ہے: ${diagnosis.treatment.immediate_action}۔ اس کے علاج کے لیے دیسی طریقہ یہ ہے: ${diagnosis.treatment.organic_remedy}۔ اور موسم کا دھیان رکھیں: ${diagnosis.climate_impact_warning}`;
+      scriptText = `سلام کسان بھائی۔ آپ کا پودا ${cleanCropName} ہے، اور اس پر ${cleanCondition} کا اثر ہے۔ اب فوری طور پر یہ کرنا ہے: ${cleanAction}۔ دیسی علاج: ${cleanRemedy}۔ موسم کا دھیان رکھیں: ${cleanWarning}`;
     } else if (selectedLanguage === "Hindi") {
-      scriptText = `नमस्ते किसान भाई। आपका पौधा ${cleanCropName} है, और इसमें ${cleanCondition} की बीमारी है। तुरंत यह काम करें: ${diagnosis.treatment.immediate_action}। घर का आसान देसी इलाज: ${diagnosis.treatment.organic_remedy}۔ मौसम की सलाह: ${diagnosis.climate_impact_warning}`;
+      scriptText = `नमस्ते किसान भाई। आपका पौधा ${cleanCropName} है, और इसमें ${cleanCondition} की बीमारी है। तुरंत यह काम करें: ${cleanAction}। घर का आसान देसी इलाज: ${cleanRemedy}۔ मौसम की सलाह: ${cleanWarning}`;
     } else if (selectedLanguage === "Spanish") {
-      scriptText = `Hola amigo agricultor. Su planta es ${cleanCropName}, y tiene ${cleanCondition}. Lo primero que debe hacer hoy es: ${diagnosis.treatment.immediate_action}. Remedio casero natural: ${diagnosis.treatment.organic_remedy}. Cuidado con el clima: ${diagnosis.climate_impact_warning}`;
+      scriptText = `Hola amigo agricultor. Su planta es ${cleanCropName}, y tiene ${cleanCondition}. Lo primero que debe hacer hoy es: ${cleanAction}. Remedio casero natural: ${cleanRemedy}. Cuidado con el clima: ${cleanWarning}`;
     } else {
-      scriptText = `Hello. Your plant is ${cleanCropName}, and it shows signs of ${cleanCondition}. Right now today, here is what you should do: ${diagnosis.treatment.immediate_action}. For a safe home remedy: ${diagnosis.treatment.organic_remedy}. Weather warning: ${diagnosis.climate_impact_warning}`;
+      scriptText = `Hello. Your plant is ${cleanCropName}, and it shows signs of ${cleanCondition}. Right now today, here is what you should do: ${cleanAction}. For a safe home remedy: ${cleanRemedy}. Weather warning: ${cleanWarning}`;
     }
 
     try {
@@ -1033,6 +1100,13 @@ export default function AgriShieldDashboard() {
 
     const prefixes = langMap[selectedLanguage] || ["en-US"];
     const voice = voices.find((v) => prefixes.some((p) => v.lang.toLowerCase().startsWith(p.toLowerCase())));
+    if (!voice && selectedLanguage === "Urdu") {
+      // Prevent system English voice from pronouncing Urdu letters with garbled phonetics
+      setIsSpeaking(false);
+      setSpeechStatusText("");
+      showToast("اردو آواز کا ماڈل عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔ 📜");
+      return;
+    }
     if (voice) utterance.voice = voice;
     utterance.lang = voice?.lang || prefixes[0];
 
@@ -1631,6 +1705,185 @@ export default function AgriShieldDashboard() {
         </div>
       )}
 
+      {/* High-Resolution Interactive Specimen Lightbox Modal */}
+      {isLightboxOpen && imagePreview && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col animate-in fade-in duration-200 select-none overflow-hidden"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setIsLightboxOpen(false);
+          }}
+        >
+          {/* Lightbox Top Header Bar */}
+          <div className="h-16 px-4 sm:px-6 flex items-center justify-between border-b border-white/10 bg-black/40 backdrop-blur-md flex-shrink-0 z-10">
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600/30 border border-emerald-500/50 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                <Maximize2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-extrabold text-sm sm:text-base text-white truncate">
+                  {diagnosis?.crop_name || "Specimen Pathology Inspection"}
+                </h3>
+                <p className="text-[11px] text-slate-400 truncate">
+                  {diagnosis?.condition_detected
+                    ? `${diagnosis.condition_detected} • ${Math.round(diagnosis.confidence_score * 100)}% Certain`
+                    : "Pinch or drag to inspect high-resolution leaf texture"}
+                </p>
+              </div>
+            </div>
+
+            {/* Header Right Actions */}
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              {diagnosis && diagnosis.severity !== "Low" && (diagnosis.lesion_boxes?.length || diagnosis.lesion_box) && (
+                <button
+                  type="button"
+                  onClick={() => setShowPathologyBoxes((prev) => !prev)}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    showPathologyBoxes
+                      ? "bg-amber-400 text-slate-950 border-amber-300"
+                      : "bg-slate-800 text-slate-300 border-white/20 hover:bg-slate-700"
+                  }`}
+                >
+                  <span>🎯</span>
+                  <span className="hidden sm:inline">{showPathologyBoxes ? "Targets ON" : "Targets OFF"}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(false)}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                title="Close Lightbox (Esc)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Lightbox Center Image Viewport */}
+          <div
+            className="flex-1 relative flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing p-4"
+            onWheel={(e) => {
+              e.preventDefault();
+              setLightboxZoom((prev) => {
+                const delta = e.deltaY < 0 ? 0.25 : -0.25;
+                const nextZoom = Math.min(4, Math.max(1, prev + delta));
+                if (nextZoom === 1) setLightboxPan({ x: 0, y: 0 });
+                return Math.round(nextZoom * 100) / 100;
+              });
+            }}
+            onMouseDown={(e) => {
+              if (lightboxZoom > 1) {
+                setIsPanning(true);
+                setPanStart({ x: e.clientX - lightboxPan.x, y: e.clientY - lightboxPan.y });
+              }
+            }}
+            onMouseMove={(e) => {
+              if (isPanning && lightboxZoom > 1) {
+                setLightboxPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+              }
+            }}
+            onMouseUp={() => setIsPanning(false)}
+            onMouseLeave={() => setIsPanning(false)}
+            onDoubleClick={() => {
+              if (lightboxZoom > 1) {
+                setLightboxZoom(1);
+                setLightboxPan({ x: 0, y: 0 });
+              } else {
+                setLightboxZoom(2);
+              }
+            }}
+          >
+            <div
+              className="relative max-w-full max-h-full flex items-center justify-center transition-transform duration-100 ease-out"
+              style={{
+                transform: `scale(${lightboxZoom}) translate(${lightboxPan.x / lightboxZoom}px, ${lightboxPan.y / lightboxZoom}px)`,
+              }}
+            >
+              <img
+                src={imagePreview}
+                alt="High-Res Specimen Inspection"
+                className="max-h-[82vh] max-w-[94vw] object-contain rounded-xl shadow-2xl pointer-events-none select-none border border-white/10"
+              />
+
+              {/* Pathology Target Highlights inside Lightbox */}
+              {showPathologyBoxes &&
+                diagnosis &&
+                diagnosis.severity !== "Low" &&
+                (diagnosis?.lesion_boxes || (diagnosis?.lesion_box ? [diagnosis.lesion_box] : []))
+                  ?.filter((box) => box && box.length === 4 && box[2] > box[0] && box[3] > box[1])
+                  ?.map((box, idx, arr) => (
+                    <div
+                      key={idx}
+                      className="absolute pointer-events-none border-2 border-amber-400 bg-amber-400/25 rounded-lg shadow-[0_0_16px_rgba(251,191,36,0.7)] animate-pulse"
+                      style={{
+                        top: `${box[0] / 10}%`,
+                        left: `${box[1] / 10}%`,
+                        height: `${Math.max(4, (box[2] - box[0]) / 10)}%`,
+                        width: `${Math.max(4, (box[3] - box[1]) / 10)}%`,
+                      }}
+                    >
+                      <span className="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500 text-slate-950 uppercase tracking-wider shadow-sm flex items-center space-x-1 whitespace-nowrap">
+                        <span>{arr.length > 1 ? `Spot #${idx + 1}` : "Target"}</span>
+                      </span>
+                    </div>
+                  ))}
+            </div>
+          </div>
+
+          {/* Lightbox Bottom Zoom Control Floating Bar */}
+          <div className="h-16 px-4 flex items-center justify-center flex-shrink-0 z-10">
+            <div className="flex items-center space-x-2 bg-slate-900/90 border border-white/15 px-3 py-1.5 rounded-2xl shadow-2xl backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => {
+                  setLightboxZoom((prev) => {
+                    const next = Math.max(1, prev - 0.5);
+                    if (next === 1) setLightboxPan({ x: 0, y: 0 });
+                    return next;
+                  });
+                }}
+                disabled={lightboxZoom <= 1}
+                className="p-2 rounded-xl text-white hover:bg-white/15 disabled:opacity-40 transition-colors cursor-pointer"
+                title="Zoom Out (-)"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+
+              <span className="text-xs font-mono font-bold text-emerald-400 px-2 min-w-[52px] text-center">
+                {Math.round(lightboxZoom * 100)}%
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setLightboxZoom((prev) => Math.min(4, prev + 0.5))}
+                disabled={lightboxZoom >= 4}
+                className="p-2 rounded-xl text-white hover:bg-white/15 disabled:opacity-40 transition-colors cursor-pointer"
+                title="Zoom In (+)"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+
+              <div className="w-px h-5 bg-white/20 mx-1" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setLightboxZoom(1);
+                  setLightboxPan({ x: 0, y: 0 });
+                }}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-white/15 transition-colors flex items-center space-x-1 cursor-pointer"
+                title="Reset zoom to 1:1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Farm Location & Interactive OpenStreetMap Picker Modal */}
       {isLocationModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1970,17 +2223,38 @@ export default function AgriShieldDashboard() {
                       }`}
                   >
                     {imagePreview ? (
-                      <div className="relative w-full h-72 sm:h-96 rounded-xl overflow-hidden flex items-center justify-center bg-black">
+                      <div
+                        ref={imageContainerRef}
+                        className="relative w-full h-72 sm:h-96 rounded-xl overflow-hidden flex items-center justify-center bg-black"
+                      >
                         {/* High-Tech Diagnostic Corner Reticles */}
                         <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-emerald-400 rounded-tl pointer-events-none z-20" />
                         <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-emerald-400 rounded-tr pointer-events-none z-20" />
                         <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-emerald-400 rounded-bl pointer-events-none z-20" />
                         <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-emerald-400 rounded-br pointer-events-none z-20" />
 
+                        {/* Pathology Target Toggle (Only when targets exist on damaged crops) */}
+                        {diagnosis && diagnosis.severity !== "Low" && (diagnosis.lesion_boxes?.length || diagnosis.lesion_box) && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPathologyBoxes((prev) => !prev)}
+                            className={`absolute top-3 right-3 z-30 px-2.5 py-1 rounded-xl text-[10px] font-black border backdrop-blur-md shadow-md transition-all flex items-center space-x-1 cursor-pointer ${
+                              showPathologyBoxes
+                                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/20"
+                                : "bg-slate-900/80 text-slate-300 border-white/20 hover:bg-slate-800"
+                            }`}
+                            title="Toggle visual pathology target boxes"
+                          >
+                            <span>🎯</span>
+                            <span>{showPathologyBoxes ? "Targets: ON" : "Targets: OFF"}</span>
+                          </button>
+                        )}
+
                         <img
                           src={imagePreview}
                           alt="Plant Specimen"
                           className="w-full h-full object-contain select-none"
+                          onLoad={(e) => updateImageRenderRect(e.currentTarget)}
                         />
 
                         {/* Animated Laser Scanning Beam */}
@@ -1992,29 +2266,58 @@ export default function AgriShieldDashboard() {
                           </div>
                         )}
 
-                        {/* Visual Pathology Target Boxes (Supports Multiple Spots) */}
+                        {/* Visual Pathology Target Boxes (Pixel-mapped strictly to rendered photo bounds) */}
                         {!isAnalyzing &&
-                          (diagnosis?.lesion_boxes || (diagnosis?.lesion_box ? [diagnosis.lesion_box] : []))?.map((box, idx, arr) => (
-                            <div
-                              key={idx}
-                              className="absolute pointer-events-none z-20 border-2 border-amber-400/90 bg-amber-400/15 rounded-lg shadow-[0_0_12px_rgba(251,191,36,0.5)] transition-all animate-pulse"
-                              style={{
-                                top: `${box[0] / 10}%`,
-                                left: `${box[1] / 10}%`,
-                                height: `${Math.max(6, (box[2] - box[0]) / 10)}%`,
-                                width: `${Math.max(6, (box[3] - box[1]) / 10)}%`,
-                              }}
-                            >
-                              <span className="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500 text-slate-950 uppercase tracking-wider shadow-sm flex items-center space-x-1">
-                                <span>{arr.length > 1 ? `Spot #${idx + 1}` : "Pathology Target"}</span>
-                              </span>
-                            </div>
-                          ))}
+                          showPathologyBoxes &&
+                          diagnosis &&
+                          diagnosis.severity !== "Low" &&
+                          imageRenderRect &&
+                          (diagnosis?.lesion_boxes || (diagnosis?.lesion_box ? [diagnosis.lesion_box] : []))
+                            ?.filter((box) => box && box.length === 4 && box[2] > box[0] && box[3] > box[1])
+                            ?.map((box, idx, arr) => {
+                              const topPx = imageRenderRect.top + (box[0] / 1000) * imageRenderRect.height;
+                              const leftPx = imageRenderRect.left + (box[1] / 1000) * imageRenderRect.width;
+                              const heightPx = Math.max(18, ((box[2] - box[0]) / 1000) * imageRenderRect.height);
+                              const widthPx = Math.max(18, ((box[3] - box[1]) / 1000) * imageRenderRect.width);
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className="absolute pointer-events-none z-20 border-2 border-amber-400 bg-amber-400/20 rounded-lg shadow-[0_0_14px_rgba(251,191,36,0.6)] transition-all animate-pulse"
+                                  style={{
+                                    top: `${topPx}px`,
+                                    left: `${leftPx}px`,
+                                    height: `${heightPx}px`,
+                                    width: `${widthPx}px`,
+                                  }}
+                                >
+                                  <span className="absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500 text-slate-950 uppercase tracking-wider shadow-sm flex items-center space-x-1 whitespace-nowrap">
+                                    <span>{arr.length > 1 ? `Spot #${idx + 1}` : "Pathology Target"}</span>
+                                  </span>
+                                </div>
+                              );
+                            })}
 
                         <div className="absolute bottom-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-xl flex items-center space-x-2 border border-white/10 shadow-lg">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                           <span className="font-semibold">Specimen Loaded</span>
                         </div>
+
+                        {/* High-Res Lightbox Inspection Trigger */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLightboxZoom(1);
+                            setLightboxPan({ x: 0, y: 0 });
+                            setIsLightboxOpen(true);
+                          }}
+                          className="absolute bottom-3 right-3 z-20 bg-slate-900/85 hover:bg-slate-800 active:scale-95 text-white text-xs px-2.5 sm:px-3 py-1.5 rounded-xl flex items-center space-x-1.5 border border-white/15 shadow-lg backdrop-blur-md transition-all cursor-pointer"
+                          title="Inspect leaf in fullscreen zoom"
+                        >
+                          <Maximize2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                          <span className="font-bold text-[11px] hidden sm:inline">Inspect & Zoom</span>
+                          <span className="font-bold text-[11px] sm:hidden">Zoom</span>
+                        </button>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center space-y-4 py-8">
