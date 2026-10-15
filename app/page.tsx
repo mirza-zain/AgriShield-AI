@@ -2358,14 +2358,14 @@ export default function AgriShieldDashboard() {
 
               {/* LEFT COLUMN (6 Cols): Specimen Inspection Bay */}
               <div className="lg:col-span-6 space-y-5">
-                <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-5 sm:p-6 space-y-5">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div>
-                      <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center space-x-2">
-                        <Camera className="w-5 h-5 text-emerald-600" />
-                        <span>Specimen Inspection Bay</span>
+                <div className="bg-white rounded-3xl border border-slate-200/90 shadow-card p-4 sm:p-6 space-y-4 sm:space-y-5">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div className="min-w-0 flex-1 pr-1">
+                      <h2 className="text-sm sm:text-lg font-black text-slate-900 flex items-center space-x-1.5 sm:space-x-2 truncate">
+                        <Camera className="w-4 h-4 sm:w-5 h-5 text-emerald-600 flex-shrink-0" />
+                        <span className="truncate">Specimen Inspection Bay</span>
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate sm:whitespace-normal">
                         Capture or select a damaged plant leaf to analyze
                       </p>
                     </div>
@@ -2392,10 +2392,12 @@ export default function AgriShieldDashboard() {
                           stopSpeech();
                           showToast("Inspection bay cleared");
                         }}
-                        className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center space-x-1 px-3 py-1.5 rounded-xl hover:bg-rose-50 transition-colors border border-rose-100"
+                        className="inline-flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50/80 hover:bg-rose-100 border border-rose-200/80 shadow-2xs transition-all active:scale-95 flex-shrink-0 whitespace-nowrap"
+                        title="Clear specimen and change photo"
                       >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Change Photo</span>
+                        <X className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span className="hidden sm:inline">Change Photo</span>
+                        <span className="sm:hidden">Change</span>
                       </button>
                     )}
                   </div>
