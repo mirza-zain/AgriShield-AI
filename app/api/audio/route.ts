@@ -4,6 +4,34 @@ import { GoogleGenAI } from "@google/genai";
 // Maximum duration for Next.js route handler to allow audio synthesis
 export const maxDuration = 60;
 
+// Converts raw linear PCM audio into a standard 44-byte RIFF WAV format
+function pcmToWav(pcmBuffer: Uint8Array, sampleRate = 24000, numChannels = 1, bitsPerSample = 16): Uint8Array {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const wavHeader = Buffer.alloc(44);
+
+  // RIFF chunk descriptor
+  wavHeader.write("RIFF", 0);
+  wavHeader.writeUInt32LE(36 + pcmBuffer.length, 4);
+  wavHeader.write("WAVE", 8);
+
+  // "fmt " sub-chunk
+  wavHeader.write("fmt ", 12);
+  wavHeader.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+  wavHeader.writeUInt16LE(1, 20);  // AudioFormat (1 for PCM)
+  wavHeader.writeUInt16LE(numChannels, 22);
+  wavHeader.writeUInt32LE(sampleRate, 24);
+  wavHeader.writeUInt32LE(byteRate, 28);
+  wavHeader.writeUInt16LE(blockAlign, 32);
+  wavHeader.writeUInt16LE(bitsPerSample, 34);
+
+  // "data" sub-chunk
+  wavHeader.write("data", 36);
+  wavHeader.writeUInt32LE(pcmBuffer.length, 40);
+
+  return Buffer.concat([wavHeader, pcmBuffer]);
+}
+
 // In-memory server-side audio cache to eliminate 100% of tokens on repeated requests
 const serverAudioCache = new Map<string, { audioBase64: string; modelUsed: string }>();
 
@@ -21,15 +49,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Active Gemini Neural TTS models in priority order:
-    // 1. gemini-3.8-flash-lite-tts (Fastest & low token usage)
-    // 2. gemini-2.5-flash-preview-tts (Studio-grade natural human voice, high free-tier rate limits)
-    // 3. gemini-3.8-flash-tts (High fidelity)
-    // 4. gemini-3.1-flash-tts-preview (Legacy fallback)
+    // 1. gemini-3.8-flash-tts (High fidelity, native RIFF WAV output)
+    // 2. gemini-3.8-flash-lite-tts (Fast & low token usage)
+    // 3. gemini-2.5-flash-preview-tts (Studio-grade natural human voice fallback)
     const ttsModels = [
+      "gemini-3.8-flash-tts",
       "gemini-3.8-flash-lite-tts",
       "gemini-2.5-flash-preview-tts",
-      "gemini-3.8-flash-tts",
-      "gemini-3.1-flash-tts-preview",
     ];
 
     // Clean text for speech: when speaking Urdu or Hindi, strip English/Latin parentheticals
@@ -113,7 +139,12 @@ export async function POST(req: NextRequest) {
       throw lastError || new Error("Failed to synthesize speech");
     }
 
-    const fullAudioBase64 = `data:${mimeType};base64,${audioData}`;
+    const initialBuffer = Buffer.from(audioData, "base64");
+    const finalBuffer: Uint8Array = initialBuffer.slice(0, 4).toString("ascii") === "RIFF"
+      ? initialBuffer
+      : pcmToWav(initialBuffer, 24000, 1, 16);
+
+    const fullAudioBase64 = `data:audio/wav;base64,${Buffer.from(finalBuffer).toString("base64")}`;
     // Store in server cache so repeated requests never burn quota again
     serverAudioCache.set(cacheKey, {
       audioBase64: fullAudioBase64,

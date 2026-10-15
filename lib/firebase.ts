@@ -43,7 +43,11 @@ function getAdminDb(): admin.firestore.Firestore | null {
   }
 
   if (admin.apps.length > 0) {
-    return admin.firestore();
+    const db = admin.firestore();
+    try {
+      db.settings({ ignoreUndefinedProperties: true });
+    } catch (e) {}
+    return db;
   }
 
   try {
@@ -61,7 +65,11 @@ function getAdminDb(): admin.firestore.Firestore | null {
         projectId,
       });
     }
-    return admin.firestore();
+    const db = admin.firestore();
+    try {
+      db.settings({ ignoreUndefinedProperties: true });
+    } catch (e) {}
+    return db;
   } catch (error) {
     console.warn("Firebase Admin SDK init warning (gracefully falling back to in-memory store):", error);
     return null;
