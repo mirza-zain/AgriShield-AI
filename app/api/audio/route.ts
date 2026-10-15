@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
-                  voiceName: "Puck",
+                  voiceName: "Aoede",
                 },
               },
             },
