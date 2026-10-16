@@ -1,4 +1,5 @@
 import { ScanRecord } from "./types";
+import { getOfflineDiagnosis } from "@/constants/offlineData";
 
 // Shared in-memory scan store for fast, sub-millisecond local development and offline demos
 // Each item's photo, crop name, condition, and status badge accurately match the visual content
@@ -35,7 +36,10 @@ export const sharedSeedScans: ScanRecord[] = [
       longitude: 74.7973,
       city: "Kashmir Valley",
       country: "Pakistan"
-    }
+    },
+    translations: {
+      Urdu: { ...getOfflineDiagnosis("rotten-apple", "Urdu"), language: "Urdu" },
+    },
   },
   {
     id: "seed-2",
@@ -69,7 +73,10 @@ export const sharedSeedScans: ScanRecord[] = [
       longitude: 72.8777,
       city: "Maharashtra",
       country: "India"
-    }
+    },
+    translations: {
+      Urdu: { ...getOfflineDiagnosis("spoiled-pumpkin", "Urdu"), language: "Urdu" },
+    },
   },
   {
     id: "seed-3",
@@ -103,7 +110,10 @@ export const sharedSeedScans: ScanRecord[] = [
       longitude: 36.8219,
       city: "Rift Valley",
       country: "Kenya"
-    }
+    },
+    translations: {
+      Urdu: { ...getOfflineDiagnosis("drought-corn", "Urdu"), language: "Urdu" },
+    },
   },
   {
     id: "seed-4",
@@ -137,7 +147,10 @@ export const sharedSeedScans: ScanRecord[] = [
       longitude: 68.3578,
       city: "Sindh River Basin",
       country: "Pakistan"
-    }
+    },
+    translations: {
+      Urdu: { ...getOfflineDiagnosis("vine-tomatoes", "Urdu"), language: "Urdu" },
+    },
   },
   {
     id: "seed-5",
@@ -171,7 +184,10 @@ export const sharedSeedScans: ScanRecord[] = [
       longitude: 74.3587,
       city: "Punjab Farm Belt",
       country: "Pakistan"
-    }
+    },
+    translations: {
+      Urdu: { ...getOfflineDiagnosis("sweet-corn", "Urdu"), language: "Urdu" },
+    },
   }
 ];
 
@@ -205,4 +221,12 @@ export function deleteSharedScan(scanId: string, userId?: string): boolean {
     return true;
   }
   return false;
+}
+
+export function updateSharedScanTranslations(scanId: string, language: string, translation: any): void {
+  const target = inMemoryScans.find((s) => s.id === scanId);
+  if (target) {
+    if (!target.translations) target.translations = {};
+    target.translations[language] = translation;
+  }
 }

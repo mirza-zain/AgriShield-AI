@@ -1190,6 +1190,9 @@ export default function AgriShieldDashboard() {
             country: "Regional Station",
           },
           userId: farmerId,
+          translations: {
+            [targetLang]: diagWithLang,
+          },
         };
 
         setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
@@ -1319,6 +1322,8 @@ export default function AgriShieldDashboard() {
         <Globe className="w-4 h-4 text-blue-400" />
       );
 
+      const scanIdToUpdate = selectedScanId || (diagToTranslate as any)?.id;
+
       const res = await fetch("/api/diagnose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1326,6 +1331,7 @@ export default function AgriShieldDashboard() {
           mode: "translate",
           diagnosis: diagToTranslate,
           targetLanguage: targetLang,
+          scanId: scanIdToUpdate || undefined,
         }),
       });
 
@@ -1338,6 +1344,26 @@ export default function AgriShieldDashboard() {
         };
         setDiagnosis(transDiag);
         languageDiagnosisCacheRef.current[targetLang] = transDiag;
+
+        // Persist translated version to scan record in historyFeed & offline Vault
+        if (scanIdToUpdate) {
+          setHistoryFeed((prev) =>
+            prev.map((item) => {
+              if (item.id === scanIdToUpdate) {
+                const updatedTranslations = {
+                  ...(item.translations || {}),
+                  [item.language || "English"]: { ...item },
+                  [targetLang]: transDiag,
+                };
+                const updatedItem = { ...item, translations: updatedTranslations };
+                saveSingleScanToVault(updatedItem, farmerId, myScanIds).catch(() => {});
+                return updatedItem;
+              }
+              return item;
+            })
+          );
+        }
+
         showToast(
           targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`,
           <Check className="w-4 h-4 text-emerald-400" />
@@ -1789,20 +1815,79 @@ export default function AgriShieldDashboard() {
     setErrorMessage(null);
     setNotCropNotice(null);
     setSelectedScanId(scan.id || null);
-    setDiagnosis(scan);
+    setChatMessages([]);
+    setReportSubTab("treatment");
+    setActiveTreatmentTab("immediate");
+
+    const scanLang = scan.language || "English";
     const sampleKey = getSampleImageKey(scan, null, scan.imageUrl || scan.imageThumbnail);
+
+    let activeDiagnosis: DiagnosisResult = scan;
+
     if (sampleKey) {
       setActivePresetUrl(sampleKey);
-      languageDiagnosisCacheRef.current = {
-        English: { ...scan, ...getOfflineDiagnosis(sampleKey, "English"), language: "English" },
-        Urdu: { ...scan, ...getOfflineDiagnosis(sampleKey, "Urdu"), language: "Urdu" },
+      const englishDiag: DiagnosisResult = {
+        ...scan,
+        ...getOfflineDiagnosis(sampleKey, "English"),
+        language: "English",
       };
+      const urduDiag: DiagnosisResult = {
+        ...scan,
+        ...getOfflineDiagnosis(sampleKey, "Urdu"),
+        language: "Urdu",
+      };
+      languageDiagnosisCacheRef.current = {
+        ...(scan.translations || {}),
+        English: englishDiag,
+        Urdu: urduDiag,
+      };
+
+      if (selectedLanguage === "Urdu") {
+        activeDiagnosis = urduDiag;
+      } else if (selectedLanguage === "English") {
+        activeDiagnosis = englishDiag;
+      } else if (scan.translations?.[selectedLanguage]) {
+        activeDiagnosis = scan.translations[selectedLanguage];
+      } else {
+        activeDiagnosis = englishDiag;
+      }
+      setDiagnosis(activeDiagnosis);
+
+      // If viewing in another language (e.g. Spanish, Hindi) and translation is not yet cached:
+      if (selectedLanguage !== "English" && selectedLanguage !== "Urdu" && !scan.translations?.[selectedLanguage]) {
+        translateCurrentDiagnosis(selectedLanguage, activeDiagnosis);
+      }
     } else {
       setActivePresetUrl(null);
-      languageDiagnosisCacheRef.current = {
-        [scan.language || "English"]: scan,
-      };
+      const existingTranslation = scan.translations?.[selectedLanguage];
+      if (existingTranslation) {
+        activeDiagnosis = existingTranslation;
+        setDiagnosis(existingTranslation);
+        languageDiagnosisCacheRef.current = {
+          ...(scan.translations || {}),
+          [scanLang]: scan,
+          [selectedLanguage]: existingTranslation,
+        };
+      } else if (scanLang === selectedLanguage) {
+        activeDiagnosis = scan;
+        setDiagnosis(scan);
+        languageDiagnosisCacheRef.current = {
+          ...(scan.translations || {}),
+          [scanLang]: scan,
+        };
+      } else {
+        // Active UI language does not match this record's stored language.
+        // Render immediate baseline, then auto-translate seamlessly!
+        activeDiagnosis = scan;
+        setDiagnosis(scan);
+        languageDiagnosisCacheRef.current = {
+          ...(scan.translations || {}),
+          [scanLang]: scan,
+        };
+        translateCurrentDiagnosis(selectedLanguage, scan);
+      }
     }
+
     if (scan.agronomic_context) {
       setObservationDate(scan.agronomic_context.captured_at || "");
       setObservationTime(scan.agronomic_context.observation_time || "");
@@ -1823,7 +1908,12 @@ export default function AgriShieldDashboard() {
     }
     stopSpeech();
     setActiveViewTab("doctor");
-    showToast(`Loaded report: ${scan.crop_name}`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
+    showToast(
+      selectedLanguage === "Urdu"
+        ? `رپورٹ لوڈ ہو گئی: ${activeDiagnosis.crop_name}`
+        : `Loaded report: ${activeDiagnosis.crop_name}`,
+      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+    );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 

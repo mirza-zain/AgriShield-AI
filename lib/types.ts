@@ -77,6 +77,7 @@ export interface ScanRecord extends DiagnosisResult {
     country?: string;
   };
   userId?: string;
+  translations?: Record<string, DiagnosisResult>;
 }
 
 export interface ClimateTelemetry {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { getAdminDb, uploadScanImageToStorage } from "@/lib/firebase";
 import { DiagnosisResult, ScanRecord, AgronomicContext, WeatherSnapshot, DiseaseOriginAnalysis } from "@/lib/types";
-import { addSharedScan } from "@/lib/scanStore";
+import { addSharedScan, updateSharedScanTranslations } from "@/lib/scanStore";
 import { uploadScanImageToR2, uploadScanThumbnailToR2 } from "@/lib/r2";
 
 // Maximum duration for Next.js route handler to allow thinking models to reason
@@ -644,6 +644,28 @@ ${JSON.stringify({
             severity: sourceDiag.severity,
             is_plant_or_crop: sourceDiag.is_plant_or_crop,
           };
+
+          // Persist translation to database (Firestore + in-memory store)
+          const targetScanId = body.scanId || (sourceDiag as any)?.id;
+          if (targetScanId) {
+            updateSharedScanTranslations(targetScanId, targetLang, mergedDiagnosis);
+            const adminDb = getAdminDb();
+            if (adminDb) {
+              try {
+                await adminDb.collection("scans").doc(targetScanId).set(
+                  {
+                    translations: {
+                      [targetLang]: mergedDiagnosis,
+                    },
+                  },
+                  { merge: true }
+                );
+              } catch (dbErr) {
+                console.warn("Failed to persist translation to Firestore:", dbErr);
+              }
+            }
+          }
+
           return NextResponse.json({
             success: true,
             diagnosis: mergedDiagnosis,
@@ -1163,6 +1185,12 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
         country: "Regional Station",
       },
       userId: userId || "guest_farmer",
+      translations: {
+        [language || "English"]: {
+          ...diagnosis,
+          language: language || "English",
+        },
+      },
     };
 
     // Save to shared in-memory store and Firestore ONLY FOR VALID CROPS AND NEVER FOR PRESET SAMPLES
