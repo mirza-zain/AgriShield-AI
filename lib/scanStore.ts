@@ -26,7 +26,8 @@ export const sharedSeedScans: ScanRecord[] = [
       "Store picked fruit in cool, clean, ventilated crates below 4°C"
     ],
     climate_impact_warning: "Warm rain showers followed by humid days (>85% RH) accelerate fungal rotting.",
-    imageThumbnail: "https://images.unsplash.com/photo-1644504113660-54f9d01b27d6?auto=format&fit=crop&w=400&q=80",
+    // Original: https://images.unsplash.com/photo-1644504113660-54f9d01b27d6?auto=format&fit=crop&w=400&q=80
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/rotten-apple_thumb.jpg",
     language: "English",
     createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
     location: {
@@ -59,7 +60,8 @@ export const sharedSeedScans: ScanRecord[] = [
       "Harvest pumpkins only in dry weather and cure stems"
     ],
     climate_impact_warning: "Heavy late rains and poorly drained clay soils drive 60% higher fruit rot rate.",
-    imageThumbnail: "https://images.unsplash.com/photo-1675678674818-a749f21f22c5?auto=format&fit=crop&w=400&q=80",
+    // Original: https://images.unsplash.com/photo-1675678674818-a749f21f22c5?auto=format&fit=crop&w=400&q=80
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/spoiled-pumpkin_thumb.jpg",
     language: "English",
     createdAt: new Date(Date.now() - 1000 * 60 * 52).toISOString(),
     location: {
@@ -92,7 +94,8 @@ export const sharedSeedScans: ScanRecord[] = [
       "Establish windbreaks to reduce hot wind evaporation"
     ],
     climate_impact_warning: "Consecutive days over 38°C during tasseling severely diminish cob grain yield.",
-    imageThumbnail: "https://images.unsplash.com/photo-1789406515055-d2373d385f77?auto=format&fit=crop&w=400&q=80",
+    // Original: https://images.unsplash.com/photo-1789406515055-d2373d385f77?auto=format&fit=crop&w=400&q=80
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/drought-corn_thumb.jpg",
     language: "English",
     createdAt: new Date(Date.now() - 1000 * 60 * 130).toISOString(),
     location: {
@@ -104,67 +107,69 @@ export const sharedSeedScans: ScanRecord[] = [
   },
   {
     id: "seed-4",
-    crop_name: "Potato (Solanum tuberosum)",
-    scientific_name: "Solanum tuberosum (Grade A)",
-    condition_detected: "Healthy Harvest (Clean Tubers)",
-    confidence_score: 0.98,
+    crop_name: "Vine Tomatoes (Solanum lycopersicum)",
+    scientific_name: "Solanum lycopersicum (Grade A)",
+    condition_detected: "Healthy Harvest (Ripe Tomatoes)",
+    confidence_score: 0.97,
     severity: "Low",
     symptoms: [
-      "Smooth, firm unblemished tuber skins with zero scurf",
-      "Uniform size and fully set periderm skin",
-      "Zero signs of soft rot, blight spots, or hollow heart"
+      "Plump, deep-red ripe tomatoes free of fungal spots or skin cracks",
+      "Fresh green calyx stems with zero defoliation or blight lesions",
+      "Ready for picking and packing with premium market value"
     ],
     treatment: {
-      immediate_action: "Cure harvested potatoes in a cool, dark, well-aerated shed for 10-14 days.",
-      organic_remedy: "Store in clean wooden crates with neem leaves to prevent storage pests.",
-      chemical_alternative: "Standard sprout inhibitor treatment if storing long-term (>5 months)."
+      immediate_action: "Harvest ripe fruit during cool morning hours; avoid skin bruising.",
+      organic_remedy: "Feed green developing tomatoes with organic potassium-rich tea.",
+      chemical_alternative: "No chemical spray needed; harvest is safe, clean, and ready to eat."
     },
     prevention_tips: [
-      "Maintain storage temperature between 7°C and 10°C with 90% humidity",
-      "Keep away from direct sunlight to prevent greening and solanine",
-      "Discard any bruised tubers before bagging"
+      "Use sanitized, dry harvest crates to prevent storage bruising",
+      "Mulch around vine base to keep soil moisture even and avoid splitting",
+      "Water near root zone to keep foliage dry"
     ],
-    climate_impact_warning: "High storage humidity without air movement causes condensation rot risk.",
-    imageThumbnail: "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=400&q=80",
-    language: "Spanish",
+    climate_impact_warning: "Pick ripe tomatoes before sudden heavy rains to prevent skin cracking.",
+    // Original: https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/vine-tomatoes_thumb.jpg",
+    language: "English",
     createdAt: new Date(Date.now() - 1000 * 60 * 220).toISOString(),
     location: {
-      latitude: -12.0464,
-      longitude: -77.0428,
-      city: "Cusco",
-      country: "Peru"
+      latitude: 25.3960,
+      longitude: 68.3578,
+      city: "Sindh River Basin",
+      country: "Pakistan"
     }
   },
   {
     id: "seed-5",
-    crop_name: "Citrus Grove (Citrus reticulata)",
-    scientific_name: "Citrus reticulata (Prime)",
-    condition_detected: "Healthy Harvest (Ripe Citrus)",
-    confidence_score: 0.97,
+    crop_name: "Sweet Corn (Zea mays)",
+    scientific_name: "Zea mays saccharata (Prime)",
+    condition_detected: "Grade A Healthy Harvest (Prime Cobs)",
+    confidence_score: 0.98,
     severity: "Low",
     symptoms: [
-      "Vibrant golden-orange ripe fruit hanging abundantly on healthy trees",
-      "Deep green glossy foliage with vigorous canopy growth",
-      "Zero signs of citrus canker, greasy spots, or fruit fly puncture"
+      "Plump, golden yellow kernels tightly packed in green husks",
+      "Zero earworm damage, fungal smut, or blight discoloration",
+      "Premium grade sweetness, high moisture turgor, ready for market"
     ],
     treatment: {
-      immediate_action: "Clip ripe citrus using shears during cool morning hours; avoid pulling.",
-      organic_remedy: "Maintain organic compost mulching around tree dripline.",
-      chemical_alternative: "Preventative micronutrient zinc-manganese foliar nutrition spray."
+      immediate_action: "Corn is at peak sweetness; pick during cool hours and sell or refrigerate.",
+      organic_remedy: "Store harvested sweet corn below 5°C to preserve natural kernel sugar.",
+      chemical_alternative: "Zero chemical intervention required; produce is clean and market-ready."
     },
     prevention_tips: [
-      "Maintain clean orchard floor and prune skirt branches 50cm above ground",
-      "Schedule regular drip irrigation during fruit swelling stage",
-      "Monitor sticky traps weekly for early detection of pests"
+      "Keep picked cobs out of direct sunlight to prevent drying",
+      "Rotate with legumes to rebuild soil nitrogen for next season",
+      "Maintain regular soil moisture during ear-filling stage"
     ],
-    climate_impact_warning: "Warm sunny days and cool nights promote ideal natural sugar content and color.",
-    imageThumbnail: "https://images.unsplash.com/photo-1536657464919-892534f60d6e?auto=format&fit=crop&w=400&q=80",
-    language: "Hindi",
+    climate_impact_warning: "Current clear weather is ideal for harvest; complete picking before rain.",
+    // Original: https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=800&q=80
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/sweet-corn_thumb.jpg",
+    language: "English",
     createdAt: new Date(Date.now() - 1000 * 60 * 310).toISOString(),
     location: {
-      latitude: 32.0836,
-      longitude: 72.6711,
-      city: "Sargodha",
+      latitude: 31.5204,
+      longitude: 74.3587,
+      city: "Punjab Farm Belt",
       country: "Pakistan"
     }
   }

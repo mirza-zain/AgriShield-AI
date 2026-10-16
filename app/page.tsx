@@ -89,63 +89,81 @@ function IoniconsLeaf({
   );
 }
 
-// Practical specimen samples for quick 1-tap testing
+// Practical specimen samples for quick 1-tap testing (Served from Cloudflare R2 CDN with dual inspection & pill thumbnails)
 const SAMPLE_PRESETS = [
   {
+    id: "rotten-apple",
     name: "Rotten Apple",
     crop: "Orchard Fruit",
     condition: "Bitter Rot Decay",
-    url: "https://images.unsplash.com/photo-1644504113660-54f9d01b27d6?auto=format&fit=crop&w=800&q=80",
+    // Original: https://images.unsplash.com/photo-1644504113660-54f9d01b27d6?auto=format&fit=crop&w=800&q=80
+    url: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/rotten-apple.jpg",
+    thumbnailUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/rotten-apple_thumb.jpg",
     badge: "Bad Harvest",
     badgeColor: "bg-rose-50 text-rose-700 border-rose-200",
     dotColor: "bg-rose-500",
     desc: "Apple with fungal rot decay lesion and scab damage"
   },
   {
-    name: "Spoiled Pumpkin",
-    crop: "Field Pumpkin",
-    condition: "Black Rot Spoilage",
-    url: "https://images.unsplash.com/photo-1675678674818-a749f21f22c5?auto=format&fit=crop&w=800&q=80",
-    badge: "Fruit Rot",
-    badgeColor: "bg-rose-50 text-rose-700 border-rose-200",
-    dotColor: "bg-rose-500",
-    desc: "Rotting pumpkins with mold decay and crop damage"
-  },
-  {
+    id: "drought-corn",
     name: "Drought Corn",
     crop: "Field Maize",
     condition: "Drought Scorch",
-    url: "https://images.unsplash.com/photo-1789406515055-d2373d385f77?auto=format&fit=crop&w=800&q=80",
+    // Original: https://images.unsplash.com/photo-1789406515055-d2373d385f77?auto=format&fit=crop&w=800&q=80
+    url: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/drought-corn.jpg",
+    thumbnailUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/drought-corn_thumb.jpg",
     badge: "Severe Drought",
     badgeColor: "bg-amber-50 text-amber-800 border-amber-200",
     dotColor: "bg-amber-500",
     desc: "Parched stalks and scorched leaves from thermal heat"
   },
   {
-    name: "Sweet Corn",
-    crop: "Sweet Corn",
-    condition: "Grade A Healthy Cobs",
-    url: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=800&q=80",
-    badge: "Healthy Yield",
-    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    dotColor: "bg-emerald-500",
-    desc: "Fresh sweet corn cobs in husks with plump golden kernels"
-  },
-  {
+    id: "vine-tomatoes",
     name: "Vine Tomatoes",
     crop: "Tomato Vine",
     condition: "Healthy Harvest",
-    url: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80",
+    // Original: https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80
+    url: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/vine-tomatoes.jpg",
+    thumbnailUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/vine-tomatoes_thumb.jpg",
     badge: "Grade A Prime",
     badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
     dotColor: "bg-emerald-500",
     desc: "Plump ripe red tomatoes on vine with zero rot"
   },
   {
+    id: "spoiled-pumpkin",
+    name: "Spoiled Pumpkin",
+    crop: "Field Pumpkin",
+    condition: "Black Rot Spoilage",
+    // Original: https://images.unsplash.com/photo-1675678674818-a749f21f22c5?auto=format&fit=crop&w=800&q=80
+    url: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/spoiled-pumpkin.jpg",
+    thumbnailUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/spoiled-pumpkin_thumb.jpg",
+    badge: "Fruit Rot",
+    badgeColor: "bg-rose-50 text-rose-700 border-rose-200",
+    dotColor: "bg-rose-500",
+    desc: "Rotting pumpkins with mold decay and crop damage"
+  },
+  {
+    id: "sweet-corn",
+    name: "Sweet Corn",
+    crop: "Sweet Corn",
+    condition: "Grade A Healthy Cobs",
+    // Original: https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=800&q=80
+    url: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/sweet-corn.jpg",
+    thumbnailUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/sweet-corn_thumb.jpg",
+    badge: "Healthy Yield",
+    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dotColor: "bg-emerald-500",
+    desc: "Fresh sweet corn cobs in husks with plump golden kernels"
+  },
+  {
+    id: "green-basil",
     name: "Green Basil",
     crop: "Herb Crop",
     condition: "Disease-Free Leaf",
-    url: "https://images.unsplash.com/photo-1534944645004-bf75556ce377?auto=format&fit=crop&w=800&q=80",
+    // Original: https://images.unsplash.com/photo-1534944645004-bf75556ce377?auto=format&fit=crop&w=800&q=80
+    url: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/green-basil.jpg",
+    thumbnailUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/green-basil_thumb.jpg",
     badge: "Clean Foliage",
     badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
     dotColor: "bg-emerald-500",
@@ -914,7 +932,7 @@ export default function AgriShieldDashboard() {
     reader.readAsDataURL(file);
   };
 
-  const handleSelectPreset = (url: string, presetName?: string) => {
+  const handleSelectPreset = (url: string, presetName?: string, thumbUrl?: string) => {
     setErrorMessage(null);
     setNotCropNotice(null);
     setSelectedScanId(null);
@@ -924,7 +942,7 @@ export default function AgriShieldDashboard() {
     setChatMessages([]);
     setReportSubTab("treatment");
     setImagePreview(url);
-    setThumbnailPreview(url);
+    setThumbnailPreview(thumbUrl || url);
     // Presets have no camera EXIF: keep observation context optional and empty
     setObservationDate("");
     setObservationTime("");
@@ -2921,14 +2939,14 @@ export default function AgriShieldDashboard() {
                         return (
                           <button
                             key={preset.name}
-                            onClick={() => handleSelectPreset(preset.url, preset.name)}
+                            onClick={() => handleSelectPreset(preset.url, preset.name, preset.thumbnailUrl)}
                             className={`flex-shrink-0 flex items-center space-x-2.5 px-3 py-2 rounded-2xl border transition-all text-left snap-start active:scale-95 transform-gpu select-none cursor-pointer ${isSelected
                               ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-500/30 shadow-sm"
                               : "border-slate-200 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300"
                               }`}
                           >
                             <img
-                              src={preset.url}
+                              src={preset.thumbnailUrl || preset.url}
                               alt={preset.name}
                               className="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0"
                             />
@@ -4177,7 +4195,7 @@ export default function AgriShieldDashboard() {
                         <span>Take New Photo</span>
                       </button>
                       <button
-                        onClick={() => handleSelectPreset(SAMPLE_PRESETS[3].url, SAMPLE_PRESETS[3].name)}
+                        onClick={() => handleSelectPreset(SAMPLE_PRESETS[3].url, SAMPLE_PRESETS[3].name, SAMPLE_PRESETS[3].thumbnailUrl)}
                         className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95"
                       >
                         <Sparkles className="w-4 h-4 text-emerald-600" />
@@ -4260,7 +4278,7 @@ export default function AgriShieldDashboard() {
                           <span>Try Again Now</span>
                         </button>
                         <button
-                          onClick={() => handleSelectPreset(SAMPLE_PRESETS[3].url, SAMPLE_PRESETS[3].name)}
+                          onClick={() => handleSelectPreset(SAMPLE_PRESETS[3].url, SAMPLE_PRESETS[3].name, SAMPLE_PRESETS[3].thumbnailUrl)}
                           className="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95 cursor-pointer"
                         >
                           <Sparkles className="w-4 h-4 text-emerald-600" />

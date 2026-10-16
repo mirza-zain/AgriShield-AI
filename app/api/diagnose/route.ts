@@ -10,7 +10,7 @@ export const maxDuration = 60;
 
 // Instant agronomic diagnosis lookup matching all presets and offline scenarios
 function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
-  if (image.includes("1644504113660-54f9d01b27d6") || image.includes("1541858619423-42850b8687c1")) {
+  if (image.includes("rotten-apple") || image.includes("1644504113660-54f9d01b27d6") || image.includes("1541858619423-42850b8687c1")) {
     // Bad Harvest 1: Rotten Apple Spoilage (Fruit Rot)
     return {
       crop_name: language === "Urdu" ? "سیب کا باغ (Apple Orchard)" : language === "Hindi" ? "सेब की फसल (Apple)" : language === "Spanish" ? "Manzana (Apple)" : "Apple (Malus domestica)",
@@ -58,7 +58,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
     };
   }
 
-  if (image.includes("1675678674818-a749f21f22c5")) {
+  if (image.includes("spoiled-pumpkin") || image.includes("1675678674818-a749f21f22c5")) {
     // Bad Harvest 2: Spoiled Pumpkin & Squash Rot
     return {
       crop_name: language === "Urdu" ? "کدو اور پیٹھے کی فصل (Field Pumpkin)" : language === "Hindi" ? "कद्दू की फसल (Pumpkin)" : language === "Spanish" ? "Calabaza (Pumpkin)" : "Field Pumpkin (Cucurbita pepo)",
@@ -106,7 +106,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
     };
   }
 
-  if (image.includes("1789406515055-d2373d385f77")) {
+  if (image.includes("drought-corn") || image.includes("1789406515055-d2373d385f77")) {
     // Crop Damage: Drought-Damaged Corn Field
     return {
       crop_name: language === "Urdu" ? "مکئی کی فصل (Field Maize)" : language === "Hindi" ? "मक्का (Field Maize)" : language === "Spanish" ? "Maíz (Maize)" : "Maize / Corn (Zea mays)",
@@ -154,7 +154,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
     };
   }
 
-  if (image.includes("1551754655-cd27e38d2076")) {
+  if (image.includes("sweet-corn") || image.includes("1551754655-cd27e38d2076")) {
     // Healthy Harvest: Fresh Golden Sweet Corn Ears
     return {
       crop_name: language === "Urdu" ? "تازہ میٹھی مکئی (Fresh Sweet Corn)" : language === "Hindi" ? "ताजा मीठा भुट्टा (Sweet Corn)" : language === "Spanish" ? "Maíz Dulce (Sweet Corn)" : "Sweet Corn (Zea mays)",
@@ -202,7 +202,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
     };
   }
 
-  if (image.includes("1534944645004-bf75556ce377") || image.includes("1576092768241-dec231879fc3")) {
+  if (image.includes("green-basil") || image.includes("1534944645004-bf75556ce377") || image.includes("1576092768241-dec231879fc3")) {
     // Healthy Foliage: Fresh Green Basil / Foliage
     return {
       crop_name: language === "Urdu" ? "سبز نیازبو / تلسی (Sweet Basil)" : language === "Hindi" ? "हरा तुलसी / बेसिल (Sweet Basil)" : language === "Spanish" ? "Albahaca (Sweet Basil)" : "Sweet Basil (Ocimum basilicum)",

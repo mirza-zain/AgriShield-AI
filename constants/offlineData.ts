@@ -10,7 +10,7 @@ import { DiagnosisResult, ScanRecord } from "@/lib/types";
 export function getOfflineDiagnosis(imageUrl: string, language = "English"): DiagnosisResult {
   const isUrdu = language === "Urdu";
 
-  if (imageUrl.includes("1644504113660-54f9d01b27d6")) {
+  if (imageUrl.includes("rotten-apple") || imageUrl.includes("1644504113660-54f9d01b27d6")) {
     // Rotten Apple
     return {
       crop_name: isUrdu ? "سیب کا باغ (Apple Orchard)" : "Apple (Malus domestica)",
@@ -57,7 +57,7 @@ export function getOfflineDiagnosis(imageUrl: string, language = "English"): Dia
     };
   }
 
-  if (imageUrl.includes("1789406515055-d2373d385f77")) {
+  if (imageUrl.includes("drought-corn") || imageUrl.includes("1789406515055-d2373d385f77")) {
     // Drought Corn
     return {
       crop_name: isUrdu ? "مکئی کی فصل (Field Maize)" : "Field Maize (Zea mays)",
@@ -100,6 +100,54 @@ export function getOfflineDiagnosis(imageUrl: string, language = "English"): Dia
         weather_correlation: isUrdu
           ? "پچھلے 7 دنوں سے بارش نہ ہونے اور مسلسل خشک گرم ہوا نے پتے جھلسا دیے۔"
           : "7 consecutive days of zero rainfall and sustained midday temperatures above 38°C scorched the foliage.",
+      },
+    };
+  }
+
+  if (imageUrl.includes("vine-tomatoes") || imageUrl.includes("1592924357228-91a4daadcfea")) {
+    // Vine Tomatoes
+    return {
+      crop_name: isUrdu ? "ٹماٹر کی فصل (Vine Tomatoes)" : "Vine Tomatoes (Solanum lycopersicum)",
+      scientific_name: "Solanum lycopersicum (Grade A)",
+      condition_detected: isUrdu ? "100% تروتازہ اور پکی ہوئی فصل (Healthy Harvest)" : "Healthy Harvest (Grade A Ripe Tomatoes)",
+      confidence_score: 0.97,
+      severity: "Low",
+      symptoms: [
+        isUrdu ? "لال سرخ چمکدار ٹماٹر، پھلوں پر کوئی فنگس یا داغ نہیں" : "Plump, deep-red ripe tomatoes free of fungal spots or skin cracks",
+        isUrdu ? "سبز ڈنڈیاں تروتازہ ہیں اور پودا بالکل محفوظ ہے" : "Fresh green calyx stems with zero defoliation or blight lesions",
+        isUrdu ? "پھل چنائی کے لیے بالکل تیار اور اعلیٰ معیار کا ہے" : "Ready for picking and packing with premium market value",
+      ],
+      treatment: {
+        immediate_action: isUrdu ? "پکے ہوئے لال ٹماٹر صبح کے ٹھنڈے وقت احتیاط سے توڑ لیں۔" : "Harvest ripe fruit during cool morning hours; avoid skin bruising.",
+        organic_remedy: isUrdu ? "باقی ہرے پھلوں کے لیے پودوں کو قدرتی کھاد دیتے رہیں۔" : "Feed green developing tomatoes with organic potassium-rich tea.",
+        chemical_alternative: isUrdu ? "کسی کیمیائی سپرے کی ضرورت نہیں، پھل کھانے کے لیے صاف ہے۔" : "No chemical spray needed; harvest is safe, clean, and ready to eat.",
+      },
+      prevention_tips: [
+        isUrdu ? "کٹائی کے وقت پھلوں کو صاف اور خشک ڈبوں میں رکھیں" : "Use sanitized, dry harvest crates to prevent storage bruising",
+        isUrdu ? "پودے کی جڑوں پر ملچنگ کریں تاکہ زمین کی نمی برابر رہے" : "Mulch around vine base to keep soil moisture even and avoid splitting",
+      ],
+      climate_impact_warning: isUrdu ? "شدید بارش سے پہلے پکے ہوئے ٹماٹر توڑ لیں تاکہ پھٹنے سے بچیں۔" : "Pick ripe tomatoes before sudden heavy rains to prevent skin cracking.",
+      lesion_boxes: [],
+      healthy_comparison: {
+        healthy_traits: [
+          isUrdu ? "ہموار، چمکدار لال جلد بغیر کسی شگاف یا داغ کے" : "Smooth, glossy red skin without splitting or fungal specks",
+          isUrdu ? "تروتازہ سبز تارے نما پھول اور مضبوط ڈنڈی" : "Fresh green star-shaped calyx leaves and firm vine pedicel",
+          isUrdu ? "ٹھوس اور رس بھرا گودا جو دبانے پر مضبوط رہے" : "Dense, solid pulp with balanced firmness and sugar content",
+        ],
+        key_difference: isUrdu
+          ? "پھل بغیر کسی داغ یا بلائٹ کے بہترین حالت میں پکا ہوا ہے۔"
+          : "Fruit exhibits prime physiological maturity with zero early blight or bacterial spot lesions.",
+        recovery_signs: isUrdu
+          ? "پودا صحت مند ہے، باقی ہرے ٹماٹر اگلے 5 سے 7 دنوں میں لال اور چمکدار بن جائیں گے۔"
+          : "Continuous optimal fruit set with green tomatoes ripening uniformly over the next 5 to 7 days.",
+      },
+      disease_origin: {
+        why_it_happened: isUrdu
+          ? "ٹماٹر کی فصل صحت مند ہے اور پودے کی قوت مدافعت مضبوط ہے، جس کی وجہ سے لیٹ بلائٹ یا پھلوں کے داغ نہیں لگے۔"
+          : "Vines and fruit possess strong cellular vitality; balanced irrigation prevented blossom end rot and fungal blight spores.",
+        weather_correlation: isUrdu
+          ? "پچھلے ہفتے متوازن دھوپ اور بارش نہ ہونے سے ٹماٹر کی جلد نرم نہیں ہوئی اور پھل محفوظ طریقے سے پک گیا۔"
+          : "Stable dry weather and moderate humidity prevented skin splitting and bacterial speck infection across the past week.",
       },
     };
   }
@@ -168,7 +216,9 @@ export const OFFLINE_DEMO_SCANS: ScanRecord[] = [
     },
     prevention_tips: ["Mulch field rows", "Adopt drip irrigation"],
     climate_impact_warning: "Excessive heat wave above 38°C accelerating leaf dry-out.",
-    imageUrl: "https://images.unsplash.com/photo-1789406515055-d2373d385f77?auto=format&fit=crop&w=800&q=80",
+    // Original: https://images.unsplash.com/photo-1789406515055-d2373d385f77?auto=format&fit=crop&w=800&q=80
+    imageUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/drought-corn.jpg",
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/drought-corn_thumb.jpg",
     language: "English",
     createdAt: new Date(Date.now() - 3600000).toISOString(),
     location: { city: "Punjab Farm Belt", country: "Pakistan" },
@@ -188,7 +238,9 @@ export const OFFLINE_DEMO_SCANS: ScanRecord[] = [
     },
     prevention_tips: ["Avoid splash irrigation", "Stake plants for aeration"],
     climate_impact_warning: "Prolonged leaf moisture (>85% humidity) accelerates blight.",
-    imageUrl: "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80",
+    // Original: https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80
+    imageUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/vine-tomatoes.jpg",
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/vine-tomatoes_thumb.jpg",
     language: "English",
     createdAt: new Date(Date.now() - 86400000).toISOString(),
     location: { city: "Sindh River Basin", country: "Pakistan" },
@@ -208,7 +260,9 @@ export const OFFLINE_DEMO_SCANS: ScanRecord[] = [
     },
     prevention_tips: ["Gentle harvesting", "Sanitize storage bins"],
     climate_impact_warning: "Warm humid orchard conditions accelerate spore explosion.",
-    imageUrl: "https://images.unsplash.com/photo-1644504113660-54f9d01b27d6?auto=format&fit=crop&w=800&q=80",
+    // Original: https://images.unsplash.com/photo-1644504113660-54f9d01b27d6?auto=format&fit=crop&w=800&q=80
+    imageUrl: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/rotten-apple.jpg",
+    imageThumbnail: "https://pub-506d232cae6c4aef82ff1b69aea2415e.r2.dev/samples/rotten-apple_thumb.jpg",
     language: "English",
     createdAt: new Date(Date.now() - 172800000).toISOString(),
     location: { city: "Nairobi Highlands", country: "Kenya" },
