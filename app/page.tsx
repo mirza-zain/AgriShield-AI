@@ -716,10 +716,38 @@ export default function AgriShieldDashboard() {
     }
   };
 
+  const resetSpecimenAndDiagnosis = () => {
+    setImagePreview(null);
+    setThumbnailPreview(null);
+    setActivePresetUrl(null);
+    setSelectedScanId(null);
+    setDiagnosis(null);
+    setNotCropNotice(null);
+    setErrorMessage(null);
+    setObservationDate("");
+    setObservationTime("");
+    setObservationLocation("");
+    setObservationCoords(null);
+    setIsDateFromExif(false);
+    setIsTimeFromExif(false);
+    setIsLocationFromExif(false);
+    setIsDateUserEdited(false);
+    setIsTimeUserEdited(false);
+    setShowObservationContext(false);
+    setChatMessages([]);
+    setReportSubTab("treatment");
+    setDiagnoseModelUsed("");
+    languageDiagnosisCacheRef.current = {};
+    stopSpeech();
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
     }
+    e.target.value = "";
   };
 
   const compressImageFile = (file: File, maxDim = 1600, quality = 0.88): Promise<string> => {
@@ -769,11 +797,13 @@ export default function AgriShieldDashboard() {
     setErrorMessage(null);
     setNotCropNotice(null);
     setSelectedScanId(null);
+    setDiagnosis(null);
     setActivePresetUrl(null);
     setDiagnoseModelUsed("");
     languageDiagnosisCacheRef.current = {};
     setChatMessages([]);
     setReportSubTab("treatment");
+    stopSpeech();
     if (!file.type.startsWith("image/")) {
       setErrorMessage("Please select a photo of a plant leaf or crop.");
       return;
@@ -842,6 +872,7 @@ export default function AgriShieldDashboard() {
     setErrorMessage(null);
     setNotCropNotice(null);
     setSelectedScanId(null);
+    setDiagnosis(null);
     setActivePresetUrl(url);
     languageDiagnosisCacheRef.current = {};
     setChatMessages([]);
@@ -2629,23 +2660,7 @@ export default function AgriShieldDashboard() {
                     {imagePreview && (
                       <button
                         onClick={() => {
-                          setImagePreview(null);
-                          setActivePresetUrl(null);
-                          setSelectedScanId(null);
-                          setDiagnosis(null);
-                          setNotCropNotice(null);
-                          setErrorMessage(null);
-                          setObservationDate("");
-                          setObservationTime("");
-                          setObservationLocation("");
-                          setObservationCoords(null);
-                          setIsDateFromExif(false);
-                          setIsTimeFromExif(false);
-                          setIsLocationFromExif(false);
-                          setIsDateUserEdited(false);
-                          setIsTimeUserEdited(false);
-                          setShowObservationContext(false);
-                          stopSpeech();
+                          resetSpecimenAndDiagnosis();
                           showToast("Inspection bay cleared");
                         }}
                         className="inline-flex items-center space-x-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50/80 hover:bg-rose-100 border border-rose-200/80 shadow-2xs transition-all active:scale-95 flex-shrink-0 whitespace-nowrap"
@@ -4984,9 +4999,17 @@ export default function AgriShieldDashboard() {
         </button>
 
         <button
-          onClick={() => cameraInputRef.current?.click()}
+          onClick={() => {
+            resetSpecimenAndDiagnosis();
+            setActiveViewTab("doctor");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            setTimeout(() => {
+              cameraInputRef.current?.click();
+            }, 50);
+          }}
           className="mx-1 min-h-[44px] min-w-[44px] p-2.5 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 active:scale-90 transition-all flex items-center justify-center flex-shrink-0"
           title="Snap Photo"
+          aria-label="Snap Photo"
         >
           <Camera className="w-5 h-5" />
         </button>
