@@ -684,7 +684,7 @@ export default function AgriShieldDashboard() {
     }
   };
 
-  const compressImageFile = (file: File, maxDim = 2048, quality = 0.92): Promise<string> => {
+  const compressImageFile = (file: File, maxDim = 1600, quality = 0.88): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -710,6 +710,9 @@ export default function AgriShieldDashboard() {
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           if (ctx) {
+            // Enable high-fidelity bicubic resampling to preserve micro-lesions, vein clarity, and spore filaments
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
             ctx.drawImage(img, 0, 0, width, height);
             resolve(canvas.toDataURL("image/jpeg", quality));
           } else {
@@ -773,10 +776,10 @@ export default function AgriShieldDashboard() {
     }
 
     try {
-      // Parallel generation: full diagnosis image (~70KB) and lightweight vault thumbnail (~15KB)
+      // Parallel generation: pathology-grade full image (1600px @ 0.88 with high bicubic smoothing) and clean card thumbnail (400px @ 0.70)
       const [compressedUrl, thumbUrl] = await Promise.all([
-        compressImageFile(file, 2048, 0.92),
-        compressImageFile(file, 360, 0.65),
+        compressImageFile(file, 1600, 0.88),
+        compressImageFile(file, 400, 0.70),
       ]);
       if (compressedUrl) {
         setImagePreview(compressedUrl);

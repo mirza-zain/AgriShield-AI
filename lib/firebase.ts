@@ -53,6 +53,11 @@ function getAdminDb(): admin.firestore.Firestore | null {
   }
 
   try {
+    const storageBucket =
+      process.env.FIREBASE_STORAGE_BUCKET ||
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+      `${projectId}.appspot.com`;
+
     if (hasExplicitCert) {
       admin.initializeApp({
         credential: admin.credential.cert({
@@ -60,11 +65,13 @@ function getAdminDb(): admin.firestore.Firestore | null {
           clientEmail: clientEmail!,
           privateKey: privateKey!,
         }),
+        storageBucket,
       });
     } else {
       // In Google Cloud Run or GCP environment, initialize with Google Application Default Credentials (ADC)
       admin.initializeApp({
         projectId,
+        storageBucket,
       });
     }
     const db = admin.firestore();
@@ -78,4 +85,65 @@ function getAdminDb(): admin.firestore.Firestore | null {
   }
 }
 
-export { clientApp, clientAuth, clientDb, getAdminDb };
+// Access Firebase Admin Storage bucket
+function getAdminStorage(): admin.storage.Storage | null {
+  if (typeof window !== "undefined") return null;
+
+  const db = getAdminDb();
+  if (!db || admin.apps.length === 0) return null;
+
+  try {
+    return admin.storage();
+  } catch (err) {
+    console.warn("Firebase Admin Storage access warning:", err);
+    return null;
+  }
+}
+
+// Upload scan image buffer to Firebase Storage and return public HTTPS URL
+async function uploadScanImageToStorage(
+  scanId: string,
+  base64Data: string,
+  mimeType = "image/jpeg"
+): Promise<string | null> {
+  if (typeof window !== "undefined") return null;
+
+  try {
+    const storage = getAdminStorage();
+    if (!storage) return null;
+
+    const bucketName =
+      process.env.FIREBASE_STORAGE_BUCKET ||
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+      `${process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "agrishield-ai"}.appspot.com`;
+
+    const bucket = storage.bucket(bucketName);
+    const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+
+    const filePath = `scans/${scanId}.jpg`;
+    const file = bucket.file(filePath);
+
+    await file.save(buffer, {
+      metadata: {
+        contentType: mimeType,
+        cacheControl: "public, max-age=31536000, immutable",
+      },
+      resumable: false,
+    });
+
+    try {
+      await file.makePublic();
+    } catch {
+      // In case bucket has uniform bucket-level access enabled, makePublic may be a no-op
+    }
+
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
+    return publicUrl;
+  } catch (uploadErr) {
+    console.warn("Firebase Storage upload skipped (falling back):", uploadErr);
+    return null;
+  }
+}
+
+export { clientApp, clientAuth, clientDb, getAdminDb, getAdminStorage, uploadScanImageToStorage };

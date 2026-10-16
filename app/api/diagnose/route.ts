@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
-import { getAdminDb } from "@/lib/firebase";
+import { getAdminDb, uploadScanImageToStorage } from "@/lib/firebase";
 import { DiagnosisResult, ScanRecord, AgronomicContext, WeatherSnapshot, DiseaseOriginAnalysis } from "@/lib/types";
 import { addSharedScan } from "@/lib/scanStore";
+import { uploadScanImageToR2, uploadScanThumbnailToR2 } from "@/lib/r2";
 
 // Maximum duration for Next.js route handler to allow thinking models to reason
 export const maxDuration = 60;
@@ -712,6 +713,7 @@ ${JSON.stringify({
     let diagnosis: DiagnosisResult | null = null;
     let activeModel = isPresetUrl ? "Preset Knowledge Base" : "";
     let hasNetworkOfflineError = false;
+    let mimeType = "image/jpeg";
 
     if (isPresetUrl) {
       // INSTANT SUB-MILLISECOND PATH for Quick Test Samples:
@@ -719,7 +721,7 @@ ${JSON.stringify({
       diagnosis = getPresetDiagnosis(image, language);
     } else {
       // User uploaded custom leaf picture from camera or file picker
-      let mimeType = "image/jpeg";
+      mimeType = "image/jpeg";
       let base64Data = image;
 
       if (image.startsWith("data:")) {
@@ -1110,11 +1112,46 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
     const scanId = `scan-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const scanThumbnail = thumbnail || image;
 
+    let storedImageUrl = image;
+    let storedThumbUrl = scanThumbnail;
+
+    // If not a preset URL and is base64, save as real image in Cloudflare R2 (or fallback to Firebase)
+    if (!isPresetUrl && (image.startsWith("data:") || image.length > 500)) {
+      try {
+        const [r2Url, r2ThumbUrl] = await Promise.all([
+          uploadScanImageToR2(scanId, image, mimeType),
+          thumbnail && (thumbnail.startsWith("data:") || thumbnail.length > 500)
+            ? uploadScanThumbnailToR2(scanId, thumbnail, "image/jpeg")
+            : Promise.resolve(null),
+        ]);
+
+        if (r2Url) {
+          storedImageUrl = r2Url;
+          console.log(`[AgriShield] Successfully stored image in Cloudflare R2: ${r2Url}`);
+        } else {
+          const uploadedUrl = await uploadScanImageToStorage(scanId, image, mimeType);
+          if (uploadedUrl) {
+            storedImageUrl = uploadedUrl;
+            console.log(`[AgriShield] Successfully stored image in Firebase Storage: ${uploadedUrl}`);
+          }
+        }
+
+        if (r2ThumbUrl) {
+          storedThumbUrl = r2ThumbUrl;
+          console.log(`[AgriShield] Successfully stored thumbnail in Cloudflare R2: ${r2ThumbUrl}`);
+        } else if (r2Url) {
+          storedThumbUrl = r2Url;
+        }
+      } catch (uploadErr) {
+        console.warn("Cloud image storage upload skipped:", uploadErr);
+      }
+    }
+
     const newScanRecord: ScanRecord = {
       ...diagnosis,
       id: scanId,
-      imageUrl: image,
-      imageThumbnail: scanThumbnail,
+      imageUrl: storedImageUrl,
+      imageThumbnail: storedThumbUrl,
       language,
       createdAt: new Date().toISOString(),
       agronomic_context: agronomicContext || undefined,
