@@ -67,6 +67,7 @@ import {
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 import { extractExifMetadata } from "@/lib/utils";
 import { getScansFromVault, saveScansToVault, saveSingleScanToVault, deleteScanFromVault, clearOfflineVault } from "@/lib/offlineVault";
+import { getOfflineDiagnosis } from "@/constants/offlineData";
 
 // Authentic Ionicons Leaf SVG Component
 function IoniconsLeaf({
@@ -932,13 +933,60 @@ export default function AgriShieldDashboard() {
     reader.readAsDataURL(file);
   };
 
+  // Helper to identify if a diagnosis or preview corresponds to an offline sample preset
+  const getSampleImageKey = (diag?: DiagnosisResult | null, activeUrl?: string | null, imgPreview?: string | null): string | null => {
+    const candidates = [
+      activeUrl,
+      imgPreview,
+      (diag as any)?.imageUrl,
+      (diag as any)?.imageThumbnail,
+    ].filter(Boolean) as string[];
+
+    const sampleKeys = [
+      "rotten-apple",
+      "drought-corn",
+      "vine-tomatoes",
+      "spoiled-pumpkin",
+      "sweet-corn",
+      "green-basil",
+      "1644504113660-54f9d01b27d6",
+      "1789406515055-d2373d385f77",
+      "1592924357228-91a4daadcfea",
+      "1675678674818-a749f21f22c5",
+      "1551754655-cd27e38d2076",
+      "1534944645004-bf75556ce377",
+      "1576092768241-dec231879fc3"
+    ];
+
+    for (const cand of candidates) {
+      for (const key of sampleKeys) {
+        if (cand.includes(key)) {
+          return cand;
+        }
+      }
+    }
+
+    const id = (diag as any)?.id;
+    if (id === "offline-demo-1" || id === "seed-3") return "drought-corn";
+    if (id === "offline-demo-2" || id === "seed-4") return "vine-tomatoes";
+    if (id === "offline-demo-3" || id === "seed-1") return "rotten-apple";
+    if (id === "seed-2") return "spoiled-pumpkin";
+    if (id === "seed-5") return "sweet-corn";
+
+    return null;
+  };
+
   const handleSelectPreset = (url: string, presetName?: string, thumbUrl?: string) => {
     setErrorMessage(null);
     setNotCropNotice(null);
     setSelectedScanId(null);
     setDiagnosis(null);
     setActivePresetUrl(url);
-    languageDiagnosisCacheRef.current = {};
+    // Pre-populate in-memory cache with both English and Urdu offline diagnoses
+    languageDiagnosisCacheRef.current = {
+      English: { ...getOfflineDiagnosis(url, "English"), language: "English" },
+      Urdu: { ...getOfflineDiagnosis(url, "Urdu"), language: "Urdu" },
+    };
     setChatMessages([]);
     setReportSubTab("treatment");
     setImagePreview(url);
@@ -977,7 +1025,44 @@ export default function AgriShieldDashboard() {
       return;
     }
 
-    // If offline, inform user on button press and guide them to the Vault
+    const isSampleSpecimen = Boolean(activePresetUrl);
+
+    // If offline but analyzing a sample preset, load client-side offline diagnosis immediately
+    if (!isOnline && isSampleSpecimen) {
+      setIsAnalyzing(true);
+      setErrorMessage(null);
+      setIsOfflineDiagnosisError(false);
+      setNotCropNotice(null);
+      stopSpeech();
+
+      setTimeout(() => {
+        const offlineDiag = getOfflineDiagnosis(imagePreview, targetLang);
+        const diagWithLang: DiagnosisResult = {
+          ...offlineDiag,
+          language: targetLang,
+        };
+        setDiagnosis(diagWithLang);
+        languageDiagnosisCacheRef.current[targetLang] = diagWithLang;
+        setDiagnoseModelUsed("Gemini 3.8 Flash (Offline Sample Mode)");
+        setSelectedScanId(null);
+        setIsAnalyzing(false);
+        showToast(
+          selectedLanguage === "Urdu"
+            ? "آف لائن نمونے کا معائنہ مکمل ہو گیا!"
+            : "Offline sample diagnosis completed!",
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        );
+
+        if (window.innerWidth < 1024 && reportRef.current) {
+          setTimeout(() => {
+            reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 150);
+        }
+      }, 600);
+      return;
+    }
+
+    // If offline and NOT a sample preset (custom camera photo), guide them to the Vault
     if (!isOnline) {
       showToast(
         selectedLanguage === "Urdu"
@@ -994,8 +1079,6 @@ export default function AgriShieldDashboard() {
       setIsOfflineDiagnosisError(false);
       setNotCropNotice(null);
       stopSpeech();
-
-      const isSampleSpecimen = Boolean(activePresetUrl);
 
       const payload = {
         image: imagePreview,
@@ -1126,6 +1209,32 @@ export default function AgriShieldDashboard() {
       console.error("Diagnosis error:", err);
       const errStr = String(err?.message || err || "").toLowerCase();
       const isNetErr = !navigator.onLine || errStr.includes("fetch") || errStr.includes("network") || errStr.includes("offline");
+
+      // Seamless offline recovery for sample specimens
+      if (isSampleSpecimen && (isNetErr || !isOnline)) {
+        const offlineDiag = getOfflineDiagnosis(imagePreview, targetLang);
+        const diagWithLang: DiagnosisResult = {
+          ...offlineDiag,
+          language: targetLang,
+        };
+        setDiagnosis(diagWithLang);
+        languageDiagnosisCacheRef.current[targetLang] = diagWithLang;
+        setDiagnoseModelUsed("Gemini 3.8 Flash (Offline Sample Mode)");
+        setSelectedScanId(null);
+        showToast(
+          selectedLanguage === "Urdu"
+            ? "آف لائن نمونے کا معائنہ مکمل ہو گیا!"
+            : "Offline sample diagnosis completed!",
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        );
+        if (window.innerWidth < 1024 && reportRef.current) {
+          setTimeout(() => {
+            reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 150);
+        }
+        return;
+      }
+
       if (isNetErr) {
         setIsOfflineDiagnosisError(true);
       }
@@ -1150,9 +1259,53 @@ export default function AgriShieldDashboard() {
       return;
     }
 
+    // 1. Instant switch if target language diagnosis is already cached in memory
+    if (languageDiagnosisCacheRef.current[targetLang]) {
+      const cached = languageDiagnosisCacheRef.current[targetLang];
+      setDiagnosis(cached);
+      showToast(
+        targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`,
+        <Check className="w-4 h-4 text-emerald-400" />
+      );
+      return;
+    }
+
+    // 2. Check if this diagnosis corresponds to any offline sample/preset
+    const sampleKey = getSampleImageKey(diagToTranslate, activePresetUrl, imagePreview);
+    if (sampleKey) {
+      const offlineDiag = getOfflineDiagnosis(sampleKey, targetLang);
+      const transDiag: DiagnosisResult = {
+        ...diagToTranslate,
+        ...offlineDiag,
+        language: targetLang,
+      };
+      setDiagnosis(transDiag);
+      languageDiagnosisCacheRef.current[targetLang] = transDiag;
+      showToast(
+        targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`,
+        <Check className="w-4 h-4 text-emerald-400" />
+      );
+      return;
+    }
+
+    // 3. If offline and neither cached nor a sample, guard against broken network call
+    if (!isOnline) {
+      showToast(
+        targetLang === "Urdu"
+          ? "آپ آف لائن ہیں۔ غیر محفوظ رپورٹس کے ترجمے کے لیے انٹرنیٹ درکار ہے۔"
+          : "Offline: Translating new custom reports requires an internet connection.",
+        <WifiOff className="w-4 h-4 text-amber-400" />
+      );
+      return;
+    }
+
+    // 4. Online: call cloud AI translation endpoint
     try {
       setIsTranslating(true);
-      showToast(targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے..." : `Translating report to ${targetLang}...`, <Globe className="w-4 h-4 text-blue-400" />);
+      showToast(
+        targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے..." : `Translating report to ${targetLang}...`,
+        <Globe className="w-4 h-4 text-blue-400" />
+      );
 
       const res = await fetch("/api/diagnose", {
         method: "POST",
@@ -1167,12 +1320,16 @@ export default function AgriShieldDashboard() {
       const data = await res.json();
       if (data?.diagnosis) {
         const transDiag: DiagnosisResult = {
+          ...diagToTranslate,
           ...data.diagnosis,
           language: data.diagnosis?.language || targetLang,
         };
         setDiagnosis(transDiag);
         languageDiagnosisCacheRef.current[targetLang] = transDiag;
-        showToast(targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`, <Check className="w-4 h-4 text-emerald-400" />);
+        showToast(
+          targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`,
+          <Check className="w-4 h-4 text-emerald-400" />
+        );
       }
     } catch (err) {
       console.warn("Translation failed:", err);
@@ -1550,12 +1707,21 @@ export default function AgriShieldDashboard() {
   const handleLoadPastScan = (scan: ScanRecord) => {
     setErrorMessage(null);
     setNotCropNotice(null);
-    setActivePresetUrl(null);
     setSelectedScanId(scan.id || null);
     setDiagnosis(scan);
-    languageDiagnosisCacheRef.current = {
-      [scan.language || "English"]: scan,
-    };
+    const sampleKey = getSampleImageKey(scan, null, scan.imageUrl || scan.imageThumbnail);
+    if (sampleKey) {
+      setActivePresetUrl(sampleKey);
+      languageDiagnosisCacheRef.current = {
+        English: { ...scan, ...getOfflineDiagnosis(sampleKey, "English"), language: "English" },
+        Urdu: { ...scan, ...getOfflineDiagnosis(sampleKey, "Urdu"), language: "Urdu" },
+      };
+    } else {
+      setActivePresetUrl(null);
+      languageDiagnosisCacheRef.current = {
+        [scan.language || "English"]: scan,
+      };
+    }
     if (scan.agronomic_context) {
       setObservationDate(scan.agronomic_context.captured_at || "");
       setObservationTime(scan.agronomic_context.observation_time || "");
@@ -2610,22 +2776,14 @@ export default function AgriShieldDashboard() {
                   // 1. If this specimen was already diagnosed in this language, switch instantly with 0 tokens and 0 API calls!
                   if (languageDiagnosisCacheRef.current[newLang]) {
                     setDiagnosis(languageDiagnosisCacheRef.current[newLang]);
-                    showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);
+                    showToast(
+                      newLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Language set to ${newLang}`,
+                      <Globe className="w-4 h-4 text-emerald-400" />
+                    );
                     return;
                   }
-                  // 2. If a diagnosis is currently displayed, translate only the text into newLang (0 image tokens, 0 duplicates, <1.5s)
+                  // 2. If a diagnosis is currently displayed, delegate translation to translateCurrentDiagnosis
                   if (diagnosis) {
-                    if (diagnosis.language === newLang) {
-                      languageDiagnosisCacheRef.current[newLang] = diagnosis;
-                      showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);
-                      return;
-                    }
-                    showToast(
-                      newLang === "Urdu"
-                        ? "رپورٹ کا آسان اردو میں ترجمہ کیا جا رہا ہے..."
-                        : `Translating report to ${newLang}...`,
-                      <Globe className="w-4 h-4 text-blue-400" />
-                    );
                     translateCurrentDiagnosis(newLang, diagnosis);
                   } else {
                     showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);

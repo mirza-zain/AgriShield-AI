@@ -152,6 +152,150 @@ export function getOfflineDiagnosis(imageUrl: string, language = "English"): Dia
     };
   }
 
+  if (imageUrl.includes("spoiled-pumpkin") || imageUrl.includes("1675678674818-a749f21f22c5")) {
+    // Spoiled Pumpkin
+    return {
+      crop_name: isUrdu ? "کدو اور پیٹھے کی فصل (Field Pumpkin)" : "Field Pumpkin (Cucurbita pepo)",
+      scientific_name: "Didymella bryoniae",
+      condition_detected: isUrdu ? "پھل کا گل سڑ جانا (خراب پیداوار / Black Rot)" : "Black Rot & Field Spoilage",
+      confidence_score: 0.94,
+      severity: "Critical",
+      symptoms: [
+        isUrdu ? "کدو پر پانی بھرے نرم داغ اور کالی سڑن" : "Water-soaked sunken lesions turning into soft black rot",
+        isUrdu ? "پھپھوندی کے کیچڑ سے پھل کا مکمل گل جانا" : "Extensive fungal mold and tissue collapse across rind",
+        isUrdu ? "گیلی مٹی پر پڑی پیداوار کا مکمل برباد ہونا" : "Total harvest breakdown of fruit rotting on field ground",
+      ],
+      treatment: {
+        immediate_action: isUrdu ? "سڑے ہوئے کدو کھیت سے فوراً ہٹائیں تاکہ باقی فصل بچ سکے۔" : "Remove decaying fruit from the field to stop spore contamination.",
+        organic_remedy: isUrdu ? "پھلوں کے نیچے خشک پرالی یا گھاس بچھائیں۔" : "Place straw mulch beneath fruit to keep rind off wet dirt.",
+        chemical_alternative: isUrdu ? "کلوروتھالونیل (Chlorothalonil) کا سپرے۔" : "Chlorothalonil or Azoxystrobin protective field spray.",
+      },
+      prevention_tips: [
+        isUrdu ? "پھلوں کو گیلی زمین پر براہ راست نہ رہنے دیں" : "Avoid direct contact between fruit rind and waterlogged soil",
+        isUrdu ? "کدو کے کھیت میں مناسب نکاسی آب رکھیں" : "Ensure raised bed drainage and rotate crops away from cucurbits",
+      ],
+      climate_impact_warning: isUrdu ? "کھیت میں کھڑا پانی اور شدید نمی سڑن میں 60 فیصد اضافہ کرتی ہے۔" : "Standing puddle water and heavy late rains drive 60% higher fruit rot rate.",
+      lesion_boxes: [[320, 150, 740, 520], [380, 540, 790, 860]],
+      healthy_comparison: {
+        healthy_traits: [
+          isUrdu ? "سخت اور خشک چھلکا جو ناخن سے نہ دبے" : "Hard, dry rind resistant to fingernail puncture",
+          isUrdu ? "یکساں نارنجی یا سنہری رنگ بغیر نرم داغوں کے" : "Uniform deep orange or golden skin without water-soaked spots",
+          isUrdu ? "مضبوط لکڑی نما ڈنٹھل اور صاف نچلا حصہ" : "Tough woody intact stem with clean dry bottom",
+        ],
+        key_difference: isUrdu
+          ? "صحت مند کدو کا چھلکا خشک اور سخت ہوتا ہے، جبکہ اس کدو پر گیلی مٹی کی وجہ سے کالی سڑن اور پھپھوندی کا حملہ ہے۔"
+          : "Healthy pumpkins possess a thick impenetrable rind, whereas this fruit decayed from direct contact with wet muddy ground.",
+        recovery_signs: isUrdu
+          ? "کھیت میں پرالی بچھانے کے بعد 5 دنوں میں باقی کدو خشک رہیں گے اور ان پر کوئی نیا کالا دھبہ نہیں آئے گا۔"
+          : "Fruit elevated onto dry straw mulch shows zero expanding black lesions within 5 to 7 days.",
+      },
+      disease_origin: {
+        why_it_happened: isUrdu
+          ? "کدو کا گلنا ڈائیڈی میلا (Didymella) پھپھوندی کا نتیجہ ہے جو گیلی زمین کے براہ راست رابطے سے پھل پر حملہ کرتی ہے۔"
+          : "Black rot is caused by Didymella fungi attacking fruit rind resting on waterlogged, un-aerated soil.",
+        weather_correlation: isUrdu
+          ? "پچھلے ہفتے کی بارش اور کھیت میں کھڑے پانی نے کدو کی جلد پر پانی بھرے زخم بنا کر سڑن تیز کر دی۔"
+          : "Consecutive rain days and standing soil puddle water softened rind cuticles, allowing rapid fungal invasion.",
+      },
+    };
+  }
+
+  if (imageUrl.includes("sweet-corn") || imageUrl.includes("1551754655-cd27e38d2076")) {
+    // Sweet Corn
+    return {
+      crop_name: isUrdu ? "تازہ میٹھی مکئی (Fresh Sweet Corn)" : "Sweet Corn (Zea mays)",
+      scientific_name: "Zea mays saccharata (Prime)",
+      condition_detected: isUrdu ? "100% صحت مند چھلی (اعلیٰ فصل / Prime Yield)" : "Grade A Healthy Harvest (Prime Cobs)",
+      confidence_score: 0.98,
+      severity: "Low",
+      symptoms: [
+        isUrdu ? "مکمل بھرے ہوئے سنہری دانے اور تروتازہ سبز چھلکا" : "Plump, golden yellow kernels tightly packed in green husks",
+        isUrdu ? "کیڑے، سنڈی یا فنگس کا کوئی نشان نہیں" : "Zero earworm damage, fungal smut, or blight discoloration",
+        isUrdu ? "فصل بالکل تیار اور اعلیٰ معیار کی ہے" : "Premium grade sweetness, high moisture turgor, ready for market",
+      ],
+      treatment: {
+        immediate_action: isUrdu ? "چھلیاں بالکل تیار ہیں، صبح کے وقت کٹائی کر کے منڈی بھیجیں۔" : "Corn is at peak sweetness; pick during cool hours and sell or refrigerate.",
+        organic_remedy: isUrdu ? "تروتازگی قائم رکھنے کے لیے چھلیوں کو سائے اور ٹھنڈی جگہ پر رکھیں۔" : "Store harvested sweet corn below 5°C to preserve natural kernel sugar.",
+        chemical_alternative: isUrdu ? "کسی دوا کی ضرورت نہیں، پیداوار بالکل محفوظ اور صاف ہے۔" : "Zero chemical intervention required; produce is clean and market-ready.",
+      },
+      prevention_tips: [
+        isUrdu ? "فصل کٹنے کے بعد کھیت میں نمی برقرار رکھیں" : "Keep picked cobs out of direct sunlight to prevent drying",
+        isUrdu ? "اگلی فصل کے لیے دالوں کی کاشت کریں" : "Rotate with legumes to rebuild soil nitrogen for next season",
+      ],
+      climate_impact_warning: isUrdu ? "موسم کٹائی کے لیے بہترین ہے، بارش سے پہلے تڑوائی مکمل کریں۔" : "Current clear weather is ideal for harvest; complete picking before rain.",
+      lesion_boxes: [],
+      healthy_comparison: {
+        healthy_traits: [
+          isUrdu ? "مکمل سنہری اور دودھیا دانے جو آخری سرے تک بھرے ہوں" : "Plump golden kernels tightly filled all the way to cob tip",
+          isUrdu ? "تروتازہ سبز چھلکا اور صاف نم ریشم" : "Crisp emerald-green husk leaves and clean moist silks",
+          isUrdu ? "سنڈی کے سوراخوں یا فنگس کی کالک سے بالکل پاک" : "Zero earworm boring holes, mold fuzz, or black smut",
+        ],
+        key_difference: isUrdu
+          ? "یہ فصل 100% صحت مند معیار پر پوری اترتی ہے اور منڈی کے لیے اعلیٰ ترین گریڈ ہے۔"
+          : "This harvest represents peak Grade A reference quality with zero pathological or pest defects.",
+        recovery_signs: isUrdu
+          ? "فصل پہلے ہی مکمل تندرست ہے، کٹائی کے بعد سائے میں رکھنے سے قدرتی مٹھاس برقرار رہے گی۔"
+          : "Produce is in prime health; rapid cool storage preserves kernel moisture and natural sugars.",
+      },
+      disease_origin: {
+        why_it_happened: isUrdu
+          ? "یہ فصل مکمل طور پر تندرست ہے، متوازن غذائیت اور سازگار ماحول نے پودے کو فنگس اور کیڑوں کے حملے سے محفوظ رکھا ہے۔"
+          : "Crop is in peak physiological health; optimal nutrient uptake and balanced environmental conditions prevented pathogen colonization.",
+        weather_correlation: isUrdu
+          ? "پچھلے ہفتے کا معتدل درجہ حرارت (24-28 ڈگری) اور متوازن نمی (55%) نے سنہری دانوں کو بغیر کسی فنگس یا روٹ کے پکنے دیا۔"
+          : "Ideal weekly thermal range (24-28°C) and moderate humidity (55%) supported uniform kernel filling without fungal blight risk.",
+      },
+    };
+  }
+
+  if (imageUrl.includes("green-basil") || imageUrl.includes("1534944645004-bf75556ce377") || imageUrl.includes("1576092768241-dec231879fc3")) {
+    // Green Basil
+    return {
+      crop_name: isUrdu ? "سبز نیازبو / تلسی (Sweet Basil)" : "Sweet Basil (Ocimum basilicum)",
+      scientific_name: "Ocimum basilicum (Healthy)",
+      condition_detected: isUrdu ? "100% تروتازہ اور صحت مند پتے (Disease-Free)" : "100% Disease-Free Healthy Foliage",
+      confidence_score: 0.99,
+      severity: "Low",
+      symptoms: [
+        isUrdu ? "چمکدار سبز پتے، کوئی داغ یا کیڑے کا نشان نہیں" : "Vibrant emerald green leaves with strong cuticle and cell turgor",
+        isUrdu ? "پودا بالکل تندرست اور بیماری سے محفوظ ہے" : "Zero fungal leaf spots, downy mildew, or insect damage",
+        isUrdu ? "نئی شاخیں تیزی اور تندرستی سے نکل رہی ہیں" : "Active vegetative growth with healthy shoot branching",
+      ],
+      treatment: {
+        immediate_action: isUrdu ? "کسی دوا کی ضرورت نہیں، پودا بہترین حالت میں بڑھ رہا ہے۔" : "No treatment required. Your herb foliage is in pristine condition!",
+        organic_remedy: isUrdu ? "معمول کے مطابق مناسب پانی اور نامیاتی کھاد دیتے رہیں۔" : "Continue regular compost tea root feeding and balanced watering.",
+        chemical_alternative: isUrdu ? "کسی کیمیائی دوا کی بالکل ضرورت نہیں۔" : "No chemical spray needed.",
+      },
+      prevention_tips: [
+        isUrdu ? "پودے کی اوپر والی کونپلیں چٹکی سے توڑتے رہیں تاکہ جھاڑی دار بنے" : "Pinch top leaf nodes regularly to promote bushy lateral growth",
+        isUrdu ? "صبح کے وقت جڑوں میں پانی دیں، پتوں کو گیلا نہ رکھیں" : "Water soil at base in morning; keep foliage dry overnight",
+      ],
+      climate_impact_warning: isUrdu ? "معتدل دھوپ اور گرم موسم پودے کے لیے نہایت سازگار ہے۔" : "Moderate sunshine and warm temperatures provide ideal growing conditions.",
+      lesion_boxes: [],
+      healthy_comparison: {
+        healthy_traits: [
+          isUrdu ? "چمکدار زمردی سبز پتے جن کی سطح لچکدار اور تروتازہ ہو" : "Vibrant emerald green leaves with crisp cellular turgor",
+          isUrdu ? "ہموار پتے بغیر کسی زردی یا بھورے پھپھوندی کے داغ کے" : "Uniform lamina with zero chlorosis or downy mildew spots",
+          isUrdu ? "تیز خوشبو اور نئی سرسبز کونپلوں کا تیزی سے پھوٹنا" : "Potent aromatic essential oils and vigorous node branching",
+        ],
+        key_difference: isUrdu
+          ? "پودا بالکل بے داغ ہے، نہ تو کوئی فنگس ہے اور نہ ہی کیڑوں کا نقصان۔"
+          : "Specimen displays 100% pristine foliage free of fungal sporulation or insect stippling.",
+        recovery_signs: isUrdu
+          ? "پودا مسلسل تندرست ہے، ہر 4 سے 6 دن میں نئی صاف سبز پتوں کی جوڑیاں نکلتی رہیں گی۔"
+          : "Active continuous growth with clean aromatic leaf pairs emerging every 4 to 6 days.",
+      },
+      disease_origin: {
+        why_it_happened: isUrdu
+          ? "نیازبو کے پتے صاف اور جراثیم سے پاک ہیں، مناسب ہواداری اور جڑوں میں پانی دینے کی وجہ سے ڈاؤنی ملڈیو پیدا نہیں ہوئی۔"
+          : "Foliage is pristine with no downy mildew; proper plant spacing and root-level watering kept foliage dry and pathogen-free.",
+        weather_correlation: isUrdu
+          ? "ہفتے بھر اچھی دھوپ اور پتوں پر رات کے وقت پانی نہ ٹھہرنے نے فنگس کے بیجوں کو پھوٹنے کا موقع نہیں دیا۔"
+          : "Consistent daylight exposure and low overnight leaf wetness prevented fungal spore incubation over the past 7 days.",
+      },
+    };
+  }
+
   // Default Healthy / General Fallback
   return {
     crop_name: isUrdu ? "سبز پودا / فصل (Healthy Crop)" : "Vegetable Crop (Prime Foliage)",
