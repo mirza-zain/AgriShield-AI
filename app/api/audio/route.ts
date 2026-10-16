@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
           config: {
             responseModalities: ["AUDIO"],
             speechConfig: {
+              languageCode: language === "Urdu" ? "ur-PK" : "en-US",
               voiceConfig: {
                 prebuiltVoiceConfig: {
                   voiceName: "Aoede",

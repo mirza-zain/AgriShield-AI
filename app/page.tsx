@@ -471,7 +471,7 @@ export default function AgriShieldDashboard() {
       if (cached && cached.length > 0) {
         setHistoryFeed(cached);
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     fetchHistory(true);
 
@@ -502,7 +502,7 @@ export default function AgriShieldDashboard() {
       setIsInstalled(false);
       try {
         localStorage.removeItem("agrishield_pwa_installed");
-      } catch (err) {}
+      } catch (err) { }
     };
 
     const handleResize = () => {
@@ -533,9 +533,9 @@ export default function AgriShieldDashboard() {
       if (storedScans) {
         try {
           setMyScanIds(JSON.parse(storedScans));
-        } catch (e) {}
+        } catch (e) { }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 3. Query device OS if companion PWA is currently installed on phone/PC
     if ("getInstalledRelatedApps" in navigator) {
@@ -549,10 +549,10 @@ export default function AgriShieldDashboard() {
             setIsInstalled(false);
             try {
               localStorage.removeItem("agrishield_pwa_installed");
-            } catch (err) {}
+            } catch (err) { }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     // 4. Native appinstalled event (fires when user completes install via browser menu or prompt)
@@ -564,7 +564,7 @@ export default function AgriShieldDashboard() {
       }
       try {
         localStorage.setItem("agrishield_pwa_installed", "true");
-      } catch (e) {}
+      } catch (e) { }
       showToast("AgriShield installed successfully!", <Smartphone className="w-4 h-4 text-emerald-400" />);
     };
 
@@ -660,7 +660,7 @@ export default function AgriShieldDashboard() {
         setIsInstalled(true);
         try {
           localStorage.setItem("agrishield_pwa_installed", "true");
-        } catch (e) {}
+        } catch (e) { }
         showToast("AgriShield installed successfully!", <Smartphone className="w-4 h-4 text-emerald-400" />);
       }
       setDeferredPrompt(null);
@@ -700,7 +700,7 @@ export default function AgriShieldDashboard() {
         const data = await res.json();
         if (data?.scans && Array.isArray(data.scans)) {
           setHistoryFeed(data.scans);
-          saveScansToVault(data.scans, farmerId, myScanIds).catch(() => {});
+          saveScansToVault(data.scans, farmerId, myScanIds).catch(() => { });
         }
       } else {
         const cached = await getScansFromVault();
@@ -796,7 +796,7 @@ export default function AgriShieldDashboard() {
         if (typeof window !== "undefined" && window.navigator && "vibrate" in window.navigator) {
           window.navigator.vibrate(40);
         }
-      } catch (e) {}
+      } catch (e) { }
       handleTriggerGallery();
     }, 450);
   };
@@ -973,6 +973,18 @@ export default function AgriShieldDashboard() {
     if (id === "seed-2") return "spoiled-pumpkin";
     if (id === "seed-5") return "sweet-corn";
 
+    return null;
+  };
+
+  const getPresetSampleId = (diag?: DiagnosisResult | null, activeUrl?: string | null, imgPreview?: string | null): string | null => {
+    const rawKey = getSampleImageKey(diag, activeUrl, imgPreview);
+    if (!rawKey) return null;
+    if (rawKey.includes("rotten-apple") || rawKey.includes("1644504113660-54f9d01b27d6")) return "rotten-apple";
+    if (rawKey.includes("drought-corn") || rawKey.includes("1789406515055-d2373d385f77")) return "drought-corn";
+    if (rawKey.includes("vine-tomatoes") || rawKey.includes("1592924357228-91a4daadcfea")) return "vine-tomatoes";
+    if (rawKey.includes("spoiled-pumpkin") || rawKey.includes("1675678674818-a749f21f22c5")) return "spoiled-pumpkin";
+    if (rawKey.includes("sweet-corn") || rawKey.includes("1551754655-cd27e38d2076")) return "sweet-corn";
+    if (rawKey.includes("green-basil") || rawKey.includes("1534944645004-bf75556ce377") || rawKey.includes("1576092768241-dec231879fc3")) return "green-basil";
     return null;
   };
 
@@ -1182,13 +1194,13 @@ export default function AgriShieldDashboard() {
 
         setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
         setSelectedScanId(newScanItem.id || null);
-        saveSingleScanToVault(newScanItem, farmerId, myScanIds).catch(() => {});
+        saveSingleScanToVault(newScanItem, farmerId, myScanIds).catch(() => { });
         if (newScanItem.id) {
           setMyScanIds((prev) => {
             const updated = [newScanItem.id!, ...prev.filter((id) => id !== newScanItem.id)];
             try {
               localStorage.setItem("agrishield_my_scans", JSON.stringify(updated));
-            } catch (e) {}
+            } catch (e) { }
             return updated;
           });
         }
@@ -1241,8 +1253,8 @@ export default function AgriShieldDashboard() {
       setErrorMessage(
         isNetErr
           ? (selectedLanguage === "Urdu"
-              ? "انٹرنیٹ کا کنکشن موجود نہیں ہے۔ کلاؤڈ AI سے رابطہ نہیں ہو سکا۔ محفوظ رپورٹس اور نسخے دیکھنے کے لیے والٹ (Vault) کھولیں۔"
-              : "No internet connection detected. Cloud AI could not be reached. You can view previously saved records in the Offline Vault.")
+            ? "انٹرنیٹ کا کنکشن موجود نہیں ہے۔ کلاؤڈ AI سے رابطہ نہیں ہو سکا۔ محفوظ رپورٹس اور نسخے دیکھنے کے لیے والٹ (Vault) کھولیں۔"
+            : "No internet connection detected. Cloud AI could not be reached. You can view previously saved records in the Offline Vault.")
           : (err.message || "Could not analyze the photo. Please check your network connection.")
       );
     } finally {
@@ -1521,18 +1533,66 @@ export default function AgriShieldDashboard() {
       .replace(/\([a-zA-Z0-9\s.,\-\/]+\)/g, "")
       .trim();
 
+    const isHealthy =
+      diagnosis.severity === "Low" ||
+      cleanCondition.toLowerCase().includes("healthy") ||
+      cleanCondition.toLowerCase().includes("disease-free") ||
+      cleanCondition.includes("صحت مند") ||
+      cleanCondition.includes("تروتازہ");
+
     let scriptText = "";
     if (selectedLanguage === "Urdu") {
-      scriptText = `سلام کسان بھائی۔ آپ کے ${cleanCropName} پر ${cleanCondition} کی بیماری کا اثر ہے۔ فوری طور پر یہ کرنا ہے: ${fullAction}۔ دیسی اور قدرتی علاج: ${fullRemedy}۔ موسم کا دھیان رکھیں: ${fullWarning}`;
+      if (isHealthy) {
+        scriptText = `سلام کسان بھائی۔ آپ کے ${cleanCropName} کی حالت: ${cleanCondition}۔ ہدایات: ${fullAction}۔ دیسی طریقہ: ${fullRemedy}۔ موسم کا دھیان رکھیں: ${fullWarning}`;
+      } else {
+        scriptText = `سلام کسان بھائی۔ آپ کے ${cleanCropName} پر ${cleanCondition} کا مسئلہ ہے۔ فوری طور پر یہ کرنا ہے: ${fullAction}۔ دیسی اور قدرتی علاج: ${fullRemedy}۔ موسم کا دھیان رکھیں: ${fullWarning}`;
+      }
     } else if (selectedLanguage === "Hindi") {
-      scriptText = `नमस्ते किसान भाई। आपके ${cleanCropName} में ${cleanCondition} की समस्या देखी गई है। तुरंत यह काम करें: ${fullAction}۔ प्राकृतिक देसी उपाय: ${fullRemedy}۔ मौसम की सावधानी: ${fullWarning}`;
+      scriptText = `नमस्ते किसान भाई। आपके ${cleanCropName} में ${cleanCondition} کی समस्या देखी गई है। तुरंत यह काम करें: ${fullAction}۔ प्राकृतिक देसी उपाय: ${fullRemedy}۔ मौसम की सावधानी: ${fullWarning}`;
     } else if (selectedLanguage === "Spanish") {
       scriptText = `Hola agricultor. Su cultivo de ${cleanCropName} presenta signos de ${cleanCondition}. Acción hoy: ${fullAction}. Remedio casero: ${fullRemedy}. Alerta de clima: ${fullWarning}`;
     } else {
-      scriptText = `Hello farmer. Your ${cleanCropName} shows signs of ${cleanCondition}. Immediate step today: ${fullAction}. Safe home remedy: ${fullRemedy}. Weather caution: ${fullWarning}`;
+      if (isHealthy) {
+        scriptText = `Hello farmer. Your ${cleanCropName} is in prime healthy condition: ${cleanCondition}. Action today: ${fullAction}. Natural care: ${fullRemedy}. Weather note: ${fullWarning}`;
+      } else {
+        scriptText = `Hello farmer. Your ${cleanCropName} shows signs of ${cleanCondition}. Immediate step today: ${fullAction}. Safe home remedy: ${fullRemedy}. Weather caution: ${fullWarning}`;
+      }
     }
 
-    // Client-side Cache Hit (0 tokens, 0 delay, instant playback!)
+    const samplePresetId = getPresetSampleId(diagnosis, activePresetUrl, imagePreview);
+    const langCode = selectedLanguage === "Urdu" ? "ur" : selectedLanguage === "English" ? "en" : null;
+
+    // 1. Instant pre-compiled Gemini Neural TTS for sample presets (100% offline on all devices)
+    if (samplePresetId && langCode) {
+      const presetAudioUrl = `/audio/samples/${samplePresetId}-${langCode}.mp3`;
+      try {
+        const audio = new Audio(presetAudioUrl);
+        audioPlayerRef.current = audio;
+
+        audio.onplay = () => {
+          setIsSpeaking(true);
+          setAudioLoading(false);
+          setSpeechStatusText(`Speaking in ${selectedLanguage}...`);
+          showToast(`Playing advice in ${selectedLanguage}`, <Volume2 className="w-4 h-4 text-emerald-400" />);
+        };
+
+        audio.onended = () => {
+          setIsSpeaking(false);
+          setSpeechStatusText("");
+        };
+
+        audio.onerror = () => {
+          fallbackBrowserSpeech(scriptText);
+        };
+
+        await audio.play();
+        return;
+      } catch (err) {
+        console.warn("Preset audio playback failed, falling back:", err);
+      }
+    }
+
+    // 2. Client-side In-Memory Cache Hit (0 tokens, 0 delay, instant playback!)
     const cacheKey = `${selectedLanguage}:${cleanCropName}:${cleanCondition}`;
     const cachedAudio = clientAudioCacheRef.current[cacheKey];
 
@@ -1604,34 +1664,17 @@ export default function AgriShieldDashboard() {
         };
 
         audio.onerror = () => {
-          if (selectedLanguage !== "Urdu") {
-            fallbackBrowserSpeech(scriptText);
-          } else {
-            setIsSpeaking(false);
-            setSpeechStatusText("");
-          }
+          fallbackBrowserSpeech(scriptText);
         };
 
         await audio.play();
         return;
       } else {
-        if (selectedLanguage === "Urdu") {
-          setIsSpeaking(false);
-          setSpeechStatusText("");
-          showToast("اردو آواز کا سروس عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔");
-        } else {
-          fallbackBrowserSpeech(scriptText);
-        }
-      }
-    } catch (err) {
-      console.warn("TTS fetch error:", err);
-      if (selectedLanguage === "Urdu") {
-        setIsSpeaking(false);
-        setSpeechStatusText("");
-        showToast("اردو آواز کا سروس عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔");
-      } else {
         fallbackBrowserSpeech(scriptText);
       }
+    } catch (err) {
+      console.warn("TTS fetch error, using device voice:", err);
+      fallbackBrowserSpeech(scriptText);
     } finally {
       setAudioLoading(false);
     }
@@ -1648,41 +1691,79 @@ export default function AgriShieldDashboard() {
     utterance.rate = 0.85;
     utterance.pitch = 1.0;
 
-    const voices = window.speechSynthesis.getVoices();
     const langMap: Record<string, string[]> = {
       English: ["en-US", "en-GB", "en"],
-      Urdu: ["ur-PK", "ur", "hi-IN"],
-      Hindi: ["hi-IN", "hi"],
-      Spanish: ["es-ES", "es"],
+      Urdu: ["ur-PK", "ur", "ur-IN"],
     };
 
-    const prefixes = langMap[selectedLanguage] || ["en-US"];
-    const voice = voices.find((v) => prefixes.some((p) => v.lang.toLowerCase().startsWith(p.toLowerCase())));
-    if (!voice && selectedLanguage === "Urdu") {
-      // Prevent system English voice from pronouncing Urdu letters with garbled phonetics
-      setIsSpeaking(false);
-      setSpeechStatusText("");
-      showToast("اردو آواز کا ماڈل عارضی طور پر مصروف ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔");
-      return;
+    const doSpeak = (availableVoices: SpeechSynthesisVoice[]) => {
+      const prefixes = langMap[selectedLanguage] || ["en-US"];
+
+      // Prioritize female voice to match Aoede persona
+      let voice = availableVoices.find((v) => {
+        const matchesLang = prefixes.some((p) => v.lang.toLowerCase().startsWith(p.toLowerCase()));
+        if (!matchesLang) return false;
+        const name = v.name.toLowerCase();
+        return name.includes("female") || name.includes("samantha") || name.includes("zira") || name.includes("kore") || name.includes("victoria");
+      });
+
+      if (!voice) {
+        voice = availableVoices.find((v) => prefixes.some((p) => v.lang.toLowerCase().startsWith(p.toLowerCase())));
+      }
+
+      if (!voice && selectedLanguage === "Urdu") {
+        // Prevent system English voice from pronouncing Urdu letters with garbled phonetics
+        setIsSpeaking(false);
+        setSpeechStatusText("");
+        showToast("آف لائن اردو آواز اس ڈیوائس پر دستیاب نہیں ہے۔ نسخہ اسکرین پر ملاحظہ فرمائیں۔");
+        return;
+      }
+
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+      } else {
+        utterance.lang = prefixes[0];
+      }
+
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setSpeechStatusText(`Speaking in ${selectedLanguage}...`);
+        showToast(`Speaking advice in ${selectedLanguage}`, <Volume2 className="w-4 h-4 text-emerald-400" />);
+      };
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setSpeechStatusText("");
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setSpeechStatusText("");
+      };
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    const currentVoices = window.speechSynthesis.getVoices();
+    if (currentVoices && currentVoices.length > 0) {
+      doSpeak(currentVoices);
+    } else {
+      // iOS Safari and Chrome asynchronous voice loading fallback
+      let resolved = false;
+      const voicesChangedHandler = () => {
+        if (resolved) return;
+        resolved = true;
+        window.speechSynthesis.removeEventListener("voiceschanged", voicesChangedHandler);
+        const loadedVoices = window.speechSynthesis.getVoices();
+        doSpeak(loadedVoices);
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", voicesChangedHandler);
+      setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        window.speechSynthesis.removeEventListener("voiceschanged", voicesChangedHandler);
+        doSpeak(window.speechSynthesis.getVoices());
+      }, 500);
     }
-    if (voice) utterance.voice = voice;
-    utterance.lang = voice?.lang || prefixes[0];
-
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      setSpeechStatusText(`Speaking in ${selectedLanguage}...`);
-      showToast(`Speaking advice in ${selectedLanguage}`, <Volume2 className="w-4 h-4 text-emerald-400" />);
-    };
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setSpeechStatusText("");
-    };
-    utterance.onerror = () => {
-      setIsSpeaking(false);
-      setSpeechStatusText("");
-    };
-
-    window.speechSynthesis.speak(utterance);
   };
 
   const handlePrint = () => {
@@ -1772,14 +1853,14 @@ export default function AgriShieldDashboard() {
 
       setHistoryFeed((prev) => prev.filter((s) => s.id !== scan.id));
       if (scan.id) {
-        deleteScanFromVault(scan.id).catch(() => {});
+        deleteScanFromVault(scan.id).catch(() => { });
       }
 
       setMyScanIds((prev) => {
         const updated = prev.filter((id) => id !== scan.id);
         try {
           localStorage.setItem("agrishield_my_scans", JSON.stringify(updated));
-        } catch (e) {}
+        } catch (e) { }
         return updated;
       });
 
@@ -1991,7 +2072,7 @@ export default function AgriShieldDashboard() {
               const data = await res.json();
               if (data.label) label = data.label;
             }
-          } catch {}
+          } catch { }
           await fetchWeatherForCoords(latitude, longitude, label, "gps");
           showToast(`Local Farm GPS weather locked: ${label}`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
         },
@@ -2025,7 +2106,7 @@ export default function AgriShieldDashboard() {
                 const data = await res.json();
                 if (data.label) regionLabel = data.label;
               }
-            } catch {}
+            } catch { }
 
             setObservationLocation(regionLabel);
             setObservationCoords({ lat: latitude, lon: longitude });
@@ -2156,7 +2237,7 @@ export default function AgriShieldDashboard() {
         const d = await res.json();
         if (d.label) customLabel = d.label;
       }
-    } catch {}
+    } catch { }
 
     setObservationCoords({ lat, lon });
     await fetchWeatherForCoords(lat, lon, customLabel, "map");
@@ -2410,11 +2491,10 @@ export default function AgriShieldDashboard() {
                 <button
                   type="button"
                   onClick={() => setShowPathologyBoxes((prev) => !prev)}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center space-x-1.5 cursor-pointer ${
-                    showPathologyBoxes
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center space-x-1.5 cursor-pointer ${showPathologyBoxes
                       ? "bg-amber-400 text-slate-950 border-amber-300"
                       : "bg-slate-800 text-slate-300 border-white/20 hover:bg-slate-700"
-                  }`}
+                    }`}
                 >
                   <Target className="w-3.5 h-3.5 flex-shrink-0" />
                   <span className="hidden sm:inline">{showPathologyBoxes ? "Targets ON" : "Targets OFF"}</span>
@@ -2930,11 +3010,10 @@ export default function AgriShieldDashboard() {
                           <button
                             type="button"
                             onClick={() => setShowPathologyBoxes((prev) => !prev)}
-                            className={`absolute top-3 right-3 z-30 p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-[10px] font-black border backdrop-blur-md shadow-md transition-all flex items-center space-x-1 cursor-pointer min-h-[34px] ${
-                              showPathologyBoxes
+                            className={`absolute top-3 right-3 z-30 p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-[10px] font-black border backdrop-blur-md shadow-md transition-all flex items-center space-x-1 cursor-pointer min-h-[34px] ${showPathologyBoxes
                                 ? "bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/20"
                                 : "bg-slate-900/80 text-slate-300 border-white/20 hover:bg-slate-800"
-                            }`}
+                              }`}
                             title="Toggle visual pathology target boxes"
                             aria-label="Toggle visual pathology target boxes"
                           >
@@ -3126,207 +3205,206 @@ export default function AgriShieldDashboard() {
                   {/* Optional Field Observation Timing & Region Accordion (Staging only, hidden on Vault records) */}
                   {!selectedScanId && (
                     <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-3 transition-all">
-                    <button
-                      type="button"
-                      onClick={() => setShowObservationContext((prev) => !prev)}
-                      className="w-full flex items-center justify-between text-left group cursor-pointer"
-                    >
-                      <div className="flex items-center space-x-2 min-w-0 pr-2">
-                        <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                        <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition-colors truncate">
-                          {selectedLanguage === "Urdu"
-                            ? "اختیاری: تصویر کی تاریخ، وقت اور زرعی علاقہ"
-                            : "Optional: Photo Date, Time & Agro-Region"}
-                        </span>
-                        {(observationDate || observationTime || observationLocation) && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 flex-shrink-0">
-                            {selectedLanguage === "Urdu" ? "فعال" : "Active"}
+                      <button
+                        type="button"
+                        onClick={() => setShowObservationContext((prev) => !prev)}
+                        className="w-full flex items-center justify-between text-left group cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0 pr-2">
+                          <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                          <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700 transition-colors truncate">
+                            {selectedLanguage === "Urdu"
+                              ? "اختیاری: تصویر کی تاریخ، وقت اور زرعی علاقہ"
+                              : "Optional: Photo Date, Time & Agro-Region"}
                           </span>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-1.5 flex-shrink-0">
-                        <span className="text-[10px] text-slate-500 font-medium hidden sm:inline-flex items-center gap-1">
-                          <CloudRain className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                          <span>{selectedLanguage === "Urdu" ? "7 روزہ موسم دستیاب" : "Unlocks 7-Day Microclimate"}</span>
-                        </span>
-                        <ChevronDown
-                          className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                            showObservationContext ? "rotate-180 text-emerald-600" : ""
-                          }`}
-                        />
-                      </div>
-                    </button>
+                          {(observationDate || observationTime || observationLocation) && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 flex-shrink-0">
+                              {selectedLanguage === "Urdu" ? "فعال" : "Active"}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-1.5 flex-shrink-0">
+                          <span className="text-[10px] text-slate-500 font-medium hidden sm:inline-flex items-center gap-1">
+                            <CloudRain className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                            <span>{selectedLanguage === "Urdu" ? "7 روزہ موسم دستیاب" : "Unlocks 7-Day Microclimate"}</span>
+                          </span>
+                          <ChevronDown
+                            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showObservationContext ? "rotate-180 text-emerald-600" : ""
+                              }`}
+                          />
+                        </div>
+                      </button>
 
-                    {showObservationContext && (
-                      <div className="pt-2 border-t border-slate-200/70 space-y-3 animate-in fade-in duration-200">
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                          {/* 1. Agro-Region */}
-                          <div className="sm:col-span-6 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
-                                <MapPin className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                                <span>{selectedLanguage === "Urdu" ? "فارم / علاقہ" : "Agro-Region"}</span>
-                                {isLocationFromExif && observationLocation && (
-                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
-                                    <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
-                                    <span>EXIF</span>
-                                  </span>
-                                )}
-                              </label>
-                              <button
-                                type="button"
-                                onClick={handleDetectCurrentObservationRegion}
-                                disabled={isDetectingRegion}
-                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center space-x-1 disabled:opacity-50 cursor-pointer"
-                                title="Auto-detect via GPS or IP"
-                              >
-                                {isDetectingRegion ? (
-                                  <>
-                                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                                    <span>Detecting...</span>
-                                  </>
-                                ) : (
-                                  <span>{selectedLanguage === "Urdu" ? "GPS تلاش" : "Auto GPS"}</span>
-                                )}
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <div className="relative flex-1">
-                                <input
-                                  type="text"
-                                  value={observationLocation}
-                                  onChange={(e) => {
-                                    setObservationLocation(e.target.value);
-                                    setIsLocationFromExif(false);
-                                  }}
-                                  placeholder={activeLocationLabel ? `e.g. ${activeLocationLabel}` : "e.g. Multan, Punjab"}
-                                  className="w-full text-xs pl-2.5 pr-2 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs placeholder:text-slate-400 placeholder:font-normal"
-                                />
+                      {showObservationContext && (
+                        <div className="pt-2 border-t border-slate-200/70 space-y-3 animate-in fade-in duration-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                            {/* 1. Agro-Region */}
+                            <div className="sm:col-span-6 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                  <MapPin className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                                  <span>{selectedLanguage === "Urdu" ? "فارم / علاقہ" : "Agro-Region"}</span>
+                                  {isLocationFromExif && observationLocation && (
+                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
+                                      <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                                      <span>EXIF</span>
+                                    </span>
+                                  )}
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={handleDetectCurrentObservationRegion}
+                                  disabled={isDetectingRegion}
+                                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center space-x-1 disabled:opacity-50 cursor-pointer"
+                                  title="Auto-detect via GPS or IP"
+                                >
+                                  {isDetectingRegion ? (
+                                    <>
+                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                      <span>Detecting...</span>
+                                    </>
+                                  ) : (
+                                    <span>{selectedLanguage === "Urdu" ? "GPS تلاش" : "Auto GPS"}</span>
+                                  )}
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => setIsLocationModalOpen(true)}
-                                className="flex-shrink-0 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer font-bold"
-                                title="Pick location or village on OpenStreetMap"
-                              >
-                                <MapIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                                <span className="text-[11px] whitespace-nowrap">{selectedLanguage === "Urdu" ? "نقشہ" : "Map"}</span>
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <div className="relative flex-1">
+                                  <input
+                                    type="text"
+                                    value={observationLocation}
+                                    onChange={(e) => {
+                                      setObservationLocation(e.target.value);
+                                      setIsLocationFromExif(false);
+                                    }}
+                                    placeholder={activeLocationLabel ? `e.g. ${activeLocationLabel}` : "e.g. Multan, Punjab"}
+                                    className="w-full text-xs pl-2.5 pr-2 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs placeholder:text-slate-400 placeholder:font-normal"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setIsLocationModalOpen(true)}
+                                  className="flex-shrink-0 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer font-bold"
+                                  title="Pick location or village on OpenStreetMap"
+                                >
+                                  <MapIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                  <span className="text-[11px] whitespace-nowrap">{selectedLanguage === "Urdu" ? "نقشہ" : "Map"}</span>
+                                </button>
+                              </div>
                             </div>
-                          </div>
 
-                          {/* 2. Observation Date */}
-                          <div className="sm:col-span-3 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
-                                <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
-                                <span>{selectedLanguage === "Urdu" ? "تاریخ" : "Date"}</span>
-                                {isDateFromExif && observationDate && (
-                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
-                                    <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
-                                    <span>EXIF</span>
-                                  </span>
-                                )}
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const today = new Date().toISOString().split("T")[0];
-                                  setObservationDate(today);
+                            {/* 2. Observation Date */}
+                            <div className="sm:col-span-3 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                  <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                  <span>{selectedLanguage === "Urdu" ? "تاریخ" : "Date"}</span>
+                                  {isDateFromExif && observationDate && (
+                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
+                                      <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                                      <span>EXIF</span>
+                                    </span>
+                                  )}
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const today = new Date().toISOString().split("T")[0];
+                                    setObservationDate(today);
+                                    setIsDateUserEdited(true);
+                                    setIsDateFromExif(false);
+                                  }}
+                                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                                >
+                                  {selectedLanguage === "Urdu" ? "آج" : "Today"}
+                                </button>
+                              </div>
+                              <input
+                                type="date"
+                                value={observationDate}
+                                onChange={(e) => {
+                                  setObservationDate(e.target.value);
                                   setIsDateUserEdited(true);
                                   setIsDateFromExif(false);
                                 }}
-                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
-                              >
-                                {selectedLanguage === "Urdu" ? "آج" : "Today"}
-                              </button>
+                                className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
+                              />
                             </div>
-                            <input
-                              type="date"
-                              value={observationDate}
-                              onChange={(e) => {
-                                setObservationDate(e.target.value);
-                                setIsDateUserEdited(true);
-                                setIsDateFromExif(false);
-                              }}
-                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
-                            />
-                          </div>
 
-                          {/* 3. Observation Time */}
-                          <div className="sm:col-span-3 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
-                                <span>{selectedLanguage === "Urdu" ? "وقت" : "Time"}</span>
-                                {isTimeFromExif && observationTime && (
-                                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
-                                    <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
-                                    <span>EXIF</span>
-                                  </span>
-                                )}
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const now = new Date();
-                                  const hh = String(now.getHours()).padStart(2, "0");
-                                  const mm = String(now.getMinutes()).padStart(2, "0");
-                                  setObservationTime(`${hh}:${mm}`);
+                            {/* 3. Observation Time */}
+                            <div className="sm:col-span-3 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <label className="text-[11px] font-bold text-slate-700 flex items-center space-x-1">
+                                  <span>{selectedLanguage === "Urdu" ? "وقت" : "Time"}</span>
+                                  {isTimeFromExif && observationTime && (
+                                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200 flex-shrink-0 inline-flex items-center gap-0.5">
+                                      <Camera className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                                      <span>EXIF</span>
+                                    </span>
+                                  )}
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const now = new Date();
+                                    const hh = String(now.getHours()).padStart(2, "0");
+                                    const mm = String(now.getMinutes()).padStart(2, "0");
+                                    setObservationTime(`${hh}:${mm}`);
+                                    setIsTimeUserEdited(true);
+                                    setIsTimeFromExif(false);
+                                  }}
+                                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                                >
+                                  {selectedLanguage === "Urdu" ? "ابھی" : "Now"}
+                                </button>
+                              </div>
+                              <input
+                                type="time"
+                                value={observationTime}
+                                onChange={(e) => {
+                                  setObservationTime(e.target.value);
                                   setIsTimeUserEdited(true);
                                   setIsTimeFromExif(false);
                                 }}
-                                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
-                              >
-                                {selectedLanguage === "Urdu" ? "ابھی" : "Now"}
-                              </button>
+                                className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
+                              />
                             </div>
-                            <input
-                              type="time"
-                              value={observationTime}
-                              onChange={(e) => {
-                                setObservationTime(e.target.value);
-                                setIsTimeUserEdited(true);
-                                setIsTimeFromExif(false);
-                              }}
-                              className="w-full text-xs px-2.5 py-2 rounded-xl bg-white border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-bold text-slate-800 shadow-2xs"
-                            />
+                          </div>
+
+                          {/* Footer: Privacy notice & Clear Button */}
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[10px] text-slate-500">
+                            <span className="flex items-center space-x-1 min-w-0 pr-2">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                              <span className="truncate">
+                                {selectedLanguage === "Urdu"
+                                  ? "مقام کا موسم AI ڈاکٹر کی تشخیص میں شامل ہوگا"
+                                  : "Microclimate weather will be factored into diagnosis"}
+                              </span>
+                            </span>
+                            {(observationDate || observationTime || observationLocation || observationCoords) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setObservationDate("");
+                                  setObservationTime("");
+                                  setObservationLocation("");
+                                  setObservationCoords(null);
+                                  setIsDateUserEdited(false);
+                                  setIsDateFromExif(false);
+                                  setIsTimeUserEdited(false);
+                                  setIsTimeFromExif(false);
+                                  setIsLocationFromExif(false);
+                                }}
+                                className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer flex items-center space-x-1 flex-shrink-0"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                                <span>{selectedLanguage === "Urdu" ? "صاف کریں" : "Clear"}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
-
-                        {/* Footer: Privacy notice & Clear Button */}
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[10px] text-slate-500">
-                          <span className="flex items-center space-x-1 min-w-0 pr-2">
-                            <ShieldCheck className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                            <span className="truncate">
-                              {selectedLanguage === "Urdu"
-                                ? "مقام کا موسم AI ڈاکٹر کی تشخیص میں شامل ہوگا"
-                                : "Microclimate weather will be factored into diagnosis"}
-                            </span>
-                          </span>
-                          {(observationDate || observationTime || observationLocation || observationCoords) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setObservationDate("");
-                                setObservationTime("");
-                                setObservationLocation("");
-                                setObservationCoords(null);
-                                setIsDateUserEdited(false);
-                                setIsDateFromExif(false);
-                                setIsTimeUserEdited(false);
-                                setIsTimeFromExif(false);
-                                setIsLocationFromExif(false);
-                              }}
-                              className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer flex items-center space-x-1 flex-shrink-0"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                              <span>{selectedLanguage === "Urdu" ? "صاف کریں" : "Clear"}</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Primary Diagnosis Execution CTA */}
@@ -3519,11 +3597,10 @@ export default function AgriShieldDashboard() {
                       <button
                         type="button"
                         onClick={() => setReportSubTab("treatment")}
-                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 active:scale-[0.98] transform-gpu cursor-pointer ${
-                          reportSubTab === "treatment"
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 active:scale-[0.98] transform-gpu cursor-pointer ${reportSubTab === "treatment"
                             ? "bg-white text-emerald-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
                             : "hover:text-slate-900 text-slate-600"
-                        }`}
+                          }`}
                       >
                         <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                         <span className="hidden sm:inline truncate">{selectedLanguage === "Urdu" ? "علاج و تدابیر" : "Treatment & Action"}</span>
@@ -3533,11 +3610,10 @@ export default function AgriShieldDashboard() {
                       <button
                         type="button"
                         onClick={() => setReportSubTab("origin")}
-                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 active:scale-[0.98] transform-gpu cursor-pointer ${
-                          reportSubTab === "origin"
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 active:scale-[0.98] transform-gpu cursor-pointer ${reportSubTab === "origin"
                             ? "bg-white text-emerald-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
                             : "hover:text-slate-900 text-slate-600"
-                        }`}
+                          }`}
                       >
                         <Activity className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
                         <span className="hidden sm:inline truncate">{selectedLanguage === "Urdu" ? "وجوہات و علامات" : "Cause & Symptoms"}</span>
@@ -3547,15 +3623,14 @@ export default function AgriShieldDashboard() {
                       <button
                         type="button"
                         onClick={() => setReportSubTab("chat")}
-                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 relative active:scale-[0.98] transform-gpu cursor-pointer ${
-                          reportSubTab === "chat"
+                        className={`flex-1 py-2 sm:py-2.5 px-2 rounded-xl transition-all flex items-center justify-center space-x-1.5 min-w-0 relative active:scale-[0.98] transform-gpu cursor-pointer ${reportSubTab === "chat"
                             ? isCurrentReportOwner
                               ? "bg-emerald-600 text-white shadow-sm font-black scale-[1.02]"
                               : "bg-slate-800 text-white shadow-sm font-black scale-[1.02]"
                             : isCurrentReportOwner
-                            ? "hover:text-slate-900 text-emerald-800 bg-emerald-50/70"
-                            : "hover:text-slate-900 text-slate-600 bg-slate-100/70"
-                        }`}
+                              ? "hover:text-slate-900 text-emerald-800 bg-emerald-50/70"
+                              : "hover:text-slate-900 text-slate-600 bg-slate-100/70"
+                          }`}
                       >
                         {isCurrentReportOwner ? (
                           <Bot className={`w-3.5 h-3.5 flex-shrink-0 ${reportSubTab === "chat" ? "text-white" : "text-emerald-600"}`} />
@@ -3585,33 +3660,30 @@ export default function AgriShieldDashboard() {
                           <div className="flex rounded-2xl bg-slate-200/80 p-1 text-[11px] sm:text-xs font-bold text-slate-600 gap-1 border border-slate-300/70 shadow-inner">
                             <button
                               onClick={() => setActiveTreatmentTab("immediate")}
-                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${
-                                activeTreatmentTab === "immediate"
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${activeTreatmentTab === "immediate"
                                   ? "bg-white text-slate-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
                                   : "hover:text-slate-900 text-slate-600"
-                              }`}
+                                }`}
                             >
                               <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                               <span className="truncate">{selectedLanguage === "Urdu" ? "فوری اقدام" : "Do Today"}</span>
                             </button>
                             <button
                               onClick={() => setActiveTreatmentTab("organic")}
-                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${
-                                activeTreatmentTab === "organic"
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${activeTreatmentTab === "organic"
                                   ? "bg-white text-emerald-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
                                   : "hover:text-slate-900 text-slate-600"
-                              }`}
+                                }`}
                             >
                               <Sprout className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
                               <span className="truncate">{selectedLanguage === "Urdu" ? "دیسی علاج" : "Home Remedy"}</span>
                             </button>
                             <button
                               onClick={() => setActiveTreatmentTab("chemical")}
-                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${
-                                activeTreatmentTab === "chemical"
+                              className={`flex-1 py-2 sm:py-2.5 px-1 sm:px-2 rounded-xl transition-all flex items-center justify-center space-x-1 min-w-0 whitespace-nowrap active:scale-[0.98] transform-gpu cursor-pointer ${activeTreatmentTab === "chemical"
                                   ? "bg-white text-blue-950 shadow-sm font-black scale-[1.02] border border-slate-200/50"
                                   : "hover:text-slate-900 text-slate-600"
-                              }`}
+                                }`}
                             >
                               <FlaskConical className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
                               <span className="truncate">{selectedLanguage === "Urdu" ? "زرعی سپرے" : "Shop Spray"}</span>
@@ -3978,219 +4050,215 @@ export default function AgriShieldDashboard() {
                       ) : (
                         <div className="space-y-3.5 animate-in fade-in duration-200">
                           {/* Dr. Crop Header Status */}
-                        <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-200/80 flex items-center justify-between">
-                          <div className="flex items-center space-x-2.5">
-                            <div className="relative">
-                              <div className="w-9 h-9 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm">
-                                <Bot className="w-5 h-5" />
+                          <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-white border border-emerald-200/80 flex items-center justify-between">
+                            <div className="flex items-center space-x-2.5">
+                              <div className="relative">
+                                <div className="w-9 h-9 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shadow-sm">
+                                  <Bot className="w-5 h-5" />
+                                </div>
+                                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
                               </div>
-                              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
-                            </div>
-                            <div>
-                              <div className="font-black text-slate-900 text-xs sm:text-sm flex items-center space-x-1.5">
-                                <span>{selectedLanguage === "Urdu" ? "ڈاکٹر کراپ (زرعی معاون)" : "Dr. Crop (Plant Doctor)"}</span>
-                                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-md font-bold">AI Active</span>
+                              <div>
+                                <div className="font-black text-slate-900 text-xs sm:text-sm flex items-center space-x-1.5">
+                                  <span>{selectedLanguage === "Urdu" ? "ڈاکٹر کراپ (زرعی معاون)" : "Dr. Crop (Plant Doctor)"}</span>
+                                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-md font-bold">AI Active</span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 font-medium">
+                                  {selectedLanguage === "Urdu"
+                                    ? `موضوع: ${diagnosis.crop_name} کا علاج اور احتیاط`
+                                    : `Consulting on ${diagnosis.crop_name}`}
+                                </p>
                               </div>
-                              <p className="text-[10px] text-slate-500 font-medium">
-                                {selectedLanguage === "Urdu"
-                                  ? `موضوع: ${diagnosis.crop_name} کا علاج اور احتیاط`
-                                  : `Consulting on ${diagnosis.crop_name}`}
-                              </p>
                             </div>
+
+                            {chatMessages.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setChatMessages([])}
+                                className="text-[10px] text-slate-400 hover:text-slate-600 font-bold px-2 py-1 rounded-lg border border-slate-200 bg-white"
+                              >
+                                {selectedLanguage === "Urdu" ? "نئی گفتگو" : "Clear"}
+                              </button>
+                            )}
                           </div>
 
-                          {chatMessages.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setChatMessages([])}
-                              className="text-[10px] text-slate-400 hover:text-slate-600 font-bold px-2 py-1 rounded-lg border border-slate-200 bg-white"
-                            >
-                              {selectedLanguage === "Urdu" ? "نئی گفتگو" : "Clear"}
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Chat Messages Box */}
-                        <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 min-h-[220px] max-h-[380px] overflow-y-auto space-y-3 text-xs">
-                          {/* Welcome Greeting */}
-                          <div className="flex items-start space-x-2">
-                            <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
-                              <Bot className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="bg-white p-3 rounded-2xl rounded-tl-sm border border-slate-200/80 shadow-2xs text-slate-800 leading-relaxed max-w-[85%] font-medium">
-                              {selectedLanguage === "Urdu" ? (
-                                <span>
-                                  السلام علیکم! میں آپ کا زرعی معاون ڈاکٹر ہوں۔ آپ اپنے اس پودے (<strong className="text-emerald-800">{diagnosis.crop_name}</strong>) یا اس کے علاج کے بارے میں کوئی بھی سوال پوچھ سکتے ہیں۔ بولنے کے لیے مائیک دبائیں یا نیچے لکھیں۔
-                                </span>
-                              ) : (
-                                <span>
-                                  Hello! I am Dr. Crop. You can ask any question about this <strong className="text-emerald-800">{diagnosis.crop_name}</strong> or its treatment. Tap the microphone to speak or type below.
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Message List */}
-                          {chatMessages.map((msg, idx) => (
-                            <div
-                              key={idx}
-                              className={`flex items-start space-x-2 ${
-                                msg.role === "user" ? "flex-row-reverse space-x-reverse" : ""
-                              }`}
-                            >
-                              <div
-                                className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5 ${
-                                  msg.role === "user"
-                                    ? "bg-slate-800 text-white"
-                                    : "bg-emerald-600 text-white"
-                                }`}
-                              >
-                                {msg.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
-                              </div>
-
-                              <div
-                                className={`p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] font-medium ${
-                                  msg.role === "user"
-                                    ? "bg-slate-900 text-white rounded-tr-sm shadow-sm"
-                                    : "bg-white text-slate-800 rounded-tl-sm border border-slate-200/80 shadow-2xs"
-                                }`}
-                              >
-                                <p className="whitespace-pre-wrap">{msg.content}</p>
-                                {msg.role === "assistant" && (
-                                  <div className="pt-2 mt-1.5 border-t border-slate-100 flex items-center justify-between">
-                                    <button
-                                      type="button"
-                                      onClick={() => speakChatMessage(msg.content)}
-                                      className="inline-flex items-center space-x-1 text-[10px] text-emerald-700 hover:text-emerald-800 font-bold"
-                                    >
-                                      <Volume2 className="w-3 h-3" />
-                                      <span>{selectedLanguage === "Urdu" ? "آواز سنیں" : "Listen"}</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-
-                          {/* Typing indicator */}
-                          {isChatLoading && (
+                          {/* Chat Messages Box */}
+                          <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/80 min-h-[220px] max-h-[380px] overflow-y-auto space-y-3 text-xs">
+                            {/* Welcome Greeting */}
                             <div className="flex items-start space-x-2">
                               <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
                                 <Bot className="w-3.5 h-3.5" />
                               </div>
-                              <div className="bg-white p-3 rounded-2xl rounded-tl-sm border border-slate-200/80 shadow-2xs text-slate-500 text-xs flex items-center space-x-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce" />
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.2s]" />
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.4s]" />
-                                <span className="text-[11px] font-bold text-slate-600 pl-1">
-                                  {selectedLanguage === "Urdu" ? "ڈاکٹر جواب لکھ رہے ہیں..." : "Dr. Crop is replying..."}
-                                </span>
+                              <div className="bg-white p-3 rounded-2xl rounded-tl-sm border border-slate-200/80 shadow-2xs text-slate-800 leading-relaxed max-w-[85%] font-medium">
+                                {selectedLanguage === "Urdu" ? (
+                                  <span>
+                                    السلام علیکم! میں آپ کا زرعی معاون ڈاکٹر ہوں۔ آپ اپنے اس پودے (<strong className="text-emerald-800">{diagnosis.crop_name}</strong>) یا اس کے علاج کے بارے میں کوئی بھی سوال پوچھ سکتے ہیں۔ بولنے کے لیے مائیک دبائیں یا نیچے لکھیں۔
+                                  </span>
+                                ) : (
+                                  <span>
+                                    Hello! I am Dr. Crop. You can ask any question about this <strong className="text-emerald-800">{diagnosis.crop_name}</strong> or its treatment. Tap the microphone to speak or type below.
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          )}
 
-                          <div ref={chatMessagesEndRef} />
-                        </div>
+                            {/* Message List */}
+                            {chatMessages.map((msg, idx) => (
+                              <div
+                                key={idx}
+                                className={`flex items-start space-x-2 ${msg.role === "user" ? "flex-row-reverse space-x-reverse" : ""
+                                  }`}
+                              >
+                                <div
+                                  className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5 ${msg.role === "user"
+                                      ? "bg-slate-800 text-white"
+                                      : "bg-emerald-600 text-white"
+                                    }`}
+                                >
+                                  {msg.role === "user" ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                                </div>
 
-                        {/* Quick Question Chips */}
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                            {selectedLanguage === "Urdu" ? "اکثر پوچھے جانے والے سوالات:" : "Quick Questions (1-Tap):"}
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(selectedLanguage === "Urdu"
-                              ? [
+                                <div
+                                  className={`p-3 rounded-2xl text-xs leading-relaxed max-w-[85%] font-medium ${msg.role === "user"
+                                      ? "bg-slate-900 text-white rounded-tr-sm shadow-sm"
+                                      : "bg-white text-slate-800 rounded-tl-sm border border-slate-200/80 shadow-2xs"
+                                    }`}
+                                >
+                                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                                  {msg.role === "assistant" && (
+                                    <div className="pt-2 mt-1.5 border-t border-slate-100 flex items-center justify-between">
+                                      <button
+                                        type="button"
+                                        onClick={() => speakChatMessage(msg.content)}
+                                        className="inline-flex items-center space-x-1 text-[10px] text-emerald-700 hover:text-emerald-800 font-bold"
+                                      >
+                                        <Volume2 className="w-3 h-3" />
+                                        <span>{selectedLanguage === "Urdu" ? "آواز سنیں" : "Listen"}</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Typing indicator */}
+                            {isChatLoading && (
+                              <div className="flex items-start space-x-2">
+                                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
+                                  <Bot className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="bg-white p-3 rounded-2xl rounded-tl-sm border border-slate-200/80 shadow-2xs text-slate-500 text-xs flex items-center space-x-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.2s]" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-bounce [animation-delay:0.4s]" />
+                                  <span className="text-[11px] font-bold text-slate-600 pl-1">
+                                    {selectedLanguage === "Urdu" ? "ڈاکٹر جواب لکھ رہے ہیں..." : "Dr. Crop is replying..."}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            <div ref={chatMessagesEndRef} />
+                          </div>
+
+                          {/* Quick Question Chips */}
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                              {selectedLanguage === "Urdu" ? "اکثر پوچھے جانے والے سوالات:" : "Quick Questions (1-Tap):"}
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(selectedLanguage === "Urdu"
+                                ? [
                                   "کیا یہ بیماری دوسرے پودوں میں پھیلے گی؟",
                                   "سپرے کس وقت کرنا زیادہ فائدہ مند ہے؟",
                                   "کتنے دنوں میں پودا ٹھیک ہوگا؟",
                                   "کیا پانی دینا کم کر دینا چاہیے؟",
                                 ]
-                              : [
+                                : [
                                   "Will this spread to nearby plants?",
                                   "What is the best time of day to spray?",
                                   "How many days until recovery?",
                                   "Should I reduce irrigation?",
                                 ]
-                            ).map((q, idx) => (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => handleSendChatMessage(q)}
-                                disabled={isChatLoading}
-                                className="text-[11px] font-medium px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 border border-slate-200/80 transition-colors shadow-2xs disabled:opacity-50 text-left"
-                              >
-                                <span className="inline-flex items-center gap-1.5">
-                                  <MessageSquare className="w-3 h-3 text-emerald-600 flex-shrink-0" />
-                                  <span>{q}</span>
-                                </span>
-                              </button>
-                            ))}
+                              ).map((q, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => handleSendChatMessage(q)}
+                                  disabled={isChatLoading}
+                                  className="text-[11px] font-medium px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 border border-slate-200/80 transition-colors shadow-2xs disabled:opacity-50 text-left"
+                                >
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <MessageSquare className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                                    <span>{q}</span>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
                           </div>
+
+                          {/* Interactive Input Bar (Mic + Text + Send) */}
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              handleSendChatMessage();
+                            }}
+                            className="flex items-center space-x-2 pt-1"
+                          >
+                            {/* Microphone Button */}
+                            <button
+                              type="button"
+                              onClick={toggleVoiceRecording}
+                              className={`p-2.5 rounded-xl border transition-all flex items-center justify-center flex-shrink-0 ${isRecording
+                                  ? "bg-rose-500 text-white border-rose-600 shadow-md animate-pulse"
+                                  : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-2xs"
+                                }`}
+                              title={
+                                isRecording
+                                  ? "Recording... tap to stop"
+                                  : selectedLanguage === "Urdu"
+                                    ? "بول کر سوال پوچھیں"
+                                    : "Speak your question"
+                              }
+                            >
+                              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-emerald-600" />}
+                            </button>
+
+                            {/* Text Input */}
+                            <input
+                              type="text"
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              placeholder={
+                                isRecording
+                                  ? selectedLanguage === "Urdu"
+                                    ? "سن رہا ہوں، بولیں..."
+                                    : "Listening..."
+                                  : selectedLanguage === "Urdu"
+                                    ? "پودے یا علاج کے بارے میں کوئی سوال پوچھیں..."
+                                    : "Ask Dr. Crop any question..."
+                              }
+                              disabled={isChatLoading}
+                              className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs disabled:opacity-60"
+                            />
+
+                            {/* Send Button */}
+                            <button
+                              type="submit"
+                              disabled={!chatInput.trim() || isChatLoading}
+                              className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                              title="Send"
+                            >
+                              {isChatLoading ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Send className="w-4 h-4" />
+                              )}
+                            </button>
+                          </form>
                         </div>
-
-                        {/* Interactive Input Bar (Mic + Text + Send) */}
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            handleSendChatMessage();
-                          }}
-                          className="flex items-center space-x-2 pt-1"
-                        >
-                          {/* Microphone Button */}
-                          <button
-                            type="button"
-                            onClick={toggleVoiceRecording}
-                            className={`p-2.5 rounded-xl border transition-all flex items-center justify-center flex-shrink-0 ${
-                              isRecording
-                                ? "bg-rose-500 text-white border-rose-600 shadow-md animate-pulse"
-                                : "bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-2xs"
-                            }`}
-                            title={
-                              isRecording
-                                ? "Recording... tap to stop"
-                                : selectedLanguage === "Urdu"
-                                ? "بول کر سوال پوچھیں"
-                                : "Speak your question"
-                            }
-                          >
-                            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-emerald-600" />}
-                          </button>
-
-                          {/* Text Input */}
-                          <input
-                            type="text"
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            placeholder={
-                              isRecording
-                                ? selectedLanguage === "Urdu"
-                                  ? "سن رہا ہوں، بولیں..."
-                                  : "Listening..."
-                                : selectedLanguage === "Urdu"
-                                ? "پودے یا علاج کے بارے میں کوئی سوال پوچھیں..."
-                                : "Ask Dr. Crop any question..."
-                            }
-                            disabled={isChatLoading}
-                            className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs disabled:opacity-60"
-                          />
-
-                          {/* Send Button */}
-                          <button
-                            type="submit"
-                            disabled={!chatInput.trim() || isChatLoading}
-                            className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-                            title="Send"
-                          >
-                            {isChatLoading ? (
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                          </button>
-                        </form>
-                      </div>
-                    )
-                  )}
+                      )
+                    )}
 
 
 
@@ -4847,8 +4915,8 @@ export default function AgriShieldDashboard() {
                         key={preset.name}
                         onClick={() => fetchWeatherForCoords(preset.lat, preset.lon, preset.name, "preset")}
                         className={`flex-shrink-0 inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all ${isActive
-                            ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
                           }`}
                       >
                         <MapPin className={`w-3 h-3 flex-shrink-0 ${isActive ? "text-white" : "text-emerald-600"}`} />
@@ -4886,8 +4954,8 @@ export default function AgriShieldDashboard() {
 
                     {/* Relative Humidity Card */}
                     <div className={`p-4 rounded-2xl border shadow-xs ${weatherTelemetry.humidity >= 75
-                        ? "bg-rose-50/70 border-rose-200 text-rose-950"
-                        : "bg-blue-50/70 border-blue-200 text-blue-950"
+                      ? "bg-rose-50/70 border-rose-200 text-rose-950"
+                      : "bg-blue-50/70 border-blue-200 text-blue-950"
                       }`}>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold">Relative Humidity</span>
@@ -4968,11 +5036,10 @@ export default function AgriShieldDashboard() {
                           </span>
                         )}
                         {weatherTelemetry.consecutive_damp_days !== undefined && (
-                          <span className={`px-2.5 py-1 rounded-full border font-bold shadow-2xs whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1 ${
-                            weatherTelemetry.consecutive_damp_days >= 3
+                          <span className={`px-2.5 py-1 rounded-full border font-bold shadow-2xs whitespace-nowrap flex-shrink-0 inline-flex items-center gap-1 ${weatherTelemetry.consecutive_damp_days >= 3
                               ? "bg-rose-50 border-rose-200 text-rose-800"
                               : "bg-white/90 border-teal-200 text-teal-900"
-                          }`}>
+                            }`}>
                             <Calendar className="w-3 h-3 text-teal-700 flex-shrink-0" />
                             <span>Damp Days: {weatherTelemetry.consecutive_damp_days}/7</span>
                           </span>
@@ -5041,8 +5108,8 @@ export default function AgriShieldDashboard() {
                     onClick={handleAskClimateDoctor}
                     disabled={advisoryLoading || !weatherTelemetry}
                     className={`px-5 py-3 rounded-xl font-black text-xs sm:text-sm shadow-md transition-all flex items-center justify-center space-x-2 flex-shrink-0 active:scale-95 ${advisoryLoading || !weatherTelemetry
-                        ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white"
                       }`}
                   >
                     {advisoryLoading ? (
@@ -5085,8 +5152,8 @@ export default function AgriShieldDashboard() {
                         onClick={toggleAdvisorySpeech}
                         disabled={advisoryAudioLoading}
                         className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${isAdvisorySpeaking
-                            ? "bg-rose-50 text-rose-700 border-rose-300 shadow-sm"
-                            : "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 shadow-xs"
+                          ? "bg-rose-50 text-rose-700 border-rose-300 shadow-sm"
+                          : "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100 shadow-xs"
                           }`}
                       >
                         {advisoryAudioLoading ? (

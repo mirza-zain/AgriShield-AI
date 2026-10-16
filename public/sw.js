@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agrishield-pwa-v2';
+const CACHE_NAME = 'agrishield-pwa-v3';
 
 // Core shell assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -7,7 +7,19 @@ const PRECACHE_ASSETS = [
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
-  '/icon-maskable-512.png'
+  '/icon-maskable-512.png',
+  '/audio/samples/rotten-apple-en.mp3',
+  '/audio/samples/rotten-apple-ur.mp3',
+  '/audio/samples/drought-corn-en.mp3',
+  '/audio/samples/drought-corn-ur.mp3',
+  '/audio/samples/vine-tomatoes-en.mp3',
+  '/audio/samples/vine-tomatoes-ur.mp3',
+  '/audio/samples/spoiled-pumpkin-en.mp3',
+  '/audio/samples/spoiled-pumpkin-ur.mp3',
+  '/audio/samples/sweet-corn-en.mp3',
+  '/audio/samples/sweet-corn-ur.mp3',
+  '/audio/samples/green-basil-en.mp3',
+  '/audio/samples/green-basil-ur.mp3'
 ];
 
 self.addEventListener('install', (event) => {
@@ -59,7 +71,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Cloudflare R2 CDN Images & Media: Cache-First with Network Fallback
+  // 3. Audio Media: Cache-First (Instant 0ms spoken advice playback)
+  if (url.pathname.startsWith('/audio/') || request.destination === 'audio') {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        try {
+          const networkResponse = await fetch(request);
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch {
+          return cachedResponse || new Response('', { status: 408 });
+        }
+      })
+    );
+    return;
+  }
+
+  // 4. Cloudflare R2 CDN Images & Media: Cache-First with Network Fallback
   const isCdnImage = url.hostname.includes('r2.dev') || url.hostname.includes('cloudflarestorage.com');
   const isImageRequest =
     request.destination === 'image' ||
