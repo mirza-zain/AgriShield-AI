@@ -2687,15 +2687,16 @@ export default function AgriShieldDashboard() {
                           <button
                             type="button"
                             onClick={() => setShowPathologyBoxes((prev) => !prev)}
-                            className={`absolute top-3 right-3 z-30 px-2.5 py-1.5 rounded-xl text-[10px] font-black border backdrop-blur-md shadow-md transition-all flex items-center space-x-1 cursor-pointer min-h-[34px] ${
+                            className={`absolute top-3 right-3 z-30 p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-[10px] font-black border backdrop-blur-md shadow-md transition-all flex items-center space-x-1 cursor-pointer min-h-[34px] ${
                               showPathologyBoxes
                                 ? "bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/20"
                                 : "bg-slate-900/80 text-slate-300 border-white/20 hover:bg-slate-800"
                             }`}
                             title="Toggle visual pathology target boxes"
+                            aria-label="Toggle visual pathology target boxes"
                           >
                             <Target className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span>{showPathologyBoxes ? "Targets: ON" : "Targets: OFF"}</span>
+                            <span className="hidden sm:inline">{showPathologyBoxes ? "Targets: ON" : "Targets: OFF"}</span>
                           </button>
                         )}
 
@@ -2758,9 +2759,9 @@ export default function AgriShieldDashboard() {
                               );
                             })}
 
-                        <div className="absolute bottom-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-xl flex items-center space-x-2 border border-white/10 shadow-lg">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span className="font-semibold">Specimen Loaded</span>
+                        <div className="absolute bottom-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md text-white text-xs p-2 sm:px-3 sm:py-1.5 rounded-xl flex items-center space-x-1.5 sm:space-x-2 border border-white/10 shadow-lg">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          <span className="font-semibold hidden sm:inline">Specimen Loaded</span>
                         </div>
 
                         {/* High-Res Lightbox Inspection Trigger */}
@@ -2771,12 +2772,12 @@ export default function AgriShieldDashboard() {
                             setLightboxPan({ x: 0, y: 0 });
                             setIsLightboxOpen(true);
                           }}
-                          className="absolute bottom-3 right-3 z-20 bg-slate-900/85 hover:bg-slate-800 active:scale-95 text-white text-xs px-2.5 sm:px-3 py-1.5 rounded-xl flex items-center space-x-1.5 border border-white/15 shadow-lg backdrop-blur-md transition-all cursor-pointer"
+                          className="absolute bottom-3 right-3 z-20 bg-slate-900/85 hover:bg-slate-800 active:scale-95 text-white text-xs p-2 sm:px-3 sm:py-1.5 rounded-xl flex items-center space-x-1.5 border border-white/15 shadow-lg backdrop-blur-md transition-all cursor-pointer"
                           title="Inspect leaf in fullscreen zoom"
+                          aria-label="Inspect leaf in fullscreen zoom"
                         >
                           <Maximize2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                           <span className="font-bold text-[11px] hidden sm:inline">Inspect & Zoom</span>
-                          <span className="font-bold text-[11px] sm:hidden">Zoom</span>
                         </button>
                       </div>
                     ) : (
