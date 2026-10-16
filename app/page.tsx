@@ -2759,10 +2759,12 @@ export default function AgriShieldDashboard() {
                               );
                             })}
 
-                        <div className="absolute bottom-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md text-white text-xs p-2 sm:px-3 sm:py-1.5 rounded-xl flex items-center space-x-1.5 sm:space-x-2 border border-white/10 shadow-lg">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                          <span className="font-semibold hidden sm:inline">Specimen Loaded</span>
-                        </div>
+                        {!selectedScanId && (
+                          <div className="absolute bottom-3 left-3 z-20 bg-slate-900/85 backdrop-blur-md text-white text-xs p-2 sm:px-3 sm:py-1.5 rounded-xl flex items-center space-x-1.5 sm:space-x-2 border border-white/10 shadow-lg">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                            <span className="font-semibold hidden sm:inline">Specimen Loaded</span>
+                          </div>
+                        )}
 
                         {/* High-Res Lightbox Inspection Trigger */}
                         <button
@@ -2878,8 +2880,9 @@ export default function AgriShieldDashboard() {
                     </div>
                   </div>
 
-                  {/* Optional Field Observation Timing & Region Accordion */}
-                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-3 transition-all">
+                  {/* Optional Field Observation Timing & Region Accordion (Staging only, hidden on Vault records) */}
+                  {!selectedScanId && (
+                    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-3 transition-all">
                     <button
                       type="button"
                       onClick={() => setShowObservationContext((prev) => !prev)}
@@ -3081,6 +3084,7 @@ export default function AgriShieldDashboard() {
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Primary Diagnosis Execution CTA */}
                   <div className="space-y-2 pt-1">
