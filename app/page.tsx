@@ -478,6 +478,11 @@ export default function AgriShieldDashboard() {
         (window as any).__agriShieldPrompt = e;
       }
       setDeferredPrompt(e);
+      // Browser verified app is NOT installed; reset flag so button shows up if user uninstalled
+      setIsInstalled(false);
+      try {
+        localStorage.removeItem("agrishield_pwa_installed");
+      } catch (err) {}
     };
 
     const handleResize = () => {
@@ -496,11 +501,8 @@ export default function AgriShieldDashboard() {
       setIsInstalled(true);
     }
 
-    // 2. Check persistent installed flag from previous session
+    // 2. Load stored farmer identity and user-owned scan history
     try {
-      if (localStorage.getItem("agrishield_pwa_installed") === "true") {
-        setIsInstalled(true);
-      }
       let storedFarmerId = localStorage.getItem("agrishield_farmer_id");
       if (!storedFarmerId) {
         storedFarmerId = "farmer_" + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
@@ -515,13 +517,19 @@ export default function AgriShieldDashboard() {
       }
     } catch (e) {}
 
-    // 3. Check device OS if companion PWA is already installed on phone/PC
+    // 3. Query device OS if companion PWA is currently installed on phone/PC
     if ("getInstalledRelatedApps" in navigator) {
       (navigator as any)
         .getInstalledRelatedApps()
         .then((relatedApps: any[]) => {
           if (Array.isArray(relatedApps) && relatedApps.length > 0) {
             setIsInstalled(true);
+          } else if (!isStandalone) {
+            // App was uninstalled from device; allow reinstallation
+            setIsInstalled(false);
+            try {
+              localStorage.removeItem("agrishield_pwa_installed");
+            } catch (err) {}
           }
         })
         .catch(() => {});
