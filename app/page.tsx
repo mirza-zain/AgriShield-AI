@@ -977,6 +977,8 @@ export default function AgriShieldDashboard() {
       setNotCropNotice(null);
       stopSpeech();
 
+      const isSampleSpecimen = Boolean(activePresetUrl);
+
       const payload = {
         image: imagePreview,
         thumbnail: thumbnailPreview || imagePreview,
@@ -985,7 +987,8 @@ export default function AgriShieldDashboard() {
         observationTime: observationTime.trim() || undefined,
         observationLocation: observationLocation.trim() || undefined,
         coordinates: observationCoords || undefined,
-        skipHistory: skipHistoryFlag,
+        skipHistory: skipHistoryFlag || isSampleSpecimen,
+        isSample: isSampleSpecimen,
         userId: farmerId || undefined,
       };
 
@@ -1049,8 +1052,9 @@ export default function AgriShieldDashboard() {
         console.log(`[AgriShield Debug] Plant Doctor model used: ${data.modelUsed}`);
       }
 
-      if (!skipHistoryFlag) {
-        // Instant optimistic prepend into Vault only for original new scans
+      // SAMPLES MUST NEVER BE STORED IN VAULT, INDEXEDDB, LOCALSTORAGE, OR FEED
+      if (!skipHistoryFlag && !isSampleSpecimen && !data.isSample) {
+        // Instant optimistic prepend into Vault only for original new farmer scans
         const newScanItem: ScanRecord = {
           id: data.scanId || `scan-${Date.now()}`,
           crop_name: data.diagnosis.crop_name,
@@ -1088,6 +1092,8 @@ export default function AgriShieldDashboard() {
           });
         }
         fetchHistory(false);
+      } else {
+        setSelectedScanId(null);
       }
 
       showToast("Diagnosis completed successfully!", <CheckCircle2 className="w-4 h-4 text-emerald-400" />);

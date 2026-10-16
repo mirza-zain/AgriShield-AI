@@ -710,7 +710,7 @@ ${JSON.stringify({
       );
     }
 
-    const isPresetUrl = image.startsWith("http://") || image.startsWith("https://");
+    const isPresetUrl = image.startsWith("http://") || image.startsWith("https://") || Boolean(body.isSample);
     let diagnosis: DiagnosisResult | null = null;
     let activeModel = isPresetUrl ? "Preset Knowledge Base" : "";
     let hasNetworkOfflineError = false;
@@ -1116,8 +1116,10 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
     let storedImageUrl = image;
     let storedThumbUrl = scanThumbnail;
 
-    // If not a preset URL and is base64, save as real image in Cloudflare R2 (or fallback to Firebase)
-    if (!isPresetUrl && (image.startsWith("data:") || image.length > 500)) {
+    // SAMPLES MUST NEVER BE SAVED TO CLOUDFLARE R2, FIREBASE STORAGE, FIRESTORE DB, OR VAULT
+    const shouldSaveRecord = !skipHistory && !isPresetUrl;
+
+    if (shouldSaveRecord && (image.startsWith("data:") || image.length > 500)) {
       try {
         const [r2Url, r2ThumbUrl] = await Promise.all([
           uploadScanImageToR2(scanId, image, mimeType),
@@ -1163,8 +1165,8 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
       userId: userId || "guest_farmer",
     };
 
-    // Save to shared in-memory store and Firestore ONLY FOR VALID CROPS AND NOT WHEN skipHistory IS TRUE
-    if (!skipHistory) {
+    // Save to shared in-memory store and Firestore ONLY FOR VALID CROPS AND NEVER FOR PRESET SAMPLES
+    if (shouldSaveRecord) {
       addSharedScan(newScanRecord);
 
       // Await Firestore write so Vercel does not terminate container before database write finishes
@@ -1188,7 +1190,8 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
     return NextResponse.json({
       success: true,
       isPlantOrCrop: true,
-      scanId,
+      isSample: isPresetUrl,
+      scanId: isPresetUrl ? undefined : scanId,
       diagnosis: {
         ...diagnosis,
         language: language || "English",
