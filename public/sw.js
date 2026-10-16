@@ -81,6 +81,14 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         } catch (err) {
+          // If offline and full image was not downloaded yet, fallback to cached thumbnail
+          if (url.pathname.endsWith('.jpg') && !url.pathname.includes('_thumb')) {
+            const thumbUrl = request.url.replace(/.jpg$/, '_thumb.jpg');
+            const cachedThumb = await cache.match(thumbUrl);
+            if (cachedThumb) {
+              return cachedThumb;
+            }
+          }
           return cachedResponse || new Response('', { status: 408 });
         }
       })

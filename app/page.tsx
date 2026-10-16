@@ -2180,6 +2180,11 @@ export default function AgriShieldDashboard() {
                 src={imagePreview}
                 alt="High-Res Specimen Inspection"
                 className="max-h-[82vh] max-w-[94vw] object-contain rounded-xl shadow-2xl pointer-events-none select-none border border-white/10"
+                onError={(e) => {
+                  if (thumbnailPreview && e.currentTarget.src !== thumbnailPreview) {
+                    e.currentTarget.src = thumbnailPreview;
+                  }
+                }}
               />
 
               {/* Pathology Target Highlights inside Lightbox */}
@@ -2658,6 +2663,11 @@ export default function AgriShieldDashboard() {
                           alt="Plant Specimen"
                           className="w-full h-full object-contain select-none"
                           onLoad={(e) => updateImageRenderRect(e.currentTarget)}
+                          onError={(e) => {
+                            if (thumbnailPreview && e.currentTarget.src !== thumbnailPreview) {
+                              e.currentTarget.src = thumbnailPreview;
+                            }
+                          }}
                         />
 
                         {/* Animated Laser Scanning Beam */}
