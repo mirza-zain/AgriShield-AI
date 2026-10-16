@@ -2436,18 +2436,16 @@ export default function AgriShieldDashboard() {
 
           {/* Right Action Bar: Network Status + Install App + Language Dropdown */}
           <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
-            {/* Network Offline Status Indicator: Display only when offline to keep navbar clean */}
+            {/* Network Offline Status Indicator: Display only when offline (Icon-only on mobile, full label on desktop) */}
             {!isOnline && (
               <div
-                className="inline-flex items-center space-x-1 sm:space-x-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold border transition-colors shadow-2xs select-none whitespace-nowrap flex-shrink-0 bg-amber-50 text-amber-800 border-amber-200"
-                title="Operating in Offline Vault mode"
+                className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-xl text-[10px] sm:text-xs font-bold border transition-colors shadow-2xs select-none whitespace-nowrap flex-shrink-0 bg-amber-50 text-amber-800 border-amber-200"
+                title={selectedLanguage === "Urdu" ? "آف لائن والٹ فعال ہے" : "Offline Vault Active"}
+                aria-label="Offline Mode"
               >
                 <WifiOff className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                <span className="hidden sm:inline">
+                <span className="hidden sm:inline sm:ml-1.5">
                   {selectedLanguage === "Urdu" ? "آف لائن والٹ" : "Offline Vault"}
-                </span>
-                <span className="sm:hidden font-bold">
-                  {selectedLanguage === "Urdu" ? "آف لائن" : "Offline"}
                 </span>
               </div>
             )}
