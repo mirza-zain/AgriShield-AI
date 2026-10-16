@@ -13,6 +13,7 @@ export interface HealthyComparison {
 export interface DiagnosisResult {
   is_plant_or_crop?: boolean;
   rejection_reason?: string;
+  language?: string;
   crop_name: string;
   scientific_name: string;
   condition_detected: string;

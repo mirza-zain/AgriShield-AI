@@ -942,8 +942,12 @@ export default function AgriShieldDashboard() {
 
       setNotCropNotice(null);
       setErrorMessage(null);
-      setDiagnosis(data.diagnosis);
-      languageDiagnosisCacheRef.current[targetLang] = data.diagnosis;
+      const diagWithLang: DiagnosisResult = {
+        ...data.diagnosis,
+        language: data.diagnosis?.language || targetLang,
+      };
+      setDiagnosis(diagWithLang);
+      languageDiagnosisCacheRef.current[targetLang] = diagWithLang;
 
       if (data.modelUsed) {
         setDiagnoseModelUsed(data.modelUsed);
@@ -1022,9 +1026,14 @@ export default function AgriShieldDashboard() {
     const diagToTranslate = baseDiag || diagnosis;
     if (!diagToTranslate) return;
 
+    if (diagToTranslate.language === targetLang) {
+      languageDiagnosisCacheRef.current[targetLang] = diagToTranslate;
+      return;
+    }
+
     try {
       setIsTranslating(true);
-      showToast(targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے..." : "Translating report to English...", <Globe className="w-4 h-4 text-blue-400" />);
+      showToast(targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے..." : `Translating report to ${targetLang}...`, <Globe className="w-4 h-4 text-blue-400" />);
 
       const res = await fetch("/api/diagnose", {
         method: "POST",
@@ -1038,9 +1047,13 @@ export default function AgriShieldDashboard() {
 
       const data = await res.json();
       if (data?.diagnosis) {
-        setDiagnosis(data.diagnosis);
-        languageDiagnosisCacheRef.current[targetLang] = data.diagnosis;
-        showToast(targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : "Report translated to English", <Check className="w-4 h-4 text-emerald-400" />);
+        const transDiag: DiagnosisResult = {
+          ...data.diagnosis,
+          language: data.diagnosis?.language || targetLang,
+        };
+        setDiagnosis(transDiag);
+        languageDiagnosisCacheRef.current[targetLang] = transDiag;
+        showToast(targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`, <Check className="w-4 h-4 text-emerald-400" />);
       }
     } catch (err) {
       console.warn("Translation failed:", err);
@@ -1421,6 +1434,9 @@ export default function AgriShieldDashboard() {
     setActivePresetUrl(null);
     setSelectedScanId(scan.id || null);
     setDiagnosis(scan);
+    languageDiagnosisCacheRef.current = {
+      [scan.language || "English"]: scan,
+    };
     if (scan.agronomic_context) {
       setObservationDate(scan.agronomic_context.captured_at || "");
       setObservationTime(scan.agronomic_context.observation_time || "");
@@ -2472,6 +2488,8 @@ export default function AgriShieldDashboard() {
                 value={selectedLanguage}
                 onChange={(e) => {
                   const newLang = e.target.value;
+                  if (newLang === selectedLanguage) return;
+
                   stopSpeech();
                   setSelectedLanguage(newLang);
                   // 1. If this specimen was already diagnosed in this language, switch instantly with 0 tokens and 0 API calls!
@@ -2482,6 +2500,17 @@ export default function AgriShieldDashboard() {
                   }
                   // 2. If a diagnosis is currently displayed, translate only the text into newLang (0 image tokens, 0 duplicates, <1.5s)
                   if (diagnosis) {
+                    if (diagnosis.language === newLang) {
+                      languageDiagnosisCacheRef.current[newLang] = diagnosis;
+                      showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);
+                      return;
+                    }
+                    showToast(
+                      newLang === "Urdu"
+                        ? "رپورٹ کا آسان اردو میں ترجمہ کیا جا رہا ہے..."
+                        : `Translating report to ${newLang}...`,
+                      <Globe className="w-4 h-4 text-blue-400" />
+                    );
                     translateCurrentDiagnosis(newLang, diagnosis);
                   } else {
                     showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);
@@ -3139,21 +3168,12 @@ export default function AgriShieldDashboard() {
                               <span>Model: {diagnoseModelUsed}</span>
                             </span>
                           )}
-                          {isTranslating ? (
+                          {isTranslating && (
                             <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-300 animate-pulse">
                               <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                               <span>{selectedLanguage === "Urdu" ? "اردو میں ترجمہ ہو رہا ہے..." : "Translating..."}</span>
                             </span>
-                          ) : !languageDiagnosisCacheRef.current[selectedLanguage] ? (
-                            <button
-                              type="button"
-                              onClick={() => translateCurrentDiagnosis(selectedLanguage, diagnosis)}
-                              className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
-                            >
-                              <RefreshCw className="w-2.5 h-2.5" />
-                              <span>{selectedLanguage === "Urdu" ? "مکمل رپورٹ اردو میں دیکھیں" : "View in English"}</span>
-                            </button>
-                          ) : null}
+                          )}
                         </div>
                         <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 leading-tight break-words">
                           {diagnosis.crop_name}

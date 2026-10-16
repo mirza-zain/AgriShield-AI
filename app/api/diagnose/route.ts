@@ -637,6 +637,7 @@ ${JSON.stringify({
           const mergedDiagnosis: DiagnosisResult = {
             ...sourceDiag,
             ...translatedFields,
+            language: targetLang,
             lesion_boxes: sourceDiag.lesion_boxes,
             lesion_box: sourceDiag.lesion_box,
             confidence_score: sourceDiag.confidence_score,
@@ -1190,6 +1191,7 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
       scanId,
       diagnosis: {
         ...diagnosis,
+        language: language || "English",
         agronomic_context: agronomicContext || undefined,
       },
       modelUsed: activeModel || "gemini-3.8-flash",
