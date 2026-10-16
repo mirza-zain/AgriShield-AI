@@ -394,6 +394,7 @@ export default function AgriShieldDashboard() {
   const audioAbortControllerRef = useRef<AbortController | null>(null);
   const advisoryAudioAbortControllerRef = useRef<AbortController | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+  const isTabMountRef = useRef<boolean>(true);
 
   // Trigger floating toast notification
   const showToast = (message: string, icon?: React.ReactNode) => {
@@ -566,6 +567,15 @@ export default function AgriShieldDashboard() {
       stopSpeech();
     };
   }, []);
+
+  // Scroll to top smoothly when switching between primary tabs (Doctor, Vault, Advisory)
+  useEffect(() => {
+    if (isTabMountRef.current) {
+      isTabMountRef.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeViewTab]);
 
   // Automatically refresh feed when farmer opens the Farm Vault tab
   useEffect(() => {
@@ -1466,11 +1476,7 @@ export default function AgriShieldDashboard() {
     stopSpeech();
     setActiveViewTab("doctor");
     showToast(`Loaded report: ${scan.crop_name}`, <CheckCircle2 className="w-4 h-4 text-emerald-400" />);
-    if (window.innerWidth < 1024 && reportRef.current) {
-      setTimeout(() => {
-        reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 150);
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDeleteScan = async (e: React.MouseEvent, scan: ScanRecord) => {
