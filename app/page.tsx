@@ -310,6 +310,10 @@ export default function AgriShieldDashboard() {
   const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
   const [activeTreatmentTab, setActiveTreatmentTab] = useState<"immediate" | "organic" | "chemical">("immediate");
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
+  const selectedScanIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedScanIdRef.current = selectedScanId;
+  }, [selectedScanId]);
 
   // Pathology Target Coordinate Rect & Visibility Toggle
   const [imageRenderRect, setImageRenderRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
@@ -1265,7 +1269,11 @@ export default function AgriShieldDashboard() {
     }
   };
 
-  const translateCurrentDiagnosis = async (targetLang: string, baseDiag?: DiagnosisResult) => {
+  const translateCurrentDiagnosis = async (
+    targetLang: string,
+    baseDiag?: DiagnosisResult,
+    explicitScanId?: string | null
+  ) => {
     const diagToTranslate = baseDiag || diagnosis;
     if (!diagToTranslate) return;
 
@@ -1315,14 +1323,22 @@ export default function AgriShieldDashboard() {
     }
 
     // 4. Online: call cloud AI translation endpoint
+    // IMPORTANT: Stricly resolve the scan ID this translation belongs to:
+    // Prioritize explicitScanId -> diagToTranslate.id -> selectedScanIdRef.current
+    const targetScanId =
+      explicitScanId !== undefined
+        ? explicitScanId
+        : (diagToTranslate as any)?.id || (diagToTranslate === diagnosis ? selectedScanIdRef.current : null);
+
+    const activeScanIdAtStart = selectedScanIdRef.current;
+    const activeCropNameAtStart = diagToTranslate.crop_name;
+
     try {
       setIsTranslating(true);
       showToast(
         targetLang === "Urdu" ? "رپورٹ اردو میں تبدیل ہو رہی ہے..." : `Translating report to ${targetLang}...`,
         <Globe className="w-4 h-4 text-blue-400" />
       );
-
-      const scanIdToUpdate = selectedScanId || (diagToTranslate as any)?.id;
 
       const res = await fetch("/api/diagnose", {
         method: "POST",
@@ -1331,7 +1347,7 @@ export default function AgriShieldDashboard() {
           mode: "translate",
           diagnosis: diagToTranslate,
           targetLanguage: targetLang,
-          scanId: scanIdToUpdate || undefined,
+          scanId: targetScanId && !targetScanId.startsWith("seed-") ? targetScanId : undefined,
         }),
       });
 
@@ -1342,14 +1358,12 @@ export default function AgriShieldDashboard() {
           ...data.diagnosis,
           language: data.diagnosis?.language || targetLang,
         };
-        setDiagnosis(transDiag);
-        languageDiagnosisCacheRef.current[targetLang] = transDiag;
 
         // Persist translated version to scan record in historyFeed & offline Vault
-        if (scanIdToUpdate) {
+        if (targetScanId && !targetScanId.startsWith("seed-")) {
           setHistoryFeed((prev) =>
             prev.map((item) => {
-              if (item.id === scanIdToUpdate) {
+              if (item.id === targetScanId) {
                 const updatedTranslations = {
                   ...(item.translations || {}),
                   [item.language || "English"]: { ...item },
@@ -1364,10 +1378,22 @@ export default function AgriShieldDashboard() {
           );
         }
 
-        showToast(
-          targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`,
-          <Check className="w-4 h-4 text-emerald-400" />
-        );
+        // CRITICAL RACE-CONDITION GUARD:
+        // Only update on-screen diagnosis if user is STILL viewing this exact report!
+        const isStillViewingThisScan =
+          (targetScanId && selectedScanIdRef.current === targetScanId) ||
+          (!targetScanId && selectedScanIdRef.current === activeScanIdAtStart && diagnosis?.crop_name === activeCropNameAtStart);
+
+        if (isStillViewingThisScan) {
+          setDiagnosis(transDiag);
+          languageDiagnosisCacheRef.current[targetLang] = transDiag;
+          showToast(
+            targetLang === "Urdu" ? "مکمل رپورٹ اردو میں تیار ہے" : `Report translated to ${targetLang}`,
+            <Check className="w-4 h-4 text-emerald-400" />
+          );
+        } else {
+          console.log(`[AgriShield] Background translation finished for ${targetScanId || activeCropNameAtStart}; active screen preserved.`);
+        }
       }
     } catch (err) {
       console.warn("Translation failed:", err);
@@ -1814,6 +1840,7 @@ export default function AgriShieldDashboard() {
   const handleLoadPastScan = (scan: ScanRecord) => {
     setErrorMessage(null);
     setNotCropNotice(null);
+    selectedScanIdRef.current = scan.id || null;
     setSelectedScanId(scan.id || null);
     setChatMessages([]);
     setReportSubTab("treatment");
@@ -1855,7 +1882,7 @@ export default function AgriShieldDashboard() {
 
       // If viewing in another language (e.g. Spanish, Hindi) and translation is not yet cached:
       if (selectedLanguage !== "English" && selectedLanguage !== "Urdu" && !scan.translations?.[selectedLanguage]) {
-        translateCurrentDiagnosis(selectedLanguage, activeDiagnosis);
+        translateCurrentDiagnosis(selectedLanguage, activeDiagnosis, scan.id || null);
       }
     } else {
       setActivePresetUrl(null);
@@ -1884,7 +1911,7 @@ export default function AgriShieldDashboard() {
           ...(scan.translations || {}),
           [scanLang]: scan,
         };
-        translateCurrentDiagnosis(selectedLanguage, scan);
+        translateCurrentDiagnosis(selectedLanguage, scan, scan.id || null);
       }
     }
 
@@ -2954,7 +2981,7 @@ export default function AgriShieldDashboard() {
                   }
                   // 2. If a diagnosis is currently displayed, delegate translation to translateCurrentDiagnosis
                   if (diagnosis) {
-                    translateCurrentDiagnosis(newLang, diagnosis);
+                    translateCurrentDiagnosis(newLang, diagnosis, selectedScanIdRef.current);
                   } else {
                     showToast(`Language set to ${newLang}`, <Globe className="w-4 h-4 text-emerald-400" />);
                   }

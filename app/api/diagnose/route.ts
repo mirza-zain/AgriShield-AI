@@ -647,7 +647,7 @@ ${JSON.stringify({
 
           // Persist translation to database (Firestore + in-memory store)
           const targetScanId = body.scanId || (sourceDiag as any)?.id;
-          if (targetScanId) {
+          if (targetScanId && !targetScanId.startsWith("seed-")) {
             updateSharedScanTranslations(targetScanId, targetLang, mergedDiagnosis);
             const adminDb = getAdminDb();
             if (adminDb) {

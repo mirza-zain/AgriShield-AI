@@ -224,6 +224,9 @@ export function deleteSharedScan(scanId: string, userId?: string): boolean {
 }
 
 export function updateSharedScanTranslations(scanId: string, language: string, translation: any): void {
+  if (scanId.startsWith("seed-")) {
+    return; // Protect demo seed scans from being overwritten
+  }
   const target = inMemoryScans.find((s) => s.id === scanId);
   if (target) {
     if (!target.translations) target.translations = {};
