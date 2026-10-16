@@ -743,6 +743,52 @@ export default function AgriShieldDashboard() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const cameraLongPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isCameraLongPressRef = useRef<boolean>(false);
+
+  const handleTriggerCamera = () => {
+    resetSpecimenAndDiagnosis();
+    setActiveViewTab("doctor");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => {
+      cameraInputRef.current?.click();
+    }, 50);
+  };
+
+  const handleTriggerGallery = () => {
+    resetSpecimenAndDiagnosis();
+    setActiveViewTab("doctor");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    showToast(
+      selectedLanguage === "Urdu" ? "گیلری سے تصویر منتخب کریں..." : "Choose photo from gallery...",
+      <Upload className="w-4 h-4 text-emerald-400" />
+    );
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 50);
+  };
+
+  const startCameraLongPress = () => {
+    isCameraLongPressRef.current = false;
+    if (cameraLongPressTimerRef.current) clearTimeout(cameraLongPressTimerRef.current);
+    cameraLongPressTimerRef.current = setTimeout(() => {
+      isCameraLongPressRef.current = true;
+      try {
+        if (typeof window !== "undefined" && window.navigator && "vibrate" in window.navigator) {
+          window.navigator.vibrate(40);
+        }
+      } catch (e) {}
+      handleTriggerGallery();
+    }, 450);
+  };
+
+  const cancelCameraLongPress = () => {
+    if (cameraLongPressTimerRef.current) {
+      clearTimeout(cameraLongPressTimerRef.current);
+      cameraLongPressTimerRef.current = null;
+    }
+  };
+
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
@@ -4999,17 +5045,20 @@ export default function AgriShieldDashboard() {
         </button>
 
         <button
+          onPointerDown={startCameraLongPress}
+          onPointerUp={cancelCameraLongPress}
+          onPointerLeave={cancelCameraLongPress}
+          onContextMenu={(e) => e.preventDefault()}
           onClick={() => {
-            resetSpecimenAndDiagnosis();
-            setActiveViewTab("doctor");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-            setTimeout(() => {
-              cameraInputRef.current?.click();
-            }, 50);
+            if (isCameraLongPressRef.current) {
+              isCameraLongPressRef.current = false;
+              return;
+            }
+            handleTriggerCamera();
           }}
-          className="mx-1 min-h-[44px] min-w-[44px] p-2.5 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 active:scale-90 transition-all flex items-center justify-center flex-shrink-0"
-          title="Snap Photo"
-          aria-label="Snap Photo"
+          className="mx-1 min-h-[44px] min-w-[44px] p-2.5 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-600/30 active:scale-90 transition-all flex items-center justify-center flex-shrink-0 select-none touch-manipulation cursor-pointer"
+          title={selectedLanguage === "Urdu" ? "تصویر کھینچیں • دبا کر رکھیں گیلری کے لیے" : "Tap for Camera • Hold for Gallery"}
+          aria-label="Snap Photo or Hold to Choose from Gallery"
         >
           <Camera className="w-5 h-5" />
         </button>
