@@ -33,7 +33,7 @@ export function getOfflineDiagnosis(imageUrl: string, language = "English"): Dia
         isUrdu ? "پھلوں کو ٹھنڈی اور ہوادار جگہ پر رکھیں" : "Store picked apples below 4°C in clean, ventilated dry crates",
       ],
       climate_impact_warning: isUrdu ? "بارش کے بعد گرمی اور زیادہ نمی سڑن کو گھنٹوں میں پھیلا دیتی ہے۔" : "Warm humid weather (>22°C) combined with wet ground triggers rapid fruit rot.",
-      lesion_boxes: [[280, 220, 680, 620]],
+      lesion_boxes: [],
       healthy_comparison: {
         healthy_traits: [
           isUrdu ? "چمکدار اور سخت سرخ چھلکا بغیر کسی داغ کے" : "Smooth, firm skin with no brown soft indentations",
@@ -80,7 +80,7 @@ export function getOfflineDiagnosis(imageUrl: string, language = "English"): Dia
         isUrdu ? "ڈرپ ایریگیشن یا کھالیوں سے پانی دیں" : "Install furrow or drip irrigation to direct water precisely to root zone",
       ],
       climate_impact_warning: isUrdu ? "38 ڈگری سے زیادہ درجہ حرارت اور خشک ہوا پودے کے خلیات جلا رہی ہے۔" : "Extreme heat wave (>38°C) combined with dry wind accelerates evapotranspiration.",
-      lesion_boxes: [[150, 100, 750, 850]],
+      lesion_boxes: [],
       healthy_comparison: {
         healthy_traits: [
           isUrdu ? "چوڑے، گہرے سبز اور لچکدار کھڑے پتے" : "Broad, pliable deep-green leaves held horizontally",
@@ -175,7 +175,7 @@ export function getOfflineDiagnosis(imageUrl: string, language = "English"): Dia
         isUrdu ? "کدو کے کھیت میں مناسب نکاسی آب رکھیں" : "Ensure raised bed drainage and rotate crops away from cucurbits",
       ],
       climate_impact_warning: isUrdu ? "کھیت میں کھڑا پانی اور شدید نمی سڑن میں 60 فیصد اضافہ کرتی ہے۔" : "Standing puddle water and heavy late rains drive 60% higher fruit rot rate.",
-      lesion_boxes: [[320, 150, 740, 520], [380, 540, 790, 860]],
+      lesion_boxes: [],
       healthy_comparison: {
         healthy_traits: [
           isUrdu ? "سخت اور خشک چھلکا جو ناخن سے نہ دبے" : "Hard, dry rind resistant to fingernail puncture",

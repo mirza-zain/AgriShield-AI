@@ -33,7 +33,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "پھلوں کو ٹھنڈی اور ہوادار جگہ پر رکھیں" : "Store picked apples below 4°C in clean, ventilated dry crates"
       ],
       climate_impact_warning: language === "Urdu" ? "بارش کے بعد گرمی اور زیادہ نمی سڑن کو گھنٹوں میں پھیلا دیتی ہے۔" : "Warm humid weather (>22°C) combined with wet ground triggers rapid fruit rot.",
-      lesion_boxes: [[280, 220, 680, 620]],
+      lesion_boxes: [],
       healthy_comparison: {
         healthy_traits: [
           language === "Urdu" ? "چمکدار اور سخت سرخ چھلکا بغیر کسی داغ کے" : "Smooth, firm skin with no brown soft indentations",
@@ -81,7 +81,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "کدو کے کھیت میں مناسب نکاسی آب رکھیں" : "Ensure raised bed drainage and rotate crops away from cucurbits"
       ],
       climate_impact_warning: language === "Urdu" ? "کھیت میں کھڑا پانی اور شدید نمی سڑن میں 60 فیصد اضافہ کرتی ہے۔" : "Standing puddle water and heavy late rains drive 60% higher fruit rot rate.",
-      lesion_boxes: [[320, 150, 740, 520], [380, 540, 790, 860]],
+      lesion_boxes: [],
       healthy_comparison: {
         healthy_traits: [
           language === "Urdu" ? "سخت اور خشک چھلکا جو ناخن سے نہ دبے" : "Hard, dry rind resistant to fingernail puncture",
@@ -129,7 +129,7 @@ function getPresetDiagnosis(image: string, language: string): DiagnosisResult {
         language === "Urdu" ? "زمین کی گہری نمی بچانے کے لیے کم ہل چلائیں" : "Practice conservation tillage to preserve residual subsoil moisture"
       ],
       climate_impact_warning: language === "Urdu" ? "مسلسل گرم لو اور 38 ڈگری سے زیادہ درجہ حرارت پیداوار گرا دیتا ہے۔" : "Consecutive days over 38°C during flowering severely diminish ear yield.",
-      lesion_boxes: [[120, 180, 480, 450], [420, 450, 880, 820]],
+      lesion_boxes: [],
       healthy_comparison: {
         healthy_traits: [
           language === "Urdu" ? "چوڑے، گہرے سبز پتے جو دھوپ میں لٹکے نہ ہوں" : "Broad, upright emerald-green leaves with solid cell turgor",
@@ -1057,7 +1057,7 @@ TOKEN EFFICIENCY: Keep all explanations, symptoms, and actions concise, direct, 
             language === "Urdu" ? "موسم کی پیشگوئی دیکھ کر بارش سے پہلے حفاظتی اسپرے کریں" : "Apply preventative sprays before heavy continuous rain events"
           ],
           climate_impact_warning: language === "Urdu" ? "بارش کے بعد زیادہ نمی (>80%) اور گرمی فنگس کے پھیلاؤ کو تیز کرتی ہے۔" : "Relative humidity exceeding 80% combined with warm temperatures accelerates spore germination.",
-          lesion_boxes: [[240, 220, 680, 750]],
+          lesion_boxes: [],
           healthy_comparison: {
             healthy_traits: [
               language === "Urdu" ? "صاف اور یکساں سبز پتے جن پر کوئی زردی یا دھبہ نہ ہو" : "Uniform deep green lamina free of necrotic spots or margins",
