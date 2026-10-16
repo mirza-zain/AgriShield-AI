@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import { DiagnosisResult, ScanRecord, ClimateTelemetry, ClimateAdvisoryResult, ClimateAdvisoryPayload } from "@/lib/types";
 import { extractExifMetadata } from "@/lib/utils";
+import { getScansFromVault, saveScansToVault, saveSingleScanToVault, deleteScanFromVault, clearOfflineVault } from "@/lib/offlineVault";
 
 // Authentic Ionicons Leaf SVG Component
 function IoniconsLeaf({
@@ -445,6 +446,13 @@ export default function AgriShieldDashboard() {
   }, [imagePreview, diagnosis, activeViewTab]);
 
   useEffect(() => {
+    // Immediate offline-first initialization from IndexedDB vault
+    getScansFromVault().then((cached) => {
+      if (cached && cached.length > 0) {
+        setHistoryFeed(cached);
+      }
+    }).catch(() => {});
+
     fetchHistory(true);
 
     // Register Service Worker for offline capability & Chromium/Android PWA installability
@@ -651,12 +659,24 @@ export default function AgriShieldDashboard() {
         cache: "no-store",
         headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
       });
-      const data = await res.json();
-      if (data?.scans) {
-        setHistoryFeed(data.scans);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.scans && Array.isArray(data.scans)) {
+          setHistoryFeed(data.scans);
+          saveScansToVault(data.scans, farmerId, myScanIds).catch(() => {});
+        }
+      } else {
+        const cached = await getScansFromVault();
+        if (cached && cached.length > 0) {
+          setHistoryFeed(cached);
+        }
       }
     } catch (err) {
-      console.error("Failed to fetch community history:", err);
+      console.warn("Failed to fetch community history (using offline vault):", err);
+      const cached = await getScansFromVault();
+      if (cached && cached.length > 0) {
+        setHistoryFeed(cached);
+      }
     } finally {
       setHistoryLoading(false);
     }
@@ -958,6 +978,7 @@ export default function AgriShieldDashboard() {
 
         setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
         setSelectedScanId(newScanItem.id || null);
+        saveSingleScanToVault(newScanItem, farmerId, myScanIds).catch(() => {});
         if (newScanItem.id) {
           setMyScanIds((prev) => {
             const updated = [newScanItem.id!, ...prev.filter((id) => id !== newScanItem.id)];
@@ -1453,6 +1474,9 @@ export default function AgriShieldDashboard() {
       }
 
       setHistoryFeed((prev) => prev.filter((s) => s.id !== scan.id));
+      if (scan.id) {
+        deleteScanFromVault(scan.id).catch(() => {});
+      }
 
       setMyScanIds((prev) => {
         const updated = prev.filter((id) => id !== scan.id);
@@ -1479,6 +1503,24 @@ export default function AgriShieldDashboard() {
       showToast(err.message || "Failed to delete scan", <AlertTriangle className="w-4 h-4 text-rose-400" />);
     } finally {
       setDeletingScanId(null);
+    }
+  };
+
+  const handleClearVaultCache = async () => {
+    try {
+      await clearOfflineVault();
+      setHistoryFeed([]);
+      languageDiagnosisCacheRef.current = {};
+      showToast(
+        selectedLanguage === "Urdu"
+          ? "سٹوریج اور کیش کامیابی سے خالی کر دیا گیا"
+          : "Offline cache cleared & storage freed",
+        <Trash2 className="w-4 h-4 text-emerald-400" />
+      );
+      // Re-fetch clean fresh feed from server
+      fetchHistory(true);
+    } catch (err) {
+      console.warn("Failed to clear vault cache:", err);
     }
   };
 
@@ -4203,6 +4245,14 @@ export default function AgriShieldDashboard() {
                     className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer flex-shrink-0"
                   >
                     <RefreshCw className={`w-4 h-4 ${historyLoading ? "animate-spin text-emerald-600" : ""}`} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearVaultCache}
+                    title={selectedLanguage === "Urdu" ? "کیش اور سٹوریج خالی کریں" : "Clear Offline Cache & Storage"}
+                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 shadow-2xs transition-all active:scale-95 cursor-pointer flex-shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

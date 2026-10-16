@@ -59,7 +59,7 @@ export async function uploadToR2(
       Key: cleanKey,
       Body: buffer,
       ContentType: contentType,
-      CacheControl: "public, max-age=31536000, immutable",
+      CacheControl: "public, max-age=604800",
     });
 
     await client.send(command);
