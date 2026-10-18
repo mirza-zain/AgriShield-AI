@@ -696,24 +696,47 @@ export default function AgriShieldDashboard() {
       if (showSkeleton) {
         setHistoryLoading(true);
       }
-      const res = await fetch(`/api/history?t=${Date.now()}`, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.scans && Array.isArray(data.scans)) {
-          setHistoryFeed(data.scans);
-          saveScansToVault(data.scans, farmerId, myScanIds).catch(() => { });
+      let serverScans: ScanRecord[] = [];
+      try {
+        const res = await fetch(`/api/history?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.scans && Array.isArray(data.scans)) {
+            serverScans = data.scans;
+            // Cache server community scans into local offline vault
+            saveScansToVault(serverScans, farmerId, myScanIds).catch(() => { });
+          }
         }
-      } else {
-        const cached = await getScansFromVault();
-        if (cached && cached.length > 0) {
-          setHistoryFeed(cached);
-        }
+      } catch (netErr) {
+        console.warn("Network history fetch skipped (using local offline vault):", netErr);
+      }
+
+      // Always read the complete local offline vault from IndexedDB
+      const vaultScans = await getScansFromVault();
+
+      // Merge vaultScans and serverScans, deduplicating by id and preserving newest first
+      const scanMap = new Map<string, ScanRecord>();
+      for (const s of serverScans) {
+        if (s.id) scanMap.set(s.id, s);
+      }
+      for (const s of vaultScans) {
+        if (s.id) scanMap.set(s.id, s);
+      }
+
+      const merged = Array.from(scanMap.values()).sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+
+      if (merged.length > 0) {
+        setHistoryFeed(merged);
+      } else if (serverScans.length > 0) {
+        setHistoryFeed(serverScans);
       }
     } catch (err) {
-      console.warn("Failed to fetch community history (using offline vault):", err);
+      console.warn("Failed to synchronize community history and vault:", err);
       const cached = await getScansFromVault();
       if (cached && cached.length > 0) {
         setHistoryFeed(cached);
@@ -1169,11 +1192,11 @@ export default function AgriShieldDashboard() {
         console.log(`[AgriShield Debug] Plant Doctor model used: ${data.modelUsed}`);
       }
 
-      // SAMPLES MUST NEVER BE STORED IN VAULT, INDEXEDDB, LOCALSTORAGE, OR FEED
-      if (!skipHistoryFlag && !isSampleSpecimen && !data.isSample) {
-        // Instant optimistic prepend into Vault only for original new farmer scans
+      if (!skipHistoryFlag) {
+        // Save scan to user's device Farm Vault (and cloud feed if not a preset)
+        const scanIdToUse = data.scanId || `scan-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
         const newScanItem: ScanRecord = {
-          id: data.scanId || `scan-${Date.now()}`,
+          id: scanIdToUse,
           crop_name: data.diagnosis.crop_name,
           scientific_name: data.diagnosis.scientific_name,
           condition_detected: data.diagnosis.condition_detected,
@@ -1199,18 +1222,15 @@ export default function AgriShieldDashboard() {
           },
         };
 
-        setHistoryFeed((prev) => [newScanItem, ...prev.filter((s) => s.id !== newScanItem.id).slice(0, 19)]);
         setSelectedScanId(newScanItem.id || null);
-        saveSingleScanToVault(newScanItem, farmerId, myScanIds).catch(() => { });
-        if (newScanItem.id) {
-          setMyScanIds((prev) => {
-            const updated = [newScanItem.id!, ...prev.filter((id) => id !== newScanItem.id)];
-            try {
-              localStorage.setItem("agrishield_my_scans", JSON.stringify(updated));
-            } catch (e) { }
-            return updated;
-          });
-        }
+        const updatedMyScans = [newScanItem.id!, ...myScanIds.filter((id) => id !== newScanItem.id)];
+        setMyScanIds(updatedMyScans);
+        try {
+          localStorage.setItem("agrishield_my_scans", JSON.stringify(updatedMyScans));
+        } catch (e) { }
+
+        // Optimistically put in local Vault with updated ownership
+        await saveSingleScanToVault(newScanItem, farmerId, updatedMyScans).catch(() => { });
         fetchHistory(false);
       } else {
         setSelectedScanId(null);
@@ -1957,20 +1977,20 @@ export default function AgriShieldDashboard() {
 
     try {
       setDeletingScanId(scan.id);
-      const res = await fetch("/api/history", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanId: scan.id, userId: farmerId }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Failed to delete scan");
+      // Attempt cloud feed deletion if online
+      try {
+        await fetch("/api/history", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scanId: scan.id, userId: farmerId }),
+        });
+      } catch {
+        // Silently continue so local deletion succeeds
       }
 
       setHistoryFeed((prev) => prev.filter((s) => s.id !== scan.id));
       if (scan.id) {
-        deleteScanFromVault(scan.id).catch(() => { });
+        await deleteScanFromVault(scan.id).catch(() => { });
       }
 
       setMyScanIds((prev) => {
